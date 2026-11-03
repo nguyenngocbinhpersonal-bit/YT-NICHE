@@ -1,0 +1,3451 @@
+{
+ "params": {
+  "topic": "kể chuyện lịch sử",
+  "region": "VN",
+  "language": "vi",
+  "window_days": 30,
+  "fmt": "any",
+  "order": "relevance",
+  "pages": 2,
+  "with_trends": true,
+  "trends_source": "youtube"
+ },
+ "fetched_at": "2026-10-17T15:32:35+00:00",
+ "videos": [
+  {
+   "video_id": "a2JGm9dwuOY",
+   "channel_id": "UCkt924Dt7N_BDoPqV9uKwHg",
+   "title": "NGUYỄN VIẾT XUÂN P3 – Người Chiến Sĩ Ngã Xuống, Khẩu Lệnh Còn Vang Mãi | Phần 3",
+   "published_at": "2026-10-17T12:03:54Z",
+   "duration_s": 101,
+   "fmt": "shorts",
+   "views": 885,
+   "likes": 27,
+   "comments": 2
+  },
+  {
+   "video_id": "N4SOYk9FuCs",
+   "channel_id": "UCDXI59vIqYXPnudBV8xzgdw",
+   "title": "8 câu chuyện hahaha trong lịch sử Việt Nam",
+   "published_at": "2026-09-18T10:30:33Z",
+   "duration_s": 503,
+   "fmt": "long",
+   "views": 100087,
+   "likes": 1584,
+   "comments": 56
+  },
+  {
+   "video_id": "GFCKFPVFMxw",
+   "channel_id": "UCM_cR6Gv0tGRCQJfa5vTA3Q",
+   "title": "TẠI SAO B-52 LẠI THẤT BẠI? CÂU CHUYỆN CHƯA KỂ VỀ 'PHÁO ĐÀI BAY' CỦA MỸ",
+   "published_at": "2026-10-16T12:00:30Z",
+   "duration_s": 6254,
+   "fmt": "long",
+   "views": 2003,
+   "likes": 47,
+   "comments": 3
+  },
+  {
+   "video_id": "xhb37O1p5YA",
+   "channel_id": "UCSX5FhBUutBiYg6Z_lK8UfA",
+   "title": "Đại Tướng HOÀNG VĂN THÁI - Chuyện Chưa Từng Kể Về 2 Người Vợ Và Nỗi Niềm Thời Binh Lửa",
+   "published_at": "2026-10-17T11:30:28Z",
+   "duration_s": 2437,
+   "fmt": "long",
+   "views": 442,
+   "likes": 1,
+   "comments": 0
+  },
+  {
+   "video_id": "KG7bBDq4fAM",
+   "channel_id": "UCPfmz7iRVVSi_HprfGfl4dw",
+   "title": "Vì Sao Pháp Truy Nã Phan Bội Châu 20 Năm, Bắt Được Rồi Lại Không Dám Xử Tử?",
+   "published_at": "2026-10-10T12:28:27Z",
+   "duration_s": 2501,
+   "fmt": "long",
+   "views": 18320,
+   "likes": 132,
+   "comments": 53
+  },
+  {
+   "video_id": "dbrTQCjwKpM",
+   "channel_id": "UCSX5FhBUutBiYg6Z_lK8UfA",
+   "title": "Tình Báo TƯ CANG - 5 Câu Chuyện Cuộc Đời Đi Vào Huyền Thoại Khiến Triệu Người Thán Phục",
+   "published_at": "2026-10-16T11:30:34Z",
+   "duration_s": 2417,
+   "fmt": "long",
+   "views": 5532,
+   "likes": 45,
+   "comments": 10
+  },
+  {
+   "video_id": "Hvulpof4mWg",
+   "channel_id": "UCUDxMG4GunZKHoRSSI338Ag",
+   "title": "Đại Tá Lê Minh Nghĩa — Sáng Còn Ký Công Văn Mật, Tối Biến Mất Không Dấu Vết | Chuyên Án X77",
+   "published_at": "2026-09-23T23:33:43Z",
+   "duration_s": 3399,
+   "fmt": "long",
+   "views": 33892,
+   "likes": 275,
+   "comments": 71
+  },
+  {
+   "video_id": "KjiDaqw452Y",
+   "channel_id": "UCUDxMG4GunZKHoRSSI338Ag",
+   "title": "TBT Lê Duẩn Và Đại Tướng Võ Nguyên Giáp — Cuộc Đối Đầu Ngầm 20 Năm Trong BCT, Lịch Sử Chưa Ai Kể?",
+   "published_at": "2026-09-19T23:34:33Z",
+   "duration_s": 4017,
+   "fmt": "long",
+   "views": 86323,
+   "likes": 974,
+   "comments": 215
+  },
+  {
+   "video_id": "IQffaZWvO2s",
+   "channel_id": "UCKSzIR-Eb4gol3Zj0kAjHNw",
+   "title": "Tâm điểm:  Xé toạc “thiên la địa võng” ở Lào Cai, sửng sốt “tiếng thét” đau lòng",
+   "published_at": "2026-10-12T09:30:39Z",
+   "duration_s": 597,
+   "fmt": "long",
+   "views": 185610,
+   "likes": 816,
+   "comments": 7
+  },
+  {
+   "video_id": "HGbubFh8DTQ",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Đinh Bộ Lĩnh – Người Dẹp Loạn 12 Sứ Quân | Kể Chuyện Sử Việt Tập 17",
+   "published_at": "2026-10-17T12:31:58Z",
+   "duration_s": 812,
+   "fmt": "long",
+   "views": 2,
+   "likes": 1,
+   "comments": 0
+  },
+  {
+   "video_id": "8dlZYS18WUU",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Lý Phật Tử – Những Năm Cuối Của Nước Vạn Xuân | Kể Chuyện Sử Việt Tập 8",
+   "published_at": "2026-10-14T15:56:47Z",
+   "duration_s": 821,
+   "fmt": "long",
+   "views": 5,
+   "likes": 1,
+   "comments": 0
+  },
+  {
+   "video_id": "TOL8T5IgrNU",
+   "channel_id": "UCKSzIR-Eb4gol3Zj0kAjHNw",
+   "title": "Hồ sơ: Bí ẩn trong chiếc ô tô sát biên giới, 2 gã đàn ông làm điều khủng khiếp",
+   "published_at": "2026-10-17T11:30:22Z",
+   "duration_s": 656,
+   "fmt": "long",
+   "views": 1473,
+   "likes": 111,
+   "comments": 0
+  },
+  {
+   "video_id": "KH1cGtOyUQ0",
+   "channel_id": "UC8bvEuwZEFebk-XIuSdv_Wg",
+   "title": "Tưởng Bác Hồ làm mất thể diện quốc gia… thì thế giới lại cúi đầu thán phục",
+   "published_at": "2026-10-14T04:09:45Z",
+   "duration_s": 54,
+   "fmt": "shorts",
+   "views": 121326,
+   "likes": 1678,
+   "comments": 59
+  },
+  {
+   "video_id": "VbZZktsBYrU",
+   "channel_id": "UC96lSHKPawQmk_jmTYw7MMg",
+   "title": "NGƯỜI LÍNH B2 KỂ CHUYỆN BỊ THƯƠNG PHẢI CƯA CHÂN",
+   "published_at": "2026-10-14T03:48:30Z",
+   "duration_s": 2806,
+   "fmt": "long",
+   "views": 18050,
+   "likes": 111,
+   "comments": 14
+  },
+  {
+   "video_id": "3SWv8Y1iAPg",
+   "channel_id": "UCPfmz7iRVVSi_HprfGfl4dw",
+   "title": "Vì Sao Pháp Đưa 2 500 Quân Chỉ Để Đánh Ba Cái Làng Ở Thanh Hóa?",
+   "published_at": "2026-10-03T12:28:37Z",
+   "duration_s": 733,
+   "fmt": "long",
+   "views": 43192,
+   "likes": 179,
+   "comments": 39
+  },
+  {
+   "video_id": "N0uQO9VqJR0",
+   "channel_id": "UCUDxMG4GunZKHoRSSI338Ag",
+   "title": "Ai Bỏ Lá Phiếu Đưa Đại Tướng Võ Nguyên Giáp Ra Khỏi Bộ Chính Trị Tại Đại Hội 1982?",
+   "published_at": "2026-09-28T00:04:45Z",
+   "duration_s": 4213,
+   "fmt": "long",
+   "views": 167637,
+   "likes": 1430,
+   "comments": 296
+  },
+  {
+   "video_id": "IvUA2HT2srA",
+   "channel_id": "UCPfmz7iRVVSi_HprfGfl4dw",
+   "title": "Vì Sao Người Che Giấu Vua Hàm Nghi 3 Năm Lại Bán Vua Cho Pháp?",
+   "published_at": "2026-10-01T12:28:29Z",
+   "duration_s": 689,
+   "fmt": "long",
+   "views": 54597,
+   "likes": 256,
+   "comments": 82
+  },
+  {
+   "video_id": "ExI3KNv-sbg",
+   "channel_id": "UCR08_UB9O6o-EJ9OCr2P3nQ",
+   "title": "TÓM TẮT CUỘC ĐỜI NGUYỄN DU - ĐẠI THI HÀO",
+   "published_at": "2026-10-10T10:50:04Z",
+   "duration_s": 2384,
+   "fmt": "long",
+   "views": 301350,
+   "likes": 2752,
+   "comments": 206
+  },
+  {
+   "video_id": "k3GyqMD9Nrw",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Khúc Hạo – Người Xây Nền Tự Chủ | Kể Chuyện Sử Việt Tập 12",
+   "published_at": "2026-10-16T12:43:48Z",
+   "duration_s": 1163,
+   "fmt": "long",
+   "views": 12,
+   "likes": 0,
+   "comments": 0
+  },
+  {
+   "video_id": "yahbd1i3mD0",
+   "channel_id": "UCQ4VpjBJ4_AF1Fv9pUNI-4Q",
+   "title": "7 vụ án KHÓ LÝ GIẢI nhất lịch sử Việt Nam, CẤM ĐIỀU TRA?",
+   "published_at": "2026-09-20T12:04:58Z",
+   "duration_s": 2537,
+   "fmt": "long",
+   "views": 20613,
+   "likes": 114,
+   "comments": 14
+  },
+  {
+   "video_id": "xdbofDd2Rd4",
+   "channel_id": "UCw7Ve_sfuZZyObTBN_lv5Pg",
+   "title": "Ngô Quyền Bẫy Quân Nam Hán Trên Sông Bạch Đằng (938)",
+   "published_at": "2026-10-17T14:03:13Z",
+   "duration_s": 32,
+   "fmt": "shorts",
+   "views": 899,
+   "likes": 12,
+   "comments": 0
+  },
+  {
+   "video_id": "-QuPVjEwPYI",
+   "channel_id": "UCknUHdCmSAQJ0IyS2YoUzhg",
+   "title": "QUAN VŨ chiến HOA HÙNG",
+   "published_at": "2026-10-17T05:53:51Z",
+   "duration_s": 47,
+   "fmt": "shorts",
+   "views": 1558,
+   "likes": 21,
+   "comments": 0
+  },
+  {
+   "video_id": "8xUlzvteUFQ",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Khúc Thừa Dụ – Người Mở Đường Nền Tự Chủ | Kể Chuyện Sử Việt Tập 11",
+   "published_at": "2026-10-15T12:45:56Z",
+   "duration_s": 899,
+   "fmt": "long",
+   "views": 6,
+   "likes": 0,
+   "comments": 0
+  },
+  {
+   "video_id": "Bxvibf301zg",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Khúc Thừa Mỹ – Thử Thách Của Nền Tự Chủ | Kể Chuyện Sử Việt Tập 13",
+   "published_at": "2026-10-16T15:28:47Z",
+   "duration_s": 950,
+   "fmt": "long",
+   "views": 2,
+   "likes": 0,
+   "comments": 0
+  },
+  {
+   "video_id": "RriK6dXq_UI",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Hai Bà Trưng – Khởi Nghĩa Giành Lại Đất Nước | Kể Chuyện Sử Việt Tập 4",
+   "published_at": "2026-10-13T12:11:55Z",
+   "duration_s": 716,
+   "fmt": "long",
+   "views": 53,
+   "likes": 2,
+   "comments": 0
+  },
+  {
+   "video_id": "ojHPN40etuw",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Dương Đình Nghệ – Người Giành Lại Thành Đại La | Kể Chuyện Sử Việt Tập 14",
+   "published_at": "2026-10-16T16:25:06Z",
+   "duration_s": 1216,
+   "fmt": "long",
+   "views": 17,
+   "likes": 1,
+   "comments": 0
+  },
+  {
+   "video_id": "4K-VS-wD3n0",
+   "channel_id": "UC14qq3YqcZ2ymiwJ_QtsErw",
+   "title": "🔥 Anh Hùng Lê Thị Tuyết: 19 Tuổi Và Câu Nói “Em Không Khai Chi Hết” #gocresuviet #nguocdonglichsu",
+   "published_at": "2026-10-04T00:30:37Z",
+   "duration_s": 150,
+   "fmt": "shorts",
+   "views": 137994,
+   "likes": 1785,
+   "comments": 145
+  },
+  {
+   "video_id": "T53b71DpSPs",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Kiều Công Tiễn – Biến Cố Dẫn Đến Trận Bạch Đằng | Kể Chuyện Sử Việt Tập 15",
+   "published_at": "2026-10-17T10:59:57Z",
+   "duration_s": 552,
+   "fmt": "long",
+   "views": 16,
+   "likes": 2,
+   "comments": 0
+  },
+  {
+   "video_id": "s5rMQObnO6Q",
+   "channel_id": "UCINRsOMtFOMRUTQBH3gOhlQ",
+   "title": "Ngô Đình Quỳnh Kể Lại Đêm 3 Anh Em Trốn Vào Rừng Đà Lạt Khi Cha Ngã Xuống 2/11/1963",
+   "published_at": "2026-10-05T11:47:55Z",
+   "duration_s": 3677,
+   "fmt": "long",
+   "views": 42741,
+   "likes": 287,
+   "comments": 25
+  },
+  {
+   "video_id": "_LtIgxolCo0",
+   "channel_id": "UC2Wr9TnxcXSV_jG6316JRVA",
+   "title": "1 Marine Built His Own Machine Gun From a Wrecked Plane #ww2 #history #shorts",
+   "published_at": "2026-10-17T09:58:04Z",
+   "duration_s": 7,
+   "fmt": "shorts",
+   "views": 7866,
+   "likes": 173,
+   "comments": 2
+  },
+  {
+   "video_id": "hvcsV31-RKY",
+   "channel_id": "UCj72LlYCh88PdkFs3p5PMeg",
+   "title": "Vì Sao Dân Tộc Nào Cũng Có Chuyện Đại Hồng Thủy?",
+   "published_at": "2026-10-09T13:00:33Z",
+   "duration_s": 1593,
+   "fmt": "long",
+   "views": 115259,
+   "likes": 287,
+   "comments": 92
+  },
+  {
+   "video_id": "Ye7GlROdTCA",
+   "channel_id": "UC28JqiWn7lwI1EQywFvWhMA",
+   "title": "23/ Lời Tuyên Bố Ngông Cuồng Của PolPot: Chiến Trường K Năm 1991",
+   "published_at": "2026-10-12T13:30:02Z",
+   "duration_s": 5935,
+   "fmt": "long",
+   "views": 13168,
+   "likes": 152,
+   "comments": 16
+  },
+  {
+   "video_id": "8FRfhxPkZFY",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Bà Triệu – Nữ Tướng Cưỡi Voi Đánh Giặc | Kể Chuyện Sử Việt Tập 5",
+   "published_at": "2026-10-13T13:19:46Z",
+   "duration_s": 904,
+   "fmt": "long",
+   "views": 110,
+   "likes": 1,
+   "comments": 0
+  },
+  {
+   "video_id": "qQCYe_9eWnk",
+   "channel_id": "UCsluIbpgt14y6KUcwqCxXbg",
+   "title": "NGƯỜI PHỤ NỮ DUY NHẤT TRONG ĐỘI BIỆT ĐỘNG ĐÁNH DINH ĐỘC LẬP 1968 | Người Kể Chuyện Đời 2026 tập 8",
+   "published_at": "2026-10-11T10:00:08Z",
+   "duration_s": 1949,
+   "fmt": "long",
+   "views": 28570,
+   "likes": 126,
+   "comments": 8
+  },
+  {
+   "video_id": "xJ7s-IUJMBE",
+   "channel_id": "UC4VigQxhtyjBVOJZ-VcObMg",
+   "title": "Ai Ra Lệnh Thủ Tiêu Tổng Thống Diệm? Đại Úy Đỗ Thọ Tiết Lộ Bí Mật 60 Năm Bị Chôn Vùi",
+   "published_at": "2026-09-29T11:03:00Z",
+   "duration_s": 3692,
+   "fmt": "long",
+   "views": 69164,
+   "likes": 721,
+   "comments": 106
+  },
+  {
+   "video_id": "G3G592PstFs",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Lê Hoàn – Vị Vua Đánh Bại Quân Tống | Kể Chuyện Sử Việt Tập 18",
+   "published_at": "2026-10-17T15:25:11Z",
+   "duration_s": 905,
+   "fmt": "long",
+   "views": 0,
+   "likes": 0,
+   "comments": 0
+  },
+  {
+   "video_id": "DIAvjX1HeaE",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Ngô Quyền – Chiến Thuật Bãi Cọc Sông Bạch Đằng | Kể Chuyện Sử Việt Tập 16",
+   "published_at": "2026-10-17T12:00:50Z",
+   "duration_s": 730,
+   "fmt": "long",
+   "views": 6,
+   "likes": 1,
+   "comments": 0
+  },
+  {
+   "video_id": "SBbA_gjXcss",
+   "channel_id": "UClPnRjJeM7rPRXOFGsTzxjA",
+   "title": "VÌ SAO CẢ LITTLE SAIGON, CALIFORNIA NÁO LOẠN VÌ ÔNG HÙNG CAO | Kỳ Án Việt Kiều",
+   "published_at": "2026-10-11T12:35:12Z",
+   "duration_s": 3718,
+   "fmt": "long",
+   "views": 151551,
+   "likes": 1881,
+   "comments": 86
+  },
+  {
+   "video_id": "mEV7AfLPBhY",
+   "channel_id": "UCYe_bOcqPrcs9n7UeoKzNEQ",
+   "title": "Kể chuyện lịch sử",
+   "published_at": "2026-10-14T04:59:32Z",
+   "duration_s": 68,
+   "fmt": "shorts",
+   "views": 2391,
+   "likes": 159,
+   "comments": 3
+  },
+  {
+   "video_id": "NMroYFWBMEs",
+   "channel_id": "UCKSzIR-Eb4gol3Zj0kAjHNw",
+   "title": "Bí mật trảng muối cổ 10 ha của Việt Nam khiến chuyên gia nước ngoài kinh ngạc| Biển đảo Việt Nam",
+   "published_at": "2026-10-15T07:25:14Z",
+   "duration_s": 1472,
+   "fmt": "long",
+   "views": 95777,
+   "likes": 771,
+   "comments": 6
+  },
+  {
+   "video_id": "UQ7BowPJbEk",
+   "channel_id": "UCFp-JHurC4HcwUIR3OfxZtw",
+   "title": "Vì Sao Harry Kane Có Kỷ Luật Khiến Nhiều Ngôi Sao Phải Nể Phục?",
+   "published_at": "2026-10-16T04:30:21Z",
+   "duration_s": 25,
+   "fmt": "shorts",
+   "views": 20040,
+   "likes": 165,
+   "comments": 0
+  },
+  {
+   "video_id": "o-0E_vA4rHM",
+   "channel_id": "UCTjj6lnhs2mUnUHryjolskA",
+   "title": "Những Cuộc Chuyển Ngôi Làm Thay Đổi Lịch Sử Việt Nam",
+   "published_at": "2026-09-26T10:48:35Z",
+   "duration_s": 134,
+   "fmt": "shorts",
+   "views": 28983,
+   "likes": 696,
+   "comments": 13
+  },
+  {
+   "video_id": "BTAOXJWpeB0",
+   "channel_id": "UCR08_UB9O6o-EJ9OCr2P3nQ",
+   "title": "TÓM TẮT CUỘC ĐỜI NGUYỄN TRÃI",
+   "published_at": "2026-09-21T11:22:54Z",
+   "duration_s": 2089,
+   "fmt": "long",
+   "views": 166968,
+   "likes": 1363,
+   "comments": 90
+  },
+  {
+   "video_id": "94z_E-M2sMI",
+   "channel_id": "UC8bvEuwZEFebk-XIuSdv_Wg",
+   "title": "23 Viên Đạn, 19 Tên Địch: Người Phụ Nữ Khiến Bác Hồ Phải Đổi Tên Là Ai?",
+   "published_at": "2026-10-10T01:35:34Z",
+   "duration_s": 42,
+   "fmt": "shorts",
+   "views": 58598,
+   "likes": 702,
+   "comments": 23
+  },
+  {
+   "video_id": "otD0JGHQoZ4",
+   "channel_id": "UC8bvEuwZEFebk-XIuSdv_Wg",
+   "title": "Bác Hồ Chơi Chữ Quá Hài Hước: Khiến Cả Hội Trường \"Đứng Hình\"!",
+   "published_at": "2026-10-14T10:56:28Z",
+   "duration_s": 46,
+   "fmt": "shorts",
+   "views": 94331,
+   "likes": 1095,
+   "comments": 46
+  },
+  {
+   "video_id": "nOjqSFLmjH4",
+   "channel_id": "UCSX5FhBUutBiYg6Z_lK8UfA",
+   "title": "Bí Ẩn Về Sự Linh Thiêng Của Anh Hùng VÕ THỊ SÁU Ở Côn Đảo Khiến Triệu Người Thổn Thức",
+   "published_at": "2026-10-05T04:30:01Z",
+   "duration_s": 2758,
+   "fmt": "long",
+   "views": 50059,
+   "likes": 309,
+   "comments": 39
+  },
+  {
+   "video_id": "bnRKUzUmqng",
+   "channel_id": "UCyC8dBxwmnfsiQaLHMc2hwg",
+   "title": "Huyền thoại tình báo Tư Cang kể chuyện từ thời kháng chiến chống Pháp đến chiến dịch Tết Mậu Thân ",
+   "published_at": "2026-09-18T23:53:05Z",
+   "duration_s": 1581,
+   "fmt": "long",
+   "views": 1041,
+   "likes": 21,
+   "comments": 0
+  },
+  {
+   "video_id": "hRyLu-hab_k",
+   "channel_id": "UC8bvEuwZEFebk-XIuSdv_Wg",
+   "title": "Lần Duy Nhất Bác Hồ Trực Tiếp Cầm Quân: Bí Mật Khiến Kẻ Thù Bật Khóc Cúi Đầu!",
+   "published_at": "2026-10-13T03:52:13Z",
+   "duration_s": 59,
+   "fmt": "shorts",
+   "views": 315312,
+   "likes": 3301,
+   "comments": 125
+  },
+  {
+   "video_id": "Z6CPgraaOd4",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "An Dương Vương – Sự Tích Thành Cổ Loa | Kể Chuyện Sử Việt Tập 1",
+   "published_at": "2026-10-12T15:18:39Z",
+   "duration_s": 449,
+   "fmt": "long",
+   "views": 54,
+   "likes": 1,
+   "comments": 0
+  },
+  {
+   "video_id": "U9xZRNanbkg",
+   "channel_id": "UCUDxMG4GunZKHoRSSI338Ag",
+   "title": "Ai Bỏ Lá Phiếu Định Mệnh Thay Đổi Số Phận Đại Tướng Văn Tiến Dũng Tại Đại Hội 1986?",
+   "published_at": "2026-09-25T23:30:45Z",
+   "duration_s": 3493,
+   "fmt": "long",
+   "views": 214033,
+   "likes": 792,
+   "comments": 119
+  },
+  {
+   "video_id": "5_ahpu5uzbw",
+   "channel_id": "UCFp-JHurC4HcwUIR3OfxZtw",
+   "title": "Khi Thủ Môn Chán Bắt Bóng Và Cái Kết Điên Rồ!",
+   "published_at": "2026-10-17T04:30:31Z",
+   "duration_s": 20,
+   "fmt": "shorts",
+   "views": 11690,
+   "likes": 146,
+   "comments": 0
+  },
+  {
+   "video_id": "M2EBsrIJyIM",
+   "channel_id": "UCpXhSnIKT-oxLAU4B-76GRg",
+   "title": "(Phần 1) Những Sự Thật Về Bác Hồ, Không Nhiều Người Biết",
+   "published_at": "2026-09-27T09:59:34Z",
+   "duration_s": 118,
+   "fmt": "shorts",
+   "views": 843185,
+   "likes": 11766,
+   "comments": 346
+  },
+  {
+   "video_id": "KA0k5jRjWvM",
+   "channel_id": "UC-vzBwUWYZn30CUpLNrSs-A",
+   "title": "Cô bé sống cùng khỉ suốt 5 năm 😨#shorts #khampha #kienthuc #hocvahoi",
+   "published_at": "2026-09-19T10:06:22Z",
+   "duration_s": 19,
+   "fmt": "shorts",
+   "views": 1461059,
+   "likes": 7844,
+   "comments": 15
+  },
+  {
+   "video_id": "k35_DthxKDI",
+   "channel_id": "UCULwArFM8KemSUzU3pGrgwA",
+   "title": "Sử chép giặc, không chép tên Bà Triệu. Vậy ta biết bà từ đâu? #lịchsửviệtnam #chuyệnsử #sửviệt",
+   "published_at": "2026-10-08T10:23:18Z",
+   "duration_s": 59,
+   "fmt": "shorts",
+   "views": 1568,
+   "likes": 29,
+   "comments": 0
+  },
+  {
+   "video_id": "jHEDT8NdMcA",
+   "channel_id": "UCCGnzAOCW3CqUjQd3ZCX7aQ",
+   "title": "✔Chap 562 | Tông Môn Bựa Nhất Lịch Sử - Vạn Cổ Tối Cường Tông✔ Truyện Tranh Review",
+   "published_at": "2026-10-17T02:45:13Z",
+   "duration_s": 398,
+   "fmt": "long",
+   "views": 4213,
+   "likes": 167,
+   "comments": 11
+  },
+  {
+   "video_id": "3sBavWFPl00",
+   "channel_id": "UCKSzIR-Eb4gol3Zj0kAjHNw",
+   "title": "Nhạc cụ Việt vừa vang lên, cả hội trường quốc tế liền phản ứng lạ kì",
+   "published_at": "2026-10-17T13:00:35Z",
+   "duration_s": 1036,
+   "fmt": "long",
+   "views": 2352,
+   "likes": 47,
+   "comments": 1
+  },
+  {
+   "video_id": "43Pm4e-i_MA",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Lý Nam Đế Lý Bí – Dựng Nước Vạn Xuân | Kể Chuyện Sử Việt Tập 6",
+   "published_at": "2026-10-13T15:52:43Z",
+   "duration_s": 926,
+   "fmt": "long",
+   "views": 10,
+   "likes": 1,
+   "comments": 0
+  },
+  {
+   "video_id": "Idv1q08zBp8",
+   "channel_id": "UCKSzIR-Eb4gol3Zj0kAjHNw",
+   "title": "Dân ồ ạt gửi 11 triệu tỷ vào ngân hàng: Điềm báo đáng sợ cho BĐS và chứng khoán?",
+   "published_at": "2026-10-17T10:10:44Z",
+   "duration_s": 810,
+   "fmt": "long",
+   "views": 5295,
+   "likes": 426,
+   "comments": 1
+  },
+  {
+   "video_id": "rKlHLjrHCIw",
+   "channel_id": "UCkt924Dt7N_BDoPqV9uKwHg",
+   "title": "Võ Thị Sáu – Đêm Cuối Cùng Ở Côn Đảo | Những Năm Tháng Không Quên",
+   "published_at": "2026-10-10T04:54:37Z",
+   "duration_s": 56,
+   "fmt": "shorts",
+   "views": 2025,
+   "likes": 45,
+   "comments": 2
+  },
+  {
+   "video_id": "fnUtVyEkaEg",
+   "channel_id": "UCKSzIR-Eb4gol3Zj0kAjHNw",
+   "title": "Lệnh khẩn từ Hà Nội: Xe khách đường dài vào tầm ngắm",
+   "published_at": "2026-10-17T06:10:10Z",
+   "duration_s": 685,
+   "fmt": "long",
+   "views": 13120,
+   "likes": 139,
+   "comments": 1
+  },
+  {
+   "video_id": "DM8h1NmHvso",
+   "channel_id": "UCqaRASApdkYQhag3NSFDLKg",
+   "title": "Đại Hội VIII 1996 Và Vụ Nguyễn Hà Phan Ít Người Còn Nhắc Đến",
+   "published_at": "2026-09-25T11:30:31Z",
+   "duration_s": 4256,
+   "fmt": "long",
+   "views": 446636,
+   "likes": 1879,
+   "comments": 495
+  },
+  {
+   "video_id": "6cYmfkdNa1w",
+   "channel_id": "UCkFmrh-96aEc9EH9DAQV4bw",
+   "title": "Ronaldinho Quá Xấu Nên Real Không Thèm Mua #ronaldinho #realmadrid",
+   "published_at": "2026-10-17T09:30:35Z",
+   "duration_s": 52,
+   "fmt": "shorts",
+   "views": 25587,
+   "likes": 370,
+   "comments": 9
+  },
+  {
+   "video_id": "km_hx6TkVWU",
+   "channel_id": "UCemWwL2OnDnfZiYT5pL9JcA",
+   "title": "Phần 1-2 | Xuyên Về Thời Tam Quốc, Thu Phục Các Mãnh Tướng, Xây Dựng Quân Đội, Viết Lại Lịch Sử",
+   "published_at": "2026-10-17T02:00:05Z",
+   "duration_s": 13439,
+   "fmt": "long",
+   "views": 11516,
+   "likes": 123,
+   "comments": 28
+  },
+  {
+   "video_id": "wdDX7uKDkQE",
+   "channel_id": "UC8bvEuwZEFebk-XIuSdv_Wg",
+   "title": "Bạn đã nghe Bác Hồ kể chuyện cười bao giờ chưa",
+   "published_at": "2026-10-12T10:14:09Z",
+   "duration_s": 60,
+   "fmt": "shorts",
+   "views": 160581,
+   "likes": 1996,
+   "comments": 61
+  },
+  {
+   "video_id": "nQbprCvmqBY",
+   "channel_id": "UC2Wr9TnxcXSV_jG6316JRVA",
+   "title": "1 Pilot Who Led the Pearl Harbor Attack Became a Preacher in America #ww2 #history #shorts",
+   "published_at": "2026-10-17T09:29:26Z",
+   "duration_s": 7,
+   "fmt": "shorts",
+   "views": 1855,
+   "likes": 35,
+   "comments": 0
+  },
+  {
+   "video_id": "dMPquYKKwQg",
+   "channel_id": "UCRBdolrqHM3Mto3xgJBqZhg",
+   "title": "ĐIỆN BIÊN PHỦ- TẬP 39: CỬA THOÁT SANG LÀO BỊ KHÓA CHẶT",
+   "published_at": "2026-09-18T00:00:19Z",
+   "duration_s": 144,
+   "fmt": "shorts",
+   "views": 117774,
+   "likes": 769,
+   "comments": 5
+  },
+  {
+   "video_id": "9TM0_USjJHU",
+   "channel_id": "UCy3mwdKXpCEaXgcb9lGbWdw",
+   "title": "18 ĐẶC CÔNG TA VIẾT TRƯỚC GIẤY BÁO TỬ – TRẬN ĐÁNH KHIẾN PÔN PỐT KINH HOÀNG | CHIẾN TRƯỜNG K",
+   "published_at": "2026-10-03T12:45:33Z",
+   "duration_s": 10751,
+   "fmt": "long",
+   "views": 16576,
+   "likes": 382,
+   "comments": 45
+  },
+  {
+   "video_id": "hZNvXLQBJos",
+   "channel_id": "UC2Wr9TnxcXSV_jG6316JRVA",
+   "title": "Highest-Ranking American Killed in WW2 Was a Confederate General's Son #ww2 #history #shorts",
+   "published_at": "2026-10-15T10:21:07Z",
+   "duration_s": 7,
+   "fmt": "shorts",
+   "views": 95548,
+   "likes": 703,
+   "comments": 6
+  },
+  {
+   "video_id": "2MkksU_7R6M",
+   "channel_id": "UCmmeFjneTkPj5heTTJToshw",
+   "title": "10 Câu Nói Làm Rung Chuyển Sử Việt#Shorts #LichSuVietNam #10CauNoiBatHu",
+   "published_at": "2026-10-02T12:35:10Z",
+   "duration_s": 81,
+   "fmt": "shorts",
+   "views": 1268,
+   "likes": 19,
+   "comments": 0
+  },
+  {
+   "video_id": "X2kGciPt-ng",
+   "channel_id": "UC2Wr9TnxcXSV_jG6316JRVA",
+   "title": "1 Jewish Doctor Saved German Soldiers — Then Refused the Iron Cross #ww2 #history #shorts",
+   "published_at": "2026-10-16T15:45:41Z",
+   "duration_s": 7,
+   "fmt": "shorts",
+   "views": 16427,
+   "likes": 149,
+   "comments": 0
+  },
+  {
+   "video_id": "IlcWPIcDt1g",
+   "channel_id": "UCpPNlM3nlVa1PzX-PoKBLPw",
+   "title": "Ông Tà Là Ai? Sự Tích Ông Tà Nam Bộ",
+   "published_at": "2026-09-28T11:30:36Z",
+   "duration_s": 6170,
+   "fmt": "long",
+   "views": 97168,
+   "likes": 843,
+   "comments": 54
+  },
+  {
+   "video_id": "7wbdNQPCbSA",
+   "channel_id": "UC2Wr9TnxcXSV_jG6316JRVA",
+   "title": "1 Flying Boat Pilot Landed in an Enemy Harbor Again and Again #ww2 #history #shorts",
+   "published_at": "2026-10-15T10:01:42Z",
+   "duration_s": 7,
+   "fmt": "shorts",
+   "views": 48099,
+   "likes": 682,
+   "comments": 9
+  },
+  {
+   "video_id": "x50DNI4OSxY",
+   "channel_id": "UCPfmz7iRVVSi_HprfGfl4dw",
+   "title": "Vì Sao Pháp Biết Trước Vẫn Không Chặn Nổi Nguyễn Thái Học Ở Yên Bái?",
+   "published_at": "2026-10-13T12:28:55Z",
+   "duration_s": 2471,
+   "fmt": "long",
+   "views": 14885,
+   "likes": 117,
+   "comments": 54
+  },
+  {
+   "video_id": "2GdT4p94abo",
+   "channel_id": "UCcfBifZNHroAjLm7skJ9KIw",
+   "title": "CẦU THỦ VỤNG VỀ NHẤT LỊCH SỬ BÓNG ĐÁ #bongda #football #shorts #tinbongda",
+   "published_at": "2026-10-13T10:31:10Z",
+   "duration_s": 63,
+   "fmt": "shorts",
+   "views": 7194,
+   "likes": 76,
+   "comments": 0
+  },
+  {
+   "video_id": "INejKngXOq0",
+   "channel_id": "UCXSC9P8Wq7u4DzGxLyJ8oyw",
+   "title": "Duy Tân 1916: Nhà Vua Trẻ Chọn Đứng về Phía Nghĩa Quân",
+   "published_at": "2026-10-17T11:00:25Z",
+   "duration_s": 65,
+   "fmt": "shorts",
+   "views": 994,
+   "likes": 5,
+   "comments": 0
+  },
+  {
+   "video_id": "Vh1_PnZSGDI",
+   "channel_id": "UCKSzIR-Eb4gol3Zj0kAjHNw",
+   "title": "Làn khói kỳ lạ và bản đồ đặc biệt đến nhói lòng ở công viên Lê Thị Riêng",
+   "published_at": "2026-10-14T09:21:45Z",
+   "duration_s": 1235,
+   "fmt": "long",
+   "views": 53166,
+   "likes": 395,
+   "comments": 14
+  },
+  {
+   "video_id": "20aDDf2IAAs",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Triệu Đà – Cuộc Chiến Với Nước Âu Lạc | Kể Chuyện Sử Việt Tập 2",
+   "published_at": "2026-10-12T15:50:59Z",
+   "duration_s": 456,
+   "fmt": "long",
+   "views": 6,
+   "likes": 1,
+   "comments": 0
+  },
+  {
+   "video_id": "r8yKWEapfUs",
+   "channel_id": "UC3pr9nVuZ58T_AZXNBfbrRw",
+   "title": "LÊ LAI ĐỔI MẠNG CỨU LÊ LỢI – VÌ SAO 21 LÊ LAI, 22 LÊ LỢI?",
+   "published_at": "2026-10-17T00:00:16Z",
+   "duration_s": 53,
+   "fmt": "shorts",
+   "views": 1180,
+   "likes": 15,
+   "comments": 1
+  },
+  {
+   "video_id": "8TtsZBG99rk",
+   "channel_id": "UCwFwnTjHN7boPk3Rw5SKKaQ",
+   "title": "Lý Công Uẩn: Từ Đứa Trẻ  Trở Thành Vua Thế nào? | Lý Thái Tổ Toàn Tập - 1000 Năm Thăng Long",
+   "published_at": "2026-10-03T02:14:39Z",
+   "duration_s": 4160,
+   "fmt": "long",
+   "views": 18869,
+   "likes": 110,
+   "comments": 8
+  },
+  {
+   "video_id": "c60A8i1vwIE",
+   "channel_id": "UC4c1HRoYa6BH-i6c4iKgnag",
+   "title": "Messi ĂN MỪNG QBV 2021, Ronaldo không đến gala, lại “VẠCH MẶT CỰU SẾP” tung tuyên bố chấn động",
+   "published_at": "2026-10-17T05:39:22Z",
+   "duration_s": 793,
+   "fmt": "long",
+   "views": 5448,
+   "likes": 40,
+   "comments": 1
+  },
+  {
+   "video_id": "mQsZml5fz1o",
+   "channel_id": "UC2Wr9TnxcXSV_jG6316JRVA",
+   "title": "1 Captain Was Court-Martialed Even After the Enemy Defended Him #ww2 #history #shorts",
+   "published_at": "2026-10-16T14:24:28Z",
+   "duration_s": 7,
+   "fmt": "shorts",
+   "views": 12184,
+   "likes": 109,
+   "comments": 1
+  },
+  {
+   "video_id": "Enf1ZJElZ3w",
+   "channel_id": "UCLsHY1ZN6SoNrrrJGjxDGJQ",
+   "title": "Nể Phục Bác Cựu Chiến Binh Tại Bảo Tàng #lichsu #shorts",
+   "published_at": "2026-10-10T10:30:21Z",
+   "duration_s": 18,
+   "fmt": "shorts",
+   "views": 908617,
+   "likes": 8966,
+   "comments": 74
+  },
+  {
+   "video_id": "AxsuB5gUnpg",
+   "channel_id": "UCmaUsz4cZNhcpCD2D7pIYIA",
+   "title": "LƯU TÚ: Từ Kẻ Làm Ruộng Đến Người Khôi Phục Nhà Hán | Audio Sử Quán",
+   "published_at": "2026-09-21T12:00:23Z",
+   "duration_s": 4135,
+   "fmt": "long",
+   "views": 29718,
+   "likes": 137,
+   "comments": 19
+  },
+  {
+   "video_id": "VjbqQlTRkyI",
+   "channel_id": "UC8bvEuwZEFebk-XIuSdv_Wg",
+   "title": "Sự thật lịch sử về các cuộc thẩm vấn trong chiến tranh Việt Nam",
+   "published_at": "2026-10-09T01:32:30Z",
+   "duration_s": 19,
+   "fmt": "shorts",
+   "views": 46359,
+   "likes": 435,
+   "comments": 23
+  },
+  {
+   "video_id": "rsujmCQ8wKw",
+   "channel_id": "UCR08_UB9O6o-EJ9OCr2P3nQ",
+   "title": "TÓM TẮT CUỘC ĐỜI LỖ BAN",
+   "published_at": "2026-09-30T10:45:32Z",
+   "duration_s": 2279,
+   "fmt": "long",
+   "views": 812320,
+   "likes": 5507,
+   "comments": 216
+  },
+  {
+   "video_id": "ZH8m75cKWWg",
+   "channel_id": "UCr4Yf_U4gdLWngm6CVgfPnQ",
+   "title": "What If Bhagat Singh Returned to India Today? 🇮🇳😱 #Shorts",
+   "published_at": "2026-10-17T04:15:30Z",
+   "duration_s": 13,
+   "fmt": "shorts",
+   "views": 11409,
+   "likes": null,
+   "comments": 9
+  },
+  {
+   "video_id": "o2Cg90NH4iE",
+   "channel_id": "UCKBmmze8fw2dWC65KgQIl-Q",
+   "title": "Cổ Nhân Kể Chuyện : Tóm Tắt Cuộc Đời Quan Vũ | Truyện Xưa Hay",
+   "published_at": "2026-10-06T12:00:07Z",
+   "duration_s": 3993,
+   "fmt": "long",
+   "views": 6722,
+   "likes": 11,
+   "comments": 1
+  },
+  {
+   "video_id": "cfQz6kCDYd8",
+   "channel_id": "UCkFmrh-96aEc9EH9DAQV4bw",
+   "title": "Bàn Tay 5 Ngón Của Pique Và Trận El Clasico Sỉ Nhục Nhất Lịch Sử #elclasico",
+   "published_at": "2026-10-14T09:45:27Z",
+   "duration_s": 54,
+   "fmt": "shorts",
+   "views": 439901,
+   "likes": 6106,
+   "comments": 325
+  },
+  {
+   "video_id": "_Wv6YinTqo0",
+   "channel_id": "UChjfwggAk35z18_2RU5KW9w",
+   "title": "Những Dòng Họ Nào Đã Khai Quốc Và Dựng Nên Nước Việt Qua Các Thời Đại?",
+   "published_at": "2026-10-13T12:45:29Z",
+   "duration_s": 4693,
+   "fmt": "long",
+   "views": 57182,
+   "likes": 317,
+   "comments": 48
+  },
+  {
+   "video_id": "zb3824tuBJY",
+   "channel_id": "UC5YSt41KotXo5tbHmRudp6w",
+   "title": "Đinh Bộ Lĩnh – Người Dẹp Loạn 12 Sứ Quân | Kể Chuyện Lịch Sử Việt Nam – Nguyễn Ngọc Ngạn",
+   "published_at": "2026-09-30T13:57:16Z",
+   "duration_s": 704,
+   "fmt": "long",
+   "views": 19,
+   "likes": 1,
+   "comments": 0
+  },
+  {
+   "video_id": "LNGqYBn5o0I",
+   "channel_id": "UCRBdolrqHM3Mto3xgJBqZhg",
+   "title": "ĐIỆN BIÊN PHỦ- TẬP 42: QUYẾT CHIẾN TRÊN ĐỒI A1",
+   "published_at": "2026-09-21T00:00:16Z",
+   "duration_s": 125,
+   "fmt": "shorts",
+   "views": 6818,
+   "likes": 75,
+   "comments": 0
+  },
+  {
+   "video_id": "HPpGjyAW4zY",
+   "channel_id": "UCpTHOkNdeTWqeF1vlGFNeig",
+   "title": "3 | KỂ CHUYỆN BÁC HỒ TRONG NHỮNG NĂM ĐẦU KHÁNG CHIẾN | PHẦN CUỐI",
+   "published_at": "2026-09-24T05:05:09Z",
+   "duration_s": 2441,
+   "fmt": "long",
+   "views": 514,
+   "likes": 8,
+   "comments": 1
+  },
+  {
+   "video_id": "Jvthkcqoxec",
+   "channel_id": "UC2Wr9TnxcXSV_jG6316JRVA",
+   "title": "1 US Navy Captain Captured a Whole German U-Boat at Sea #ww2 #history #shorts",
+   "published_at": "2026-10-14T07:21:39Z",
+   "duration_s": 7,
+   "fmt": "shorts",
+   "views": 56878,
+   "likes": 574,
+   "comments": 26
+  },
+  {
+   "video_id": "SrIPTmuoJzs",
+   "channel_id": "UCkFmrh-96aEc9EH9DAQV4bw",
+   "title": "Trận Chiến Đường Hầm Khét Nhất Lịch Sử: Roy Keane vs Vieira #RoyKeane #PatrickVieira",
+   "published_at": "2026-10-14T03:50:35Z",
+   "duration_s": 54,
+   "fmt": "shorts",
+   "views": 285929,
+   "likes": 4400,
+   "comments": 30
+  },
+  {
+   "video_id": "DMhfQoGXFic",
+   "channel_id": "UC8bvEuwZEFebk-XIuSdv_Wg",
+   "title": "Đứng trước bia mộ có tên mình, cựu chiến binh bật khóc: \"Ai đang nằm thay tôi ở đây?\"",
+   "published_at": "2026-10-01T03:31:19Z",
+   "duration_s": 86,
+   "fmt": "shorts",
+   "views": 75292,
+   "likes": 887,
+   "comments": 60
+  },
+  {
+   "video_id": "BLBuUXE5wAM",
+   "channel_id": "UCw7Ve_sfuZZyObTBN_lv5Pg",
+   "title": "Hy Vọng Mong Manh Của Kiều Công Tiễn",
+   "published_at": "2026-10-15T13:22:56Z",
+   "duration_s": 27,
+   "fmt": "shorts",
+   "views": 1659,
+   "likes": 20,
+   "comments": 0
+  },
+  {
+   "video_id": "QZRhUfwihmg",
+   "channel_id": "UCmNWvKOv6qm70QfoGGgwhnA",
+   "title": "India’s Agni Missile Story 🇮🇳 | The Mission That Changed Indian Defence | #yt #shorts #ai #history",
+   "published_at": "2026-10-15T12:25:07Z",
+   "duration_s": 69,
+   "fmt": "shorts",
+   "views": 146957,
+   "likes": 2539,
+   "comments": 12
+  },
+  {
+   "video_id": "XyBNFS0PAXg",
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Mai Hắc Đế – Khởi Nghĩa Chống Nhà Đường | Kể Chuyện Sử Việt Tập 9",
+   "published_at": "2026-10-14T16:43:45Z",
+   "duration_s": 936,
+   "fmt": "long",
+   "views": 31,
+   "likes": 2,
+   "comments": 0
+  }
+ ],
+ "channels": [
+  {
+   "channel_id": "UC-vzBwUWYZn30CUpLNrSs-A",
+   "title": "Học và Hỏi",
+   "subs": 1040000,
+   "subs_hidden": 0,
+   "created_at": "2023-09-05T15:29:28.913316Z",
+   "video_count": 1197,
+   "uploads_playlist": "UU-vzBwUWYZn30CUpLNrSs-A",
+   "median_long": 95689.0,
+   "n_long": 3,
+   "median_short": 91004.0,
+   "n_short": 47,
+   "median_fetched_at": 1792251151.8155742
+  },
+  {
+   "channel_id": "UC14qq3YqcZ2ymiwJ_QtsErw",
+   "title": "GỐC RỄ SỬ VIỆT ",
+   "subs": 3900,
+   "subs_hidden": 0,
+   "created_at": "2025-03-18T01:34:49.702206Z",
+   "video_count": 115,
+   "uploads_playlist": "UU14qq3YqcZ2ymiwJ_QtsErw",
+   "median_long": 566.0,
+   "n_long": 1,
+   "median_short": 4885.5,
+   "n_short": 48,
+   "median_fetched_at": 1792251152.0026894
+  },
+  {
+   "channel_id": "UC28JqiWn7lwI1EQywFvWhMA",
+   "title": "Hồi ức người lính",
+   "subs": 112000,
+   "subs_hidden": 0,
+   "created_at": "2018-03-19T10:29:25Z",
+   "video_count": 1248,
+   "uploads_playlist": "UU28JqiWn7lwI1EQywFvWhMA",
+   "median_long": 19128.0,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251151.5599294
+  },
+  {
+   "channel_id": "UC2Wr9TnxcXSV_jG6316JRVA",
+   "title": "Military History Talks",
+   "subs": 43000,
+   "subs_hidden": 0,
+   "created_at": "2022-05-22T22:35:12.440996Z",
+   "video_count": 2647,
+   "uploads_playlist": "UU2Wr9TnxcXSV_jG6316JRVA",
+   "median_long": 222.0,
+   "n_long": 1,
+   "median_short": 15962.0,
+   "n_short": 49,
+   "median_fetched_at": 1792251152.4408858
+  },
+  {
+   "channel_id": "UC3pr9nVuZ58T_AZXNBfbrRw",
+   "title": "Thần Sử Ký",
+   "subs": 69,
+   "subs_hidden": 0,
+   "created_at": "2026-09-12T15:47:45.371973Z",
+   "video_count": 24,
+   "uploads_playlist": "UU3pr9nVuZ58T_AZXNBfbrRw",
+   "median_long": 105.5,
+   "n_long": 10,
+   "median_short": 912.5,
+   "n_short": 14,
+   "median_fetched_at": 1792251152.4471273
+  },
+  {
+   "channel_id": "UC4VigQxhtyjBVOJZ-VcObMg",
+   "title": "Ký Sử 1975",
+   "subs": 6710,
+   "subs_hidden": 0,
+   "created_at": "2026-08-22T05:36:17.581976Z",
+   "video_count": 57,
+   "uploads_playlist": "UU4VigQxhtyjBVOJZ-VcObMg",
+   "median_long": 4709.5,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251151.588654
+  },
+  {
+   "channel_id": "UC4c1HRoYa6BH-i6c4iKgnag",
+   "title": "PKT",
+   "subs": 694000,
+   "subs_hidden": 0,
+   "created_at": "2022-07-05T02:45:03.552339Z",
+   "video_count": 860,
+   "uploads_playlist": "UU4c1HRoYa6BH-i6c4iKgnag",
+   "median_long": 5436.0,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251151.7604234
+  },
+  {
+   "channel_id": "UC5YSt41KotXo5tbHmRudp6w",
+   "title": "Ngọc Ngạn kể sử",
+   "subs": 3,
+   "subs_hidden": 0,
+   "created_at": "2024-01-29T06:17:31.317056Z",
+   "video_count": 7,
+   "uploads_playlist": "UU5YSt41KotXo5tbHmRudp6w",
+   "median_long": 19.0,
+   "n_long": 7,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251151.3175304
+  },
+  {
+   "channel_id": "UC8bvEuwZEFebk-XIuSdv_Wg",
+   "title": "Bí Mật Lịch Sử No2",
+   "subs": 255000,
+   "subs_hidden": 0,
+   "created_at": "2011-06-04T07:06:31Z",
+   "video_count": 531,
+   "uploads_playlist": "UU8bvEuwZEFebk-XIuSdv_Wg",
+   "median_long": 6375.0,
+   "n_long": 1,
+   "median_short": 49276.0,
+   "n_short": 49,
+   "median_fetched_at": 1792251151.434098
+  },
+  {
+   "channel_id": "UC96lSHKPawQmk_jmTYw7MMg",
+   "title": "Chuyện Thời Chiến",
+   "subs": 23100,
+   "subs_hidden": 0,
+   "created_at": "2025-11-07T09:06:19.157618Z",
+   "video_count": 112,
+   "uploads_playlist": "UU96lSHKPawQmk_jmTYw7MMg",
+   "median_long": 10468.5,
+   "n_long": 44,
+   "median_short": 14732.5,
+   "n_short": 6,
+   "median_fetched_at": 1792251151.9818432
+  },
+  {
+   "channel_id": "UCCGnzAOCW3CqUjQd3ZCX7aQ",
+   "title": "Bún Review 2",
+   "subs": 23800,
+   "subs_hidden": 0,
+   "created_at": "2023-08-10T06:06:01.365816Z",
+   "video_count": 275,
+   "uploads_playlist": "UUCGnzAOCW3CqUjQd3ZCX7aQ",
+   "median_long": 6795.0,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.9016597
+  },
+  {
+   "channel_id": "UCDXI59vIqYXPnudBV8xzgdw",
+   "title": "Hi Story",
+   "subs": 29100,
+   "subs_hidden": 0,
+   "created_at": "2025-12-13T01:25:24.262088Z",
+   "video_count": 53,
+   "uploads_playlist": "UUDXI59vIqYXPnudBV8xzgdw",
+   "median_long": 109248.0,
+   "n_long": 5,
+   "median_short": 258241.0,
+   "n_short": 45,
+   "median_fetched_at": 1792251151.8992434
+  },
+  {
+   "channel_id": "UCFp-JHurC4HcwUIR3OfxZtw",
+   "title": "Bóng Đá Chưa Kể",
+   "subs": 380,
+   "subs_hidden": 0,
+   "created_at": "2026-09-29T04:42:00.801643Z",
+   "video_count": 21,
+   "uploads_playlist": "UUFp-JHurC4HcwUIR3OfxZtw",
+   "median_long": null,
+   "n_long": 0,
+   "median_short": 20040.0,
+   "n_short": 21,
+   "median_fetched_at": 1792251152.6207612
+  },
+  {
+   "channel_id": "UCINRsOMtFOMRUTQBH3gOhlQ",
+   "title": "Trạm Lịch Sử",
+   "subs": 1500,
+   "subs_hidden": 0,
+   "created_at": "2026-09-02T11:24:00.532006Z",
+   "video_count": 23,
+   "uploads_playlist": "UUINRsOMtFOMRUTQBH3gOhlQ",
+   "median_long": 5456.0,
+   "n_long": 23,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.2810216
+  },
+  {
+   "channel_id": "UCKBmmze8fw2dWC65KgQIl-Q",
+   "title": "Cổ Nhân Kể Chuyện",
+   "subs": 362,
+   "subs_hidden": 0,
+   "created_at": "2026-10-02T00:37:20.178857Z",
+   "video_count": 15,
+   "uploads_playlist": "UUKBmmze8fw2dWC65KgQIl-Q",
+   "median_long": 1066.0,
+   "n_long": 15,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.1350317
+  },
+  {
+   "channel_id": "UCKSzIR-Eb4gol3Zj0kAjHNw",
+   "title": "VTV8 - ĐÀI TRUYỀN HÌNH VIỆT NAM",
+   "subs": 77500,
+   "subs_hidden": 0,
+   "created_at": "2019-06-23T06:51:11Z",
+   "video_count": 11748,
+   "uploads_playlist": "UUKSzIR-Eb4gol3Zj0kAjHNw",
+   "median_long": 1983.5,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.266614
+  },
+  {
+   "channel_id": "UCLsHY1ZN6SoNrrrJGjxDGJQ",
+   "title": "Quái Thú History",
+   "subs": 378000,
+   "subs_hidden": 0,
+   "created_at": "2024-09-13T15:12:52.467252Z",
+   "video_count": 716,
+   "uploads_playlist": "UULsHY1ZN6SoNrrrJGjxDGJQ",
+   "median_long": null,
+   "n_long": 0,
+   "median_short": 67636.5,
+   "n_short": 50,
+   "median_fetched_at": 1792251151.588654
+  },
+  {
+   "channel_id": "UCM_cR6Gv0tGRCQJfa5vTA3Q",
+   "title": "GÓC NHÌN LỊCH SỬ",
+   "subs": 31500,
+   "subs_hidden": 0,
+   "created_at": "2025-10-28T14:43:53.205267Z",
+   "video_count": 246,
+   "uploads_playlist": "UUM_cR6Gv0tGRCQJfa5vTA3Q",
+   "median_long": 7743.0,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.5044217
+  },
+  {
+   "channel_id": "UCPfmz7iRVVSi_HprfGfl4dw",
+   "title": "Lịch Sử Ngoại Truyện",
+   "subs": 6380,
+   "subs_hidden": 0,
+   "created_at": "2026-07-04T08:29:49.715312Z",
+   "video_count": 44,
+   "uploads_playlist": "UUPfmz7iRVVSi_HprfGfl4dw",
+   "median_long": 13966.0,
+   "n_long": 44,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251151.8026688
+  },
+  {
+   "channel_id": "UCQ4VpjBJ4_AF1Fv9pUNI-4Q",
+   "title": "Duy Ly Radio",
+   "subs": 738000,
+   "subs_hidden": 0,
+   "created_at": "2014-08-19T22:43:31Z",
+   "video_count": 1288,
+   "uploads_playlist": "UUQ4VpjBJ4_AF1Fv9pUNI-4Q",
+   "median_long": 52794.0,
+   "n_long": 19,
+   "median_short": 11389.0,
+   "n_short": 31,
+   "median_fetched_at": 1792251152.7277703
+  },
+  {
+   "channel_id": "UCR08_UB9O6o-EJ9OCr2P3nQ",
+   "title": "SAY SỬ",
+   "subs": 47600,
+   "subs_hidden": 0,
+   "created_at": "2025-05-19T02:31:11.161335Z",
+   "video_count": 48,
+   "uploads_playlist": "UUR08_UB9O6o-EJ9OCr2P3nQ",
+   "median_long": 130132.0,
+   "n_long": 48,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251153.0106761
+  },
+  {
+   "channel_id": "UCRBdolrqHM3Mto3xgJBqZhg",
+   "title": "Chiến Sử Việt",
+   "subs": 54200,
+   "subs_hidden": 0,
+   "created_at": "2026-02-26T04:31:36.635741Z",
+   "video_count": 345,
+   "uploads_playlist": "UURBdolrqHM3Mto3xgJBqZhg",
+   "median_long": 882.5,
+   "n_long": 8,
+   "median_short": 217.5,
+   "n_short": 42,
+   "median_fetched_at": 1792251151.732873
+  },
+  {
+   "channel_id": "UCSX5FhBUutBiYg6Z_lK8UfA",
+   "title": "Theo Dòng Lịch Sử",
+   "subs": 8560,
+   "subs_hidden": 0,
+   "created_at": "2026-06-09T19:39:16.947752Z",
+   "video_count": 98,
+   "uploads_playlist": "UUSX5FhBUutBiYg6Z_lK8UfA",
+   "median_long": 17697.5,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.8607774
+  },
+  {
+   "channel_id": "UCTjj6lnhs2mUnUHryjolskA",
+   "title": "Dòng Máu Việt - Kể Chuyện",
+   "subs": 61100,
+   "subs_hidden": 0,
+   "created_at": "2024-05-28T05:51:13.140537Z",
+   "video_count": 89,
+   "uploads_playlist": "UUTjj6lnhs2mUnUHryjolskA",
+   "median_long": 884.5,
+   "n_long": 6,
+   "median_short": 88906.5,
+   "n_short": 44,
+   "median_fetched_at": 1792251152.81543
+  },
+  {
+   "channel_id": "UCUDxMG4GunZKHoRSSI338Ag",
+   "title": "Giờ Cuối Lịch Sử",
+   "subs": 43600,
+   "subs_hidden": 0,
+   "created_at": "2026-06-02T01:59:58.205632Z",
+   "video_count": 69,
+   "uploads_playlist": "UUUDxMG4GunZKHoRSSI338Ag",
+   "median_long": 53777.0,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.9858012
+  },
+  {
+   "channel_id": "UCULwArFM8KemSUzU3pGrgwA",
+   "title": "Sử Việt Trăm Năm",
+   "subs": 199,
+   "subs_hidden": 0,
+   "created_at": "2023-05-11T10:15:51.311571Z",
+   "video_count": 35,
+   "uploads_playlist": "UUULwArFM8KemSUzU3pGrgwA",
+   "median_long": 131.0,
+   "n_long": 9,
+   "median_short": 1329.0,
+   "n_short": 26,
+   "median_fetched_at": 1792251151.683865
+  },
+  {
+   "channel_id": "UCXSC9P8Wq7u4DzGxLyJ8oyw",
+   "title": "Việt Nam Hùng Sử Ký",
+   "subs": 98,
+   "subs_hidden": 0,
+   "created_at": "2025-09-13T14:39:37.82087Z",
+   "video_count": 63,
+   "uploads_playlist": "UUXSC9P8Wq7u4DzGxLyJ8oyw",
+   "median_long": null,
+   "n_long": 0,
+   "median_short": 1099.0,
+   "n_short": 50,
+   "median_fetched_at": 1792251152.7523234
+  },
+  {
+   "channel_id": "UCYe_bOcqPrcs9n7UeoKzNEQ",
+   "title": "Bá Đạo -Review",
+   "subs": 3960,
+   "subs_hidden": 0,
+   "created_at": "2025-12-17T02:12:44.658204Z",
+   "video_count": 158,
+   "uploads_playlist": "UUYe_bOcqPrcs9n7UeoKzNEQ",
+   "median_long": null,
+   "n_long": 0,
+   "median_short": 2047.5,
+   "n_short": 50,
+   "median_fetched_at": 1792251152.9844844
+  },
+  {
+   "channel_id": "UCcfBifZNHroAjLm7skJ9KIw",
+   "title": "Bóng Đá Kể Chuyện",
+   "subs": 104000,
+   "subs_hidden": 0,
+   "created_at": "2024-12-03T12:39:58.633384Z",
+   "video_count": 2783,
+   "uploads_playlist": "UUcfBifZNHroAjLm7skJ9KIw",
+   "median_long": null,
+   "n_long": 0,
+   "median_short": 13087.0,
+   "n_short": 50,
+   "median_fetched_at": 1792251152.0541604
+  },
+  {
+   "channel_id": "UCemWwL2OnDnfZiYT5pL9JcA",
+   "title": "Phong Vân Review",
+   "subs": 70400,
+   "subs_hidden": 0,
+   "created_at": "2026-07-17T04:08:26.429959Z",
+   "video_count": 323,
+   "uploads_playlist": "UUemWwL2OnDnfZiYT5pL9JcA",
+   "median_long": 18877.5,
+   "n_long": 46,
+   "median_short": 29064.0,
+   "n_short": 4,
+   "median_fetched_at": 1792251151.7251358
+  },
+  {
+   "channel_id": "UChjfwggAk35z18_2RU5KW9w",
+   "title": "Ngẫm Lại Sử",
+   "subs": 42600,
+   "subs_hidden": 0,
+   "created_at": "2013-09-22T03:26:12Z",
+   "video_count": 197,
+   "uploads_playlist": "UUhjfwggAk35z18_2RU5KW9w",
+   "median_long": 11248.5,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.565535
+  },
+  {
+   "channel_id": "UCj72LlYCh88PdkFs3p5PMeg",
+   "title": "Vẽ Vời",
+   "subs": 12100,
+   "subs_hidden": 0,
+   "created_at": "2026-07-08T04:18:24.567857Z",
+   "video_count": 105,
+   "uploads_playlist": "UUj72LlYCh88PdkFs3p5PMeg",
+   "median_long": 14821.0,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.225031
+  },
+  {
+   "channel_id": "UCkFmrh-96aEc9EH9DAQV4bw",
+   "title": "Chạm Cỏ",
+   "subs": 10100,
+   "subs_hidden": 0,
+   "created_at": "2026-07-03T03:36:27.525916Z",
+   "video_count": 208,
+   "uploads_playlist": "UUkFmrh-96aEc9EH9DAQV4bw",
+   "median_long": null,
+   "n_long": 0,
+   "median_short": 89535.0,
+   "n_short": 50,
+   "median_fetched_at": 1792251152.2461472
+  },
+  {
+   "channel_id": "UCknUHdCmSAQJ0IyS2YoUzhg",
+   "title": "Ngẫm Sử Kim Cổ",
+   "subs": 319,
+   "subs_hidden": 0,
+   "created_at": "2012-06-24T10:29:25Z",
+   "video_count": 50,
+   "uploads_playlist": "UUknUHdCmSAQJ0IyS2YoUzhg",
+   "median_long": 375.0,
+   "n_long": 34,
+   "median_short": 1529.0,
+   "n_short": 16,
+   "median_fetched_at": 1792251152.7293777
+  },
+  {
+   "channel_id": "UCkt924Dt7N_BDoPqV9uKwHg",
+   "title": "Những năm tháng không quên",
+   "subs": 165,
+   "subs_hidden": 0,
+   "created_at": "2026-09-28T05:41:18.622784Z",
+   "video_count": 19,
+   "uploads_playlist": "UUkt924Dt7N_BDoPqV9uKwHg",
+   "median_long": 52.0,
+   "n_long": 2,
+   "median_short": 1335.0,
+   "n_short": 17,
+   "median_fetched_at": 1792251151.3643858
+  },
+  {
+   "channel_id": "UClPnRjJeM7rPRXOFGsTzxjA",
+   "title": "Kỳ Án Việt Kiều",
+   "subs": 3920,
+   "subs_hidden": 0,
+   "created_at": "2026-08-28T14:29:12.658081Z",
+   "video_count": 52,
+   "uploads_playlist": "UUlPnRjJeM7rPRXOFGsTzxjA",
+   "median_long": 10263.0,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.7667732
+  },
+  {
+   "channel_id": "UCmNWvKOv6qm70QfoGGgwhnA",
+   "title": "Twofour7AI",
+   "subs": 1150,
+   "subs_hidden": 0,
+   "created_at": "2019-04-23T07:07:35Z",
+   "video_count": 72,
+   "uploads_playlist": "UUmNWvKOv6qm70QfoGGgwhnA",
+   "median_long": null,
+   "n_long": 0,
+   "median_short": 347.0,
+   "n_short": 50,
+   "median_fetched_at": 1792251152.510828
+  },
+  {
+   "channel_id": "UCmaUsz4cZNhcpCD2D7pIYIA",
+   "title": "Audio Sử Quán",
+   "subs": 19900,
+   "subs_hidden": 0,
+   "created_at": "2026-05-17T03:26:52.442137Z",
+   "video_count": 83,
+   "uploads_playlist": "UUmaUsz4cZNhcpCD2D7pIYIA",
+   "median_long": 27863.0,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.558485
+  },
+  {
+   "channel_id": "UCmmeFjneTkPj5heTTJToshw",
+   "title": "Thúy Nga Kể Chuyện",
+   "subs": 1210,
+   "subs_hidden": 0,
+   "created_at": "2025-07-17T02:11:54.850894Z",
+   "video_count": 72,
+   "uploads_playlist": "UUmmeFjneTkPj5heTTJToshw",
+   "median_long": 223.0,
+   "n_long": 23,
+   "median_short": 1400.0,
+   "n_short": 26,
+   "median_fetched_at": 1792251152.1764328
+  },
+  {
+   "channel_id": "UCpPNlM3nlVa1PzX-PoKBLPw",
+   "title": "Sử Việt",
+   "subs": 52100,
+   "subs_hidden": 0,
+   "created_at": "2021-10-16T08:37:01.610699Z",
+   "video_count": 197,
+   "uploads_playlist": "UUpPNlM3nlVa1PzX-PoKBLPw",
+   "median_long": 14040.0,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.343664
+  },
+  {
+   "channel_id": "UCpTHOkNdeTWqeF1vlGFNeig",
+   "title": "Nhà viết kịch Nguyễn Toàn Thắng",
+   "subs": 1240,
+   "subs_hidden": 0,
+   "created_at": "2026-09-10T08:09:24.326288Z",
+   "video_count": 167,
+   "uploads_playlist": "UUpTHOkNdeTWqeF1vlGFNeig",
+   "median_long": 76.5,
+   "n_long": 14,
+   "median_short": 1058.5,
+   "n_short": 34,
+   "median_fetched_at": 1792251151.7531705
+  },
+  {
+   "channel_id": "UCpXhSnIKT-oxLAU4B-76GRg",
+   "title": "Dòng Máu Việt",
+   "subs": 1830000,
+   "subs_hidden": 0,
+   "created_at": "2020-03-23T04:35:17.218781Z",
+   "video_count": 1344,
+   "uploads_playlist": "UUpXhSnIKT-oxLAU4B-76GRg",
+   "median_long": 33914.5,
+   "n_long": 6,
+   "median_short": 284338.5,
+   "n_short": 44,
+   "median_fetched_at": 1792251152.8097398
+  },
+  {
+   "channel_id": "UCqaRASApdkYQhag3NSFDLKg",
+   "title": "HỒ SƠ LỊCH SỬ",
+   "subs": 6980,
+   "subs_hidden": 0,
+   "created_at": "2026-09-12T11:05:52.887006Z",
+   "video_count": 54,
+   "uploads_playlist": "UUqaRASApdkYQhag3NSFDLKg",
+   "median_long": 8260.0,
+   "n_long": 50,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.0722623
+  },
+  {
+   "channel_id": "UCr4Yf_U4gdLWngm6CVgfPnQ",
+   "title": "Earthmines Education ",
+   "subs": 19500,
+   "subs_hidden": 0,
+   "created_at": "2025-09-22T15:05:41.364373Z",
+   "video_count": 216,
+   "uploads_playlist": "UUr4Yf_U4gdLWngm6CVgfPnQ",
+   "median_long": null,
+   "n_long": 0,
+   "median_short": 26467.0,
+   "n_short": 50,
+   "median_fetched_at": 1792251151.9905593
+  },
+  {
+   "channel_id": "UCsluIbpgt14y6KUcwqCxXbg",
+   "title": "MCVMedia",
+   "subs": 4180000,
+   "subs_hidden": 0,
+   "created_at": "2013-05-23T06:19:35Z",
+   "video_count": 19637,
+   "uploads_playlist": "UUsluIbpgt14y6KUcwqCxXbg",
+   "median_long": 11854.0,
+   "n_long": 29,
+   "median_short": 3236.0,
+   "n_short": 19,
+   "median_fetched_at": 1792251153.0186386
+  },
+  {
+   "channel_id": "UCvBQHvbRxuU-sgRaAloMdfg",
+   "title": "Hộp Truyện Bé Yêu",
+   "subs": 8700,
+   "subs_hidden": 0,
+   "created_at": "2025-10-19T10:43:43.159402Z",
+   "video_count": 381,
+   "uploads_playlist": "UUvBQHvbRxuU-sgRaAloMdfg",
+   "median_long": 23.0,
+   "n_long": 34,
+   "median_short": 8.0,
+   "n_short": 11,
+   "median_fetched_at": 1792251152.4889045
+  },
+  {
+   "channel_id": "UCw7Ve_sfuZZyObTBN_lv5Pg",
+   "title": "Chuyện Sử Việt",
+   "subs": 58,
+   "subs_hidden": 0,
+   "created_at": "2026-08-27T12:00:38.978993Z",
+   "video_count": 23,
+   "uploads_playlist": "UUw7Ve_sfuZZyObTBN_lv5Pg",
+   "median_long": 186.0,
+   "n_long": 1,
+   "median_short": 839.0,
+   "n_short": 22,
+   "median_fetched_at": 1792251151.9541106
+  },
+  {
+   "channel_id": "UCwFwnTjHN7boPk3Rw5SKKaQ",
+   "title": "Sử Ký Nước Nam - Kể Chuyện Lịch Sử Việt Nam",
+   "subs": 1400,
+   "subs_hidden": 0,
+   "created_at": "2025-10-19T01:42:35.821345Z",
+   "video_count": 27,
+   "uploads_playlist": "UUwFwnTjHN7boPk3Rw5SKKaQ",
+   "median_long": 6890.0,
+   "n_long": 27,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251151.9345586
+  },
+  {
+   "channel_id": "UCy3mwdKXpCEaXgcb9lGbWdw",
+   "title": "CHUYỆN LÍNH NĂM XƯA",
+   "subs": 3590,
+   "subs_hidden": 0,
+   "created_at": "2026-08-25T09:24:07.621254Z",
+   "video_count": 45,
+   "uploads_playlist": "UUy3mwdKXpCEaXgcb9lGbWdw",
+   "median_long": 5266.0,
+   "n_long": 45,
+   "median_short": null,
+   "n_short": 0,
+   "median_fetched_at": 1792251152.4820666
+  },
+  {
+   "channel_id": "UCyC8dBxwmnfsiQaLHMc2hwg",
+   "title": "Jason Vu",
+   "subs": 5370,
+   "subs_hidden": 0,
+   "created_at": "2022-05-24T10:07:54.105655Z",
+   "video_count": 10892,
+   "uploads_playlist": "UUyC8dBxwmnfsiQaLHMc2hwg",
+   "median_long": 26.0,
+   "n_long": 3,
+   "median_short": 115.5,
+   "n_short": 46,
+   "median_fetched_at": 1792251152.231925
+  }
+ ],
+ "trends": {
+  "series": {
+   "5y": [
+    [
+     "2021-10-17",
+     0
+    ],
+    [
+     "2021-10-24",
+     0
+    ],
+    [
+     "2021-10-31",
+     0
+    ],
+    [
+     "2021-11-07",
+     5
+    ],
+    [
+     "2021-11-14",
+     0
+    ],
+    [
+     "2021-11-21",
+     0
+    ],
+    [
+     "2021-11-28",
+     5
+    ],
+    [
+     "2021-12-05",
+     0
+    ],
+    [
+     "2021-12-12",
+     0
+    ],
+    [
+     "2021-12-19",
+     0
+    ],
+    [
+     "2021-12-26",
+     0
+    ],
+    [
+     "2022-01-02",
+     0
+    ],
+    [
+     "2022-01-09",
+     0
+    ],
+    [
+     "2022-01-16",
+     0
+    ],
+    [
+     "2022-01-23",
+     0
+    ],
+    [
+     "2022-01-30",
+     0
+    ],
+    [
+     "2022-02-06",
+     6
+    ],
+    [
+     "2022-02-13",
+     0
+    ],
+    [
+     "2022-02-20",
+     0
+    ],
+    [
+     "2022-02-27",
+     7
+    ],
+    [
+     "2022-03-06",
+     0
+    ],
+    [
+     "2022-03-13",
+     5
+    ],
+    [
+     "2022-03-20",
+     0
+    ],
+    [
+     "2022-03-27",
+     6
+    ],
+    [
+     "2022-04-03",
+     0
+    ],
+    [
+     "2022-04-10",
+     13
+    ],
+    [
+     "2022-04-17",
+     0
+    ],
+    [
+     "2022-04-24",
+     0
+    ],
+    [
+     "2022-05-01",
+     0
+    ],
+    [
+     "2022-05-08",
+     7
+    ],
+    [
+     "2022-05-15",
+     4
+    ],
+    [
+     "2022-05-22",
+     3
+    ],
+    [
+     "2022-05-29",
+     4
+    ],
+    [
+     "2022-06-05",
+     3
+    ],
+    [
+     "2022-06-12",
+     5
+    ],
+    [
+     "2022-06-19",
+     4
+    ],
+    [
+     "2022-06-26",
+     3
+    ],
+    [
+     "2022-07-03",
+     4
+    ],
+    [
+     "2022-07-10",
+     3
+    ],
+    [
+     "2022-07-17",
+     3
+    ],
+    [
+     "2022-07-24",
+     6
+    ],
+    [
+     "2022-07-31",
+     4
+    ],
+    [
+     "2022-08-07",
+     3
+    ],
+    [
+     "2022-08-14",
+     5
+    ],
+    [
+     "2022-08-21",
+     3
+    ],
+    [
+     "2022-08-28",
+     4
+    ],
+    [
+     "2022-09-04",
+     4
+    ],
+    [
+     "2022-09-11",
+     5
+    ],
+    [
+     "2022-09-18",
+     4
+    ],
+    [
+     "2022-09-25",
+     7
+    ],
+    [
+     "2022-10-02",
+     6
+    ],
+    [
+     "2022-10-09",
+     7
+    ],
+    [
+     "2022-10-16",
+     8
+    ],
+    [
+     "2022-10-23",
+     9
+    ],
+    [
+     "2022-10-30",
+     4
+    ],
+    [
+     "2022-11-06",
+     4
+    ],
+    [
+     "2022-11-13",
+     5
+    ],
+    [
+     "2022-11-20",
+     6
+    ],
+    [
+     "2022-11-27",
+     4
+    ],
+    [
+     "2022-12-04",
+     6
+    ],
+    [
+     "2022-12-11",
+     6
+    ],
+    [
+     "2022-12-18",
+     6
+    ],
+    [
+     "2022-12-25",
+     6
+    ],
+    [
+     "2023-01-01",
+     4
+    ],
+    [
+     "2023-01-08",
+     4
+    ],
+    [
+     "2023-01-15",
+     0
+    ],
+    [
+     "2023-01-22",
+     3
+    ],
+    [
+     "2023-01-29",
+     3
+    ],
+    [
+     "2023-02-05",
+     5
+    ],
+    [
+     "2023-02-12",
+     6
+    ],
+    [
+     "2023-02-19",
+     4
+    ],
+    [
+     "2023-02-26",
+     0
+    ],
+    [
+     "2023-03-05",
+     6
+    ],
+    [
+     "2023-03-12",
+     8
+    ],
+    [
+     "2023-03-19",
+     6
+    ],
+    [
+     "2023-03-26",
+     6
+    ],
+    [
+     "2023-04-02",
+     9
+    ],
+    [
+     "2023-04-09",
+     5
+    ],
+    [
+     "2023-04-16",
+     8
+    ],
+    [
+     "2023-04-23",
+     9
+    ],
+    [
+     "2023-04-30",
+     5
+    ],
+    [
+     "2023-05-07",
+     6
+    ],
+    [
+     "2023-05-14",
+     6
+    ],
+    [
+     "2023-05-21",
+     4
+    ],
+    [
+     "2023-05-28",
+     6
+    ],
+    [
+     "2023-06-04",
+     5
+    ],
+    [
+     "2023-06-11",
+     4
+    ],
+    [
+     "2023-06-18",
+     0
+    ],
+    [
+     "2023-06-25",
+     5
+    ],
+    [
+     "2023-07-02",
+     4
+    ],
+    [
+     "2023-07-09",
+     5
+    ],
+    [
+     "2023-07-16",
+     0
+    ],
+    [
+     "2023-07-23",
+     7
+    ],
+    [
+     "2023-07-30",
+     4
+    ],
+    [
+     "2023-08-06",
+     5
+    ],
+    [
+     "2023-08-13",
+     4
+    ],
+    [
+     "2023-08-20",
+     3
+    ],
+    [
+     "2023-08-27",
+     5
+    ],
+    [
+     "2023-09-03",
+     6
+    ],
+    [
+     "2023-09-10",
+     5
+    ],
+    [
+     "2023-09-17",
+     8
+    ],
+    [
+     "2023-09-24",
+     6
+    ],
+    [
+     "2023-10-01",
+     7
+    ],
+    [
+     "2023-10-08",
+     7
+    ],
+    [
+     "2023-10-15",
+     6
+    ],
+    [
+     "2023-10-22",
+     6
+    ],
+    [
+     "2023-10-29",
+     9
+    ],
+    [
+     "2023-11-05",
+     7
+    ],
+    [
+     "2023-11-12",
+     7
+    ],
+    [
+     "2023-11-19",
+     5
+    ],
+    [
+     "2023-11-26",
+     6
+    ],
+    [
+     "2023-12-03",
+     3
+    ],
+    [
+     "2023-12-10",
+     5
+    ],
+    [
+     "2023-12-17",
+     5
+    ],
+    [
+     "2023-12-24",
+     4
+    ],
+    [
+     "2023-12-31",
+     6
+    ],
+    [
+     "2024-01-07",
+     6
+    ],
+    [
+     "2024-01-14",
+     6
+    ],
+    [
+     "2024-01-21",
+     8
+    ],
+    [
+     "2024-01-28",
+     11
+    ],
+    [
+     "2024-02-04",
+     5
+    ],
+    [
+     "2024-02-11",
+     8
+    ],
+    [
+     "2024-02-18",
+     78
+    ],
+    [
+     "2024-02-25",
+     49
+    ],
+    [
+     "2024-03-03",
+     24
+    ],
+    [
+     "2024-03-10",
+     20
+    ],
+    [
+     "2024-03-17",
+     28
+    ],
+    [
+     "2024-03-24",
+     23
+    ],
+    [
+     "2024-03-31",
+     9
+    ],
+    [
+     "2024-04-07",
+     9
+    ],
+    [
+     "2024-04-14",
+     7
+    ],
+    [
+     "2024-04-21",
+     10
+    ],
+    [
+     "2024-04-28",
+     7
+    ],
+    [
+     "2024-05-05",
+     8
+    ],
+    [
+     "2024-05-12",
+     7
+    ],
+    [
+     "2024-05-19",
+     5
+    ],
+    [
+     "2024-05-26",
+     4
+    ],
+    [
+     "2024-06-02",
+     5
+    ],
+    [
+     "2024-06-09",
+     6
+    ],
+    [
+     "2024-06-16",
+     5
+    ],
+    [
+     "2024-06-23",
+     5
+    ],
+    [
+     "2024-06-30",
+     3
+    ],
+    [
+     "2024-07-07",
+     4
+    ],
+    [
+     "2024-07-14",
+     5
+    ],
+    [
+     "2024-07-21",
+     5
+    ],
+    [
+     "2024-07-28",
+     6
+    ],
+    [
+     "2024-08-04",
+     6
+    ],
+    [
+     "2024-08-11",
+     5
+    ],
+    [
+     "2024-08-18",
+     5
+    ],
+    [
+     "2024-08-25",
+     5
+    ],
+    [
+     "2024-09-01",
+     7
+    ],
+    [
+     "2024-09-08",
+     7
+    ],
+    [
+     "2024-09-15",
+     5
+    ],
+    [
+     "2024-09-22",
+     10
+    ],
+    [
+     "2024-09-29",
+     8
+    ],
+    [
+     "2024-10-06",
+     9
+    ],
+    [
+     "2024-10-13",
+     8
+    ],
+    [
+     "2024-10-20",
+     8
+    ],
+    [
+     "2024-10-27",
+     8
+    ],
+    [
+     "2024-11-03",
+     8
+    ],
+    [
+     "2024-11-10",
+     9
+    ],
+    [
+     "2024-11-17",
+     7
+    ],
+    [
+     "2024-11-24",
+     6
+    ],
+    [
+     "2024-12-01",
+     8
+    ],
+    [
+     "2024-12-08",
+     7
+    ],
+    [
+     "2024-12-15",
+     6
+    ],
+    [
+     "2024-12-22",
+     7
+    ],
+    [
+     "2024-12-29",
+     6
+    ],
+    [
+     "2025-01-05",
+     7
+    ],
+    [
+     "2025-01-12",
+     6
+    ],
+    [
+     "2025-01-19",
+     5
+    ],
+    [
+     "2025-01-26",
+     3
+    ],
+    [
+     "2025-02-02",
+     6
+    ],
+    [
+     "2025-02-09",
+     12
+    ],
+    [
+     "2025-02-16",
+     41
+    ],
+    [
+     "2025-02-23",
+     100
+    ],
+    [
+     "2025-03-02",
+     43
+    ],
+    [
+     "2025-03-09",
+     26
+    ],
+    [
+     "2025-03-16",
+     30
+    ],
+    [
+     "2025-03-23",
+     35
+    ],
+    [
+     "2025-03-30",
+     13
+    ],
+    [
+     "2025-04-06",
+     9
+    ],
+    [
+     "2025-04-13",
+     14
+    ],
+    [
+     "2025-04-20",
+     15
+    ],
+    [
+     "2025-04-27",
+     12
+    ],
+    [
+     "2025-05-04",
+     11
+    ],
+    [
+     "2025-05-11",
+     8
+    ],
+    [
+     "2025-05-18",
+     7
+    ],
+    [
+     "2025-05-25",
+     5
+    ],
+    [
+     "2025-06-01",
+     4
+    ],
+    [
+     "2025-06-08",
+     3
+    ],
+    [
+     "2025-06-15",
+     4
+    ],
+    [
+     "2025-06-22",
+     7
+    ],
+    [
+     "2025-06-29",
+     5
+    ],
+    [
+     "2025-07-06",
+     4
+    ],
+    [
+     "2025-07-13",
+     7
+    ],
+    [
+     "2025-07-20",
+     8
+    ],
+    [
+     "2025-07-27",
+     5
+    ],
+    [
+     "2025-08-03",
+     6
+    ],
+    [
+     "2025-08-10",
+     6
+    ],
+    [
+     "2025-08-17",
+     8
+    ],
+    [
+     "2025-08-24",
+     11
+    ],
+    [
+     "2025-08-31",
+     9
+    ],
+    [
+     "2025-09-07",
+     10
+    ],
+    [
+     "2025-09-14",
+     13
+    ],
+    [
+     "2025-09-21",
+     15
+    ],
+    [
+     "2025-09-28",
+     12
+    ],
+    [
+     "2025-10-05",
+     7
+    ],
+    [
+     "2025-10-12",
+     12
+    ],
+    [
+     "2025-10-19",
+     10
+    ],
+    [
+     "2025-10-26",
+     16
+    ],
+    [
+     "2025-11-02",
+     13
+    ],
+    [
+     "2025-11-09",
+     10
+    ],
+    [
+     "2025-11-16",
+     8
+    ],
+    [
+     "2025-11-23",
+     9
+    ],
+    [
+     "2025-11-30",
+     9
+    ],
+    [
+     "2025-12-07",
+     8
+    ],
+    [
+     "2025-12-14",
+     12
+    ],
+    [
+     "2025-12-21",
+     8
+    ],
+    [
+     "2025-12-28",
+     11
+    ],
+    [
+     "2026-01-04",
+     7
+    ],
+    [
+     "2026-01-11",
+     11
+    ],
+    [
+     "2026-01-18",
+     7
+    ],
+    [
+     "2026-01-25",
+     12
+    ],
+    [
+     "2026-02-01",
+     13
+    ],
+    [
+     "2026-02-08",
+     30
+    ],
+    [
+     "2026-02-15",
+     7
+    ],
+    [
+     "2026-02-22",
+     80
+    ],
+    [
+     "2026-03-01",
+     29
+    ],
+    [
+     "2026-03-08",
+     23
+    ],
+    [
+     "2026-03-15",
+     36
+    ],
+    [
+     "2026-03-22",
+     22
+    ],
+    [
+     "2026-03-29",
+     10
+    ],
+    [
+     "2026-04-05",
+     10
+    ],
+    [
+     "2026-04-12",
+     11
+    ],
+    [
+     "2026-04-19",
+     8
+    ],
+    [
+     "2026-04-26",
+     10
+    ],
+    [
+     "2026-05-03",
+     13
+    ],
+    [
+     "2026-05-10",
+     10
+    ],
+    [
+     "2026-05-17",
+     8
+    ],
+    [
+     "2026-05-24",
+     6
+    ],
+    [
+     "2026-05-31",
+     6
+    ],
+    [
+     "2026-06-07",
+     3
+    ],
+    [
+     "2026-06-14",
+     8
+    ],
+    [
+     "2026-06-21",
+     8
+    ],
+    [
+     "2026-06-28",
+     8
+    ],
+    [
+     "2026-07-05",
+     7
+    ],
+    [
+     "2026-07-12",
+     8
+    ],
+    [
+     "2026-07-19",
+     8
+    ],
+    [
+     "2026-07-26",
+     9
+    ],
+    [
+     "2026-08-02",
+     9
+    ],
+    [
+     "2026-08-09",
+     8
+    ],
+    [
+     "2026-08-16",
+     9
+    ],
+    [
+     "2026-08-23",
+     8
+    ],
+    [
+     "2026-08-30",
+     9
+    ],
+    [
+     "2026-09-06",
+     14
+    ],
+    [
+     "2026-09-13",
+     12
+    ],
+    [
+     "2026-09-20",
+     11
+    ],
+    [
+     "2026-09-27",
+     12
+    ],
+    [
+     "2026-10-04",
+     10
+    ],
+    [
+     "2026-10-11",
+     11
+    ]
+   ],
+   "12m": [
+    [
+     "2025-10-12",
+     15
+    ],
+    [
+     "2025-10-19",
+     13
+    ],
+    [
+     "2025-10-26",
+     20
+    ],
+    [
+     "2025-11-02",
+     16
+    ],
+    [
+     "2025-11-09",
+     13
+    ],
+    [
+     "2025-11-16",
+     10
+    ],
+    [
+     "2025-11-23",
+     11
+    ],
+    [
+     "2025-11-30",
+     11
+    ],
+    [
+     "2025-12-07",
+     10
+    ],
+    [
+     "2025-12-14",
+     16
+    ],
+    [
+     "2025-12-21",
+     10
+    ],
+    [
+     "2025-12-28",
+     13
+    ],
+    [
+     "2026-01-04",
+     9
+    ],
+    [
+     "2026-01-11",
+     14
+    ],
+    [
+     "2026-01-18",
+     9
+    ],
+    [
+     "2026-01-25",
+     15
+    ],
+    [
+     "2026-02-01",
+     16
+    ],
+    [
+     "2026-02-08",
+     38
+    ],
+    [
+     "2026-02-15",
+     9
+    ],
+    [
+     "2026-02-22",
+     100
+    ],
+    [
+     "2026-03-01",
+     36
+    ],
+    [
+     "2026-03-08",
+     29
+    ],
+    [
+     "2026-03-15",
+     45
+    ],
+    [
+     "2026-03-22",
+     27
+    ],
+    [
+     "2026-03-29",
+     12
+    ],
+    [
+     "2026-04-05",
+     12
+    ],
+    [
+     "2026-04-12",
+     14
+    ],
+    [
+     "2026-04-19",
+     10
+    ],
+    [
+     "2026-04-26",
+     13
+    ],
+    [
+     "2026-05-03",
+     16
+    ],
+    [
+     "2026-05-10",
+     13
+    ],
+    [
+     "2026-05-17",
+     10
+    ],
+    [
+     "2026-05-24",
+     7
+    ],
+    [
+     "2026-05-31",
+     8
+    ],
+    [
+     "2026-06-07",
+     4
+    ],
+    [
+     "2026-06-14",
+     10
+    ],
+    [
+     "2026-06-21",
+     10
+    ],
+    [
+     "2026-06-28",
+     10
+    ],
+    [
+     "2026-07-05",
+     9
+    ],
+    [
+     "2026-07-12",
+     10
+    ],
+    [
+     "2026-07-19",
+     10
+    ],
+    [
+     "2026-07-26",
+     11
+    ],
+    [
+     "2026-08-02",
+     11
+    ],
+    [
+     "2026-08-09",
+     11
+    ],
+    [
+     "2026-08-16",
+     12
+    ],
+    [
+     "2026-08-23",
+     9
+    ],
+    [
+     "2026-08-30",
+     11
+    ],
+    [
+     "2026-09-06",
+     18
+    ],
+    [
+     "2026-09-13",
+     15
+    ],
+    [
+     "2026-09-20",
+     14
+    ],
+    [
+     "2026-09-27",
+     15
+    ],
+    [
+     "2026-10-04",
+     13
+    ],
+    [
+     "2026-10-11",
+     14
+    ]
+   ],
+   "3m": [
+    [
+     "2026-07-17",
+     0
+    ],
+    [
+     "2026-07-18",
+     0
+    ],
+    [
+     "2026-07-19",
+     0
+    ],
+    [
+     "2026-07-20",
+     71
+    ],
+    [
+     "2026-07-21",
+     0
+    ],
+    [
+     "2026-07-22",
+     0
+    ],
+    [
+     "2026-07-23",
+     0
+    ],
+    [
+     "2026-07-24",
+     0
+    ],
+    [
+     "2026-07-25",
+     0
+    ],
+    [
+     "2026-07-26",
+     0
+    ],
+    [
+     "2026-07-27",
+     0
+    ],
+    [
+     "2026-07-28",
+     0
+    ],
+    [
+     "2026-07-29",
+     0
+    ],
+    [
+     "2026-07-30",
+     0
+    ],
+    [
+     "2026-07-31",
+     0
+    ],
+    [
+     "2026-08-01",
+     0
+    ],
+    [
+     "2026-08-02",
+     0
+    ],
+    [
+     "2026-08-03",
+     0
+    ],
+    [
+     "2026-08-04",
+     0
+    ],
+    [
+     "2026-08-05",
+     56
+    ],
+    [
+     "2026-08-06",
+     0
+    ],
+    [
+     "2026-08-07",
+     0
+    ],
+    [
+     "2026-08-08",
+     0
+    ],
+    [
+     "2026-08-09",
+     0
+    ],
+    [
+     "2026-08-10",
+     0
+    ],
+    [
+     "2026-08-11",
+     0
+    ],
+    [
+     "2026-08-12",
+     0
+    ],
+    [
+     "2026-08-13",
+     0
+    ],
+    [
+     "2026-08-14",
+     0
+    ],
+    [
+     "2026-08-15",
+     0
+    ],
+    [
+     "2026-08-16",
+     0
+    ],
+    [
+     "2026-08-17",
+     0
+    ],
+    [
+     "2026-08-18",
+     0
+    ],
+    [
+     "2026-08-19",
+     0
+    ],
+    [
+     "2026-08-20",
+     0
+    ],
+    [
+     "2026-08-21",
+     0
+    ],
+    [
+     "2026-08-22",
+     0
+    ],
+    [
+     "2026-08-23",
+     0
+    ],
+    [
+     "2026-08-24",
+     0
+    ],
+    [
+     "2026-08-25",
+     0
+    ],
+    [
+     "2026-08-26",
+     0
+    ],
+    [
+     "2026-08-27",
+     0
+    ],
+    [
+     "2026-08-28",
+     0
+    ],
+    [
+     "2026-08-29",
+     0
+    ],
+    [
+     "2026-08-30",
+     0
+    ],
+    [
+     "2026-08-31",
+     0
+    ],
+    [
+     "2026-09-01",
+     0
+    ],
+    [
+     "2026-09-02",
+     0
+    ],
+    [
+     "2026-09-03",
+     0
+    ],
+    [
+     "2026-09-04",
+     0
+    ],
+    [
+     "2026-09-05",
+     0
+    ],
+    [
+     "2026-09-06",
+     0
+    ],
+    [
+     "2026-09-07",
+     0
+    ],
+    [
+     "2026-09-08",
+     0
+    ],
+    [
+     "2026-09-09",
+     0
+    ],
+    [
+     "2026-09-10",
+     0
+    ],
+    [
+     "2026-09-11",
+     0
+    ],
+    [
+     "2026-09-12",
+     0
+    ],
+    [
+     "2026-09-13",
+     0
+    ],
+    [
+     "2026-09-14",
+     0
+    ],
+    [
+     "2026-09-15",
+     0
+    ],
+    [
+     "2026-09-16",
+     100
+    ],
+    [
+     "2026-09-17",
+     0
+    ],
+    [
+     "2026-09-18",
+     0
+    ],
+    [
+     "2026-09-19",
+     0
+    ],
+    [
+     "2026-09-20",
+     0
+    ],
+    [
+     "2026-09-21",
+     0
+    ],
+    [
+     "2026-09-22",
+     0
+    ],
+    [
+     "2026-09-23",
+     0
+    ],
+    [
+     "2026-09-24",
+     0
+    ],
+    [
+     "2026-09-25",
+     0
+    ],
+    [
+     "2026-09-26",
+     0
+    ],
+    [
+     "2026-09-27",
+     80
+    ],
+    [
+     "2026-09-28",
+     77
+    ],
+    [
+     "2026-09-29",
+     0
+    ],
+    [
+     "2026-09-30",
+     0
+    ],
+    [
+     "2026-10-01",
+     0
+    ],
+    [
+     "2026-10-02",
+     0
+    ],
+    [
+     "2026-10-03",
+     31
+    ],
+    [
+     "2026-10-04",
+     26
+    ],
+    [
+     "2026-10-05",
+     29
+    ],
+    [
+     "2026-10-06",
+     32
+    ],
+    [
+     "2026-10-07",
+     34
+    ],
+    [
+     "2026-10-08",
+     31
+    ],
+    [
+     "2026-10-09",
+     25
+    ],
+    [
+     "2026-10-10",
+     24
+    ],
+    [
+     "2026-10-11",
+     32
+    ],
+    [
+     "2026-10-12",
+     35
+    ],
+    [
+     "2026-10-13",
+     30
+    ],
+    [
+     "2026-10-14",
+     41
+    ],
+    [
+     "2026-10-15",
+     35
+    ],
+    [
+     "2026-10-16",
+     34
+    ],
+    [
+     "2026-10-17",
+     20
+    ]
+   ]
+  },
+  "errors": {},
+  "topic": "kể chuyện lịch sử",
+  "geo": "VN",
+  "source": "youtube",
+  "cached": true
+ },
+ "quota": {
+  "units": 0,
+  "by_endpoint": {},
+  "calls": {},
+  "cache_hits": {
+   "search": 2,
+   "videos": 2,
+   "channels": 1,
+   "channel_median": 50
+  }
+ },
+ "elapsed_s": 0.4
+}

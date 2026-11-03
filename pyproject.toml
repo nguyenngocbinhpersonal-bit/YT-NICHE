@@ -1,0 +1,28 @@
+[project]
+name = "yt-niche"
+version = "0.0.1"
+description = "Công cụ chọn ngách YouTube chạy local"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+    "pandas>=2.2",
+    "pytrends-modern==0.2.13",
+    "tzdata>=2024.1",
+    "streamlit>=1.40",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["yt_niche*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

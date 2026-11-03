@@ -1,0 +1,13 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+data/*.db
+data/spike/
+data/runs/
+youtube.env
+data/*.db-*
+data/streamlit.log
+yt_niche.egg-info/
+.claude/
+data/radar_errors.log
