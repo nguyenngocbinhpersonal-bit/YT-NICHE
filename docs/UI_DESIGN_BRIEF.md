@@ -1,0 +1,52 @@
+# UI design brief — every page follows this
+
+Goal: the app should read like one product, not ten scripts. The Niche map page (`yt_niche/ui/pages/niche_map_page.py`)
+is the reference implementation; copy its patterns.
+
+## Shared pieces (`yt_niche/ui/theme.py`) — use them, do not re-invent
+
+| Helper | Use for |
+|---|---|
+| `inject_css()` | call once at the top of every page (after `get_conn()`); loads pills, legends, section styles |
+| `page_header(icon, title, subtitle)` | the first thing on every page: `st.title` + one-line muted subtitle saying what the page is for |
+| `kpi_row([(label, value, delta, delta_color), ...])` | 3–5 bordered stat tiles right under the header; values short, deltas as small context ("2 not ranked") |
+| `pill(text, kind="")` | inline badge; kinds: `""` neutral, `"blue"` info, `"green"` good, `"red"` warning |
+| `section(title, help=None)` | `###` heading with optional muted help line; use instead of bare `st.subheader` |
+| `empty_state(message, hint=None)` | friendly `st.info` for "nothing here yet" + what to do next |
+| `label_icon(label)` / `verdict_icon(v)` / `tier_icon(t)` | status icons for niche labels, verdicts, tiers (shared mapping) |
+| `COLORS` | the palette (blue ramp, red pole, ink, muted, surfaces); charts take colors from here |
+
+## Layout rules
+
+1. **Header → KPIs → controls → content → details.** Controls (filters, forms) sit in one or two rows above the content
+   they drive, never scattered. Use `st.columns` with explicit ratios so nothing truncates ("Ngách trên bả…" is a bug).
+2. **Forms in a bordered container** (`st.container(border=True)`), primary action as `type="primary"`, one primary per form.
+3. **Tables**: `st.dataframe(..., hide_index=True, width="stretch")`, 0–100 scores as `st.column_config.ProgressColumn`,
+   money/views with `NumberColumn(format=...)`. Column names short, English, no abbreviations the user has to decode.
+4. **Status, never color alone**: icon + word (🟢 Green niche, ⛔ DROP, ⚠ small sample).
+5. **Details in tabs** when a record has several facets (keywords / channels / digs / log).
+6. **Long explanations** go in `st.expander("How this is computed")`, not inline paragraphs.
+7. **Charts**: Plotly, `config={"displayModeBar": False}`, transparent background, palette from `theme.COLORS`,
+   one measure per channel (never size and color for the same variable), legend when ≥2 series, hover text full.
+8. **Width**: everything `width="stretch"` (not the deprecated `use_container_width`).
+9. **Copy**: short sentences, sentence case, no exclamation marks. Captions explain *what to do*, not what the code does.
+10. **Quota and API-key warnings** live in the sidebar (common.quota_sidebar) — do not repeat them in page bodies.
+
+## Page-by-page intent (what the user comes to do)
+
+| Page | Purpose line (subtitle) |
+|---|---|
+| Dig | "Measure demand × supply × money with real numbers. One weak tier and the niche is weak." |
+| Saved niches | "Every dig you ran. Re-dig for fresh numbers, compare old vs new." |
+| Sub-niches & keywords | "Go one layer down: repeated phrases, search suggestions, keyword scores." |
+| Niche map | "Niches Claude built from real data, sized by potential." |
+| Similar videos & channels | "From one URL: who else serves this audience, and with what." |
+| Compare | "Same topic across markets, side by side." |
+| Scorecard | "Ten weighted criteria to lock in a main niche and a backup." |
+| 10 test videos | "Plan ten videos, log the numbers, decide at video 5 and 10." |
+| Stage progress | "Where you are in the Pick-a-niche stage, and what is due." |
+| Keyword radar | "Google Trends categories scanned on a schedule; keywords that pass are worth a dig." |
+| Settings | "API keys, markets, thresholds, AI and RPM table." |
+
+Sidebar navigation titles (app.py): Dig · Saved niches · Sub-niches & keywords · Niche map · Similar videos & channels ·
+Compare · Scorecard · 10 test videos · Stage progress · Keyword radar · Settings.
