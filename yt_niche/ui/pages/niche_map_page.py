@@ -20,10 +20,13 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.colors import sample_colorscale
 
+from yt_niche.core.trends_classify import FAD, FALLING, SEASONAL, STABLE
 from yt_niche.services import niche_map as nm
+from yt_niche.ui import theme
 from yt_niche.ui.common import get_conn, market_label
 
 conn = get_conn()
+theme.inject_css()
 
 MIN_SIZE = 3.0  # diện tích cho ngách chưa xếp tiềm năng
 MODES = {"Motivation": "motivation", "Potential band": "potential", "Niche tree": "tree", "Language": "language", "Trend": "trend"}
@@ -32,30 +35,19 @@ MOTIVATION_SHORT = {"learn": "Learn", "earn": "Earn", "fix": "Fix a problem", "i
                     "connect": "Connect", "escape": "Escape", "experience": "Experience", "updated": "Stay updated", "inspired": "Feel inspired"}
 MOTIVATION_ICON = {"learn": "📘", "earn": "💰", "fix": "🔧", "improve": "📈", "believe": "🕯️", "connect": "🤝",
                    "escape": "🎮", "experience": "🧭", "updated": "📰", "inspired": "✨"}
-TREND_LABEL = {"stable": "Evergreen", "seasonal": "Seasonal", "fad": "Fad", "declining": "Declining"}
+TREND_LABEL = {STABLE: "Evergreen", SEASONAL: "Seasonal", FAD: "Fad", FALLING: "Declining"}
 ROLE_LABEL = {"leader": "Leader", "rising": "Rising", "fallen": "Fallen"}
 KIND_LABEL = {"main": "Main", "related": "Related", "longtail": "Long-tail", "trend": "Trend"}
 
 # Bảng màu (references/palette.md của phương pháp dữ liệu-hình): xanh tuần tự 100→700, đỏ đối cực, xám giữa, trạng thái.
-BLUE = ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7", "#3987e5", "#2a78d6", "#256abf", "#1c5cab", "#184f95"]
-RED_POLE, BLUE_POLE, MID = "#d03b3b", "#1c5cab", "#f0efec"
-NONE_FILL, GROUP_FILL, GROUP_LINE, TILE_LINE = "#e1e0d9", "#f3f2ee", "#c3c2b7", "#ffffff"
-STALE_LINE = "#d03b3b"
-INK, INK_2, MUTED = "#0b0b0b", "#52514e", "#898781"
-LANG_COLORS = ["#2a78d6", "#eb6834", "#1baf7a"]  # 3 slot phân loại đầu, hợp lệ cho biểu đồ mọi-cặp-kề-nhau
+C = theme.COLORS
+BLUE = C["blue"]
+RED_POLE, BLUE_POLE, MID = C["red_pole"], C["blue_pole"], C["mid"]
+NONE_FILL, GROUP_FILL, GROUP_LINE, TILE_LINE = C["none"], C["group"], "#c3c2b7", "#ffffff"
+STALE_LINE = C["critical"]
+INK, INK_2, MUTED = C["ink"], C["ink2"], C["muted"]
+LANG_COLORS = C["categorical"]  # first three categorical slots validate for all-pairs charts
 
-st.markdown(
-    """<style>
-.nm-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;margin-right:6px;
-         background:#f3f2ee;color:#52514e;border:1px solid #e1e0d9}
-.nm-pill.blue{background:#e4effc;color:#1c5cab;border-color:#b7d3f6}
-.nm-pill.red{background:#fbe5e5;color:#9f2626;border-color:#f3b4b4}
-.nm-legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:#52514e;margin:2px 0 10px}
-.nm-legend span.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid rgba(11,11,11,.1)}
-.nm-ramp{display:inline-block;width:110px;height:12px;border-radius:3px;vertical-align:-1px;margin:0 6px;border:1px solid rgba(11,11,11,.1)}
-</style>""",
-    unsafe_allow_html=True,
-)
 
 
 def _days_since(iso: str | None) -> int | None:
@@ -125,7 +117,7 @@ def _load(include_merged: bool) -> list[dict]:
 # Đầu trang: tiêu đề + thẻ số
 # ---------------------------------------------------------------------------
 
-st.title("🗺️ Niche map")
+theme.page_header("🗺️", "Niche map", "Niches Claude built from real data, sized by potential.")
 rows_all = _load(include_merged=st.session_state.get("map_show_merged", False))
 if not rows_all:
     st.info(
@@ -138,19 +130,16 @@ if not rows_all:
 live = [r for r in rows_all if r["status"] != "merged"]
 ranked = [r for r in live if r["potential"] is not None]
 top = max(ranked, key=lambda r: r["potential"]) if ranked else None
-k1, k2, k3, k4, k5 = st.columns(5)
-with k1, st.container(border=True):
-    st.metric("Niches", len(live), f"{len(live) - len(ranked)} not ranked" if len(live) > len(ranked) else "all ranked", delta_color="off")
-with k2, st.container(border=True):
-    st.metric("Top potential", f"{top['potential']:.0f}" if top else "—", top["name"] if top else None, delta_color="off")
-with k3, st.container(border=True):
-    n_stale = sum(r["stale"] for r in live)
-    st.metric("Need re-rank", n_stale, "data changed" if n_stale else "map matches data", delta_color="inverse" if n_stale else "off")
-with k4, st.container(border=True):
-    st.metric("Languages", len({r["language"] for r in live if r["language"]}), " · ".join(sorted({r["language"] for r in live if r["language"]})) or None, delta_color="off")
-with k5, st.container(border=True):
-    fresh = [r["days"] for r in live if r["days"] is not None]
-    st.metric("Freshest data", f"{min(fresh)} d ago" if fresh else "—", f"oldest {max(fresh)} d" if fresh else None, delta_color="off")
+n_stale = sum(r["stale"] for r in live)
+langs_live = sorted({r["language"] for r in live if r["language"]})
+fresh = [r["days"] for r in live if r["days"] is not None]
+theme.kpi_row([
+    ("Niches", len(live), f"{len(live) - len(ranked)} not ranked" if len(live) > len(ranked) else "all ranked"),
+    ("Top potential", f"{top['potential']:.0f}" if top else "—", top["name"] if top else None),
+    ("Need re-rank", n_stale, "data changed" if n_stale else "map matches data", "inverse" if n_stale else "off"),
+    ("Languages", len(langs_live), " · ".join(langs_live) or None),
+    ("Freshest data", f"{min(fresh)} d ago" if fresh else "—", f"oldest {max(fresh)} d" if fresh else None),
+])
 
 # ---------------------------------------------------------------------------
 # Bộ lọc (một hàng, trên biểu đồ)
@@ -291,15 +280,15 @@ event = st.plotly_chart(fig, width="stretch", on_select="rerun", selection_mode=
 # Chú giải nằm dưới biểu đồ: màu đang dùng + viền stale + ô xám
 if color_by == "opportunity":
     ramp = f"linear-gradient(90deg,{RED_POLE},{MID},{BLUE_POLE})"
-    legend = (f"<span><b>Color</b> = demand − competition: more competition <span class='nm-ramp' style='background:{ramp}'></span> more demand</span>")
+    legend = (f"<span><b>Color</b> = demand − competition: more competition <span class='yt-ramp' style='background:{ramp}'></span> more demand</span>")
 elif color_by == "demand":
     ramp = f"linear-gradient(90deg,{BLUE[0]},{BLUE[-1]})"
-    legend = f"<span><b>Color</b> = demand of main keywords: low <span class='nm-ramp' style='background:{ramp}'></span> high</span>"
+    legend = f"<span><b>Color</b> = demand of main keywords: low <span class='yt-ramp' style='background:{ramp}'></span> high</span>"
 else:
     ramp = f"linear-gradient(90deg,{BLUE[0]},{BLUE[-1]})"
-    legend = f"<span><b>Color</b> = data freshness: old <span class='nm-ramp' style='background:{ramp}'></span> fresh</span>"
+    legend = f"<span><b>Color</b> = data freshness: old <span class='yt-ramp' style='background:{ramp}'></span> fresh</span>"
 st.markdown(
-    f"<div class='nm-legend'><span><b>Area</b> = potential ranked by Claude</span>{legend}"
+    f"<div class='yt-legend'><span><b>Area</b> = potential ranked by Claude</span>{legend}"
     f"<span><span class='sw' style='background:{NONE_FILL}'></span>no data / merged</span>"
     f"<span><span class='sw' style='background:#fff;border:2px solid {STALE_LINE}'></span>⚠ data changed, needs re-rank</span>"
     f"<span style='color:{MUTED}'>Click a tile for details · click a group name to zoom</span></div>",
@@ -336,14 +325,14 @@ with st.container(border=True):
     niche_id = st.selectbox("Niche", options, format_func=lambda i: by_id[i]["path"], key="map_pick")
     d = nm.get(conn, niche_id)
     sig = d["signals"]
-    pills = [f"<span class='nm-pill blue'>{d['language'] or '?'}</span>"]
+    pills = [f"<span class='yt-pill blue'>{d['language'] or '?'}</span>"]
     if d["motivation"]:
-        pills.append(f"<span class='nm-pill'>{MOTIVATION_ICON[d['motivation']]} {MOTIVATION_SHORT[d['motivation']]}</span>")
+        pills.append(f"<span class='yt-pill'>{MOTIVATION_ICON[d['motivation']]} {MOTIVATION_SHORT[d['motivation']]}</span>")
     if d["motivation_secondary"]:
-        pills.append(f"<span class='nm-pill'>+ {MOTIVATION_SHORT[d['motivation_secondary']]}</span>")
-    pills.append(f"<span class='nm-pill'>{d['status']}</span>")
+        pills.append(f"<span class='yt-pill'>+ {MOTIVATION_SHORT[d['motivation_secondary']]}</span>")
+    pills.append(f"<span class='yt-pill'>{d['status']}</span>")
     if d["stale"]:
-        pills.append("<span class='nm-pill red'>⚠ needs re-rank</span>")
+        pills.append("<span class='yt-pill red'>⚠ needs re-rank</span>")
     st.markdown(f"### {d['name']}")
     st.markdown("".join(pills), unsafe_allow_html=True)
     if d["summary"]:
@@ -381,7 +370,7 @@ with st.container(border=True):
         for col, kind in zip(cols, nm.KINDS):
             with col:
                 kws = d["keywords"][kind]
-                st.markdown(f"**{KIND_LABEL[kind]}** <span class='nm-pill'>{len(kws)}</span>", unsafe_allow_html=True)
+                st.markdown(f"**{KIND_LABEL[kind]}** <span class='yt-pill'>{len(kws)}</span>", unsafe_allow_html=True)
                 if kws:
                     st.dataframe(
                         pd.DataFrame([{
@@ -424,7 +413,7 @@ with st.container(border=True):
         for e in d["events"]:
             who = "🤖 Claude" if e["actor"] == "claude" else "👤 You" if e["actor"] == "user" else "⚙️ App"
             st.markdown(
-                f"<span class='nm-pill'>{e['kind']}</span> {who} · <span style='color:{MUTED}'>{e['created_at'][:16].replace('T', ' ')}</span>"
+                f"<span class='yt-pill'>{e['kind']}</span> {who} · <span style='color:{MUTED}'>{e['created_at'][:16].replace('T', ' ')}</span>"
                 f"<br>{e['rationale'] or '<i>no rationale recorded</i>'}",
                 unsafe_allow_html=True,
             )
