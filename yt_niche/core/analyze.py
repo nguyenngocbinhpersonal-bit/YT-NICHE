@@ -1,4 +1,4 @@
-"""Gộp toàn bộ phép tính của một lần đào từ dữ liệu thô của services.fetch."""
+"""Run every calculation of one dig on the raw data from services.fetch."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from yt_niche.core.three_tier import three_tier
 from yt_niche.core.trends_classify import classify_trends
 from yt_niche import config as cfg
 
-FEW_SAMPLES = "Mẫu còn ít"
+FEW_SAMPLES = "Small sample"
 
 
 def analyze(
@@ -24,14 +24,14 @@ def analyze(
     rpm: tuple[float, float] | None = None,
     affiliates: int | None = None,
 ) -> dict:
-    """data: kết quả fetch_niche. rpm: (thấp, cao) USD/1.000 view. affiliates: số sản phẩm gắn tự nhiên."""
+    """data: output of fetch_niche. rpm: (low, high) USD per 1,000 views. affiliates: number of products that fit naturally."""
     params = data["params"]
     now = parse_iso(data["fetched_at"])
     channels = {c["channel_id"]: c for c in data["channels"]}
 
     videos = enrich_videos(data["videos"], channels)
     target = params["fmt"]
-    # "Mọi độ dài": bỏ vùng 3–4 phút vì không thuộc định dạng nào.
+    # "Any length": drop the 3–4 minute band, which belongs to neither format.
     sample = [v for v in videos if v["fmt"] == target] if target in (LONG, SHORTS) else [v for v in videos if v["fmt"] != MID]
 
     score = niche_score(sample, params["window_days"], now)
@@ -65,7 +65,7 @@ def analyze(
         "labels": labels,
         "confidence": conf,
         "n_estimated": n_estimated,
-        "can_shortlist": conf != LOW,  # độ tin cậy thấp thì không đưa vào bảng chấm
+        "can_shortlist": conf != LOW,  # low confidence never goes on the scorecard
         "outliers": outliers,
         "outlier_counts": {
             "total": len(outliers),
@@ -85,5 +85,5 @@ def analyze(
 
 
 def _note(topic: str, score: float, outliers: int, booms: int, income, verdict: str) -> str:
-    money = f"{income[0]:g}–{income[1]:g} USD/video (≈)" if income else "chưa có RPM"
-    return f"{topic} — {score:.0f}/100 — {outliers} vượt trội / {booms} kênh nhỏ nổ — {money} — {verdict}"
+    money = f"{income[0]:g}–{income[1]:g} USD/video (≈)" if income else "no RPM yet"
+    return f"{topic} — {score:.0f}/100 — {outliers} outperformers / {booms} small booming channels — {money} — {verdict}"

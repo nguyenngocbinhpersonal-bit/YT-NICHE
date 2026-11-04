@@ -1,4 +1,4 @@
-"""Điểm ngách 0–100 từ 4 thanh con (bài 2.2) và danh sách kênh nhỏ đang nổ."""
+"""Niche score 0–100 from four bars (lesson 2.2) and the list of small booming channels."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from datetime import datetime, timedelta
 from yt_niche import config as cfg
 from yt_niche.core.stats import log_scale, median, months_between, parse_iso
 
-LABEL_GREEN = "Ngách xanh"
-LABEL_POTENTIAL = "Ngách tiềm năng"
-LABEL_RED = "Ngách đỏ"
+LABEL_GREEN = "Green niche"
+LABEL_POTENTIAL = "Promising niche"
+LABEL_RED = "Red niche"
 
 
 @dataclass
@@ -43,7 +43,7 @@ def demand_bar(sample: list[dict]) -> tuple[float, float | None]:
 
 
 def opportunity_bar(sample: list[dict]) -> float:
-    """% video vượt trội (≥ 3×) đến từ kênh nhỏ."""
+    """% of outperformer videos (≥ 3×) that come from small channels."""
     outliers = [v for v in sample if v["level"]]
     if not outliers:
         return 0.0
@@ -56,7 +56,7 @@ def freshness_bar(sample: list[dict], window_days: int, now: datetime) -> float:
     if window_days > cfg.FRESHNESS_DAYS:
         cutoff = now - timedelta(days=cfg.FRESHNESS_DAYS)
         return sum(parse_iso(v["published_at"]) >= cutoff for v in sample) / len(sample) * 100
-    # Mẫu đã chỉ gồm video ≤ 30 ngày: đo bằng trung vị view mỗi giờ.
+    # The sample already holds only videos ≤ 30 days old: measure by median views per hour.
     vph = median(
         v["views"] / max(1.0, (now - parse_iso(v["published_at"])).total_seconds() / 3600)
         for v in sample
@@ -66,7 +66,7 @@ def freshness_bar(sample: list[dict], window_days: int, now: datetime) -> float:
 
 
 def competition_bar(sample: list[dict]) -> float:
-    """% video thuộc kênh > 1M sub (càng cao càng bị trừ điểm)."""
+    """% of videos from channels > 1M subs (the higher, the more points lost)."""
     if not sample:
         return 0.0
     return sum(v["subs"] is not None and v["subs"] > cfg.BIG_CHANNEL_MIN_SUBS for v in sample) / len(sample) * 100
@@ -97,7 +97,7 @@ def niche_score(sample: list[dict], window_days: int, now: datetime) -> NicheSco
 
 
 def small_boom_channels(sample: list[dict], channels: dict[str, dict], now: datetime) -> list[dict]:
-    """Kênh < 100K sub có ít nhất một video vượt trội trong mẫu; kênh trẻ xếp trước."""
+    """Channels < 100K subs with at least one outperformer video in the sample; young channels first."""
     best: dict[str, dict] = {}
     for v in sample:
         if v["level"] and is_small(v["subs"]):
@@ -125,7 +125,7 @@ def small_boom_channels(sample: list[dict], channels: dict[str, dict], now: date
     return sorted(cards, key=lambda c: (not c["young"], -c["best_outlier"]))
 
 
-SIZE_SMALL, SIZE_MID, SIZE_BIG, SIZE_HIDDEN = "nhỏ", "vừa", "lớn", "ẩn sub"
+SIZE_SMALL, SIZE_MID, SIZE_BIG, SIZE_HIDDEN = "small", "medium", "big", "hidden subs"
 
 
 def channel_size(subs: int | None) -> str:
@@ -135,7 +135,7 @@ def channel_size(subs: int | None) -> str:
 
 
 def all_channels(data: dict) -> list[dict]:
-    """Mọi kênh có video trong kết quả tìm từ khoá (dữ liệu thô của lần đào), xếp theo tổng view trong mẫu."""
+    """Every channel with a video in the keyword search results (raw data of a dig), sorted by total views in the sample."""
     from yt_niche.core.outlier import enrich_videos
 
     now = parse_iso(data["fetched_at"])

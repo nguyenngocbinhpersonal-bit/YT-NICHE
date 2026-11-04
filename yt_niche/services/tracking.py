@@ -1,4 +1,4 @@
-"""Theo dõi sau khi chốt: nhắc đào lại mỗi tháng (bài 2.5) và checklist tổng kết của chặng Chọn ngách."""
+"""After the decision: monthly re-dig reminders (lesson 2.5) and the wrap-up checklist of the "Pick a niche" stage."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from yt_niche.db import runs as run_repo
 from yt_niche.services import keywords as kw_svc
 from yt_niche.services import scorecards
 
-MAIN, BACKUP, SHORTLIST = "ngách chính", "dự phòng", "trong bảng chấm"
+MAIN, BACKUP, SHORTLIST = "main niche", "backup", "on scorecard"
 
 
 def _age_days(run: dict, now: datetime) -> int:
@@ -21,7 +21,7 @@ def _age_days(run: dict, now: datetime) -> int:
 
 
 def latest_board(conn: sqlite3.Connection) -> dict | None:
-    """Bảng chấm mới nhất đã khoá và chọn được ngách chính."""
+    """The newest scorecard that is locked and has a main niche."""
     for b in scorecards.list_all(conn):
         if b["locked_at"]:
             data = scorecards.load(conn, b["id"])
@@ -31,9 +31,9 @@ def latest_board(conn: sqlite3.Connection) -> dict | None:
 
 
 def tracked(conn: sqlite3.Connection) -> list[dict]:
-    """Ngách cần theo dõi: chính / dự phòng của các bảng chấm đã chốt, và ngách đã đưa vào bảng chấm.
+    """Niches to follow: main / backup of the decided scorecards, and niches put on a scorecard.
 
-    Mỗi thiết lập (chủ đề, thị trường, khoảng thời gian, định dạng) chỉ lấy lần đào mới nhất.
+    Each setup (topic, market, time window, format) keeps only its latest dig.
     """
     roles: dict[int, str] = {}
     for b in scorecards.list_all(conn):
@@ -61,7 +61,7 @@ def tracked(conn: sqlite3.Connection) -> list[dict]:
 
 
 def due_redigs(conn: sqlite3.Connection, now: datetime | None = None, days: int | None = None) -> list[dict]:
-    """Ngách theo dõi có lần đào mới nhất cũ hơn `days` ngày (mặc định REDIG_DAYS)."""
+    """Tracked niches whose latest dig is older than `days` days (default REDIG_DAYS)."""
     now = now or datetime.now(timezone.utc)
     days = cfg.REDIG_DAYS if days is None else days
     out = []
@@ -73,7 +73,7 @@ def due_redigs(conn: sqlite3.Connection, now: datetime | None = None, days: int 
 
 
 def stage_checklist(conn: sqlite3.Connection, now: datetime | None = None) -> list[dict]:
-    """10 mục checklist tổng kết của chặng Chọn ngách: [{"label", "ok", "detail"}]."""
+    """The 10-item wrap-up checklist of the "Pick a niche" stage: [{"label", "ok", "detail"}]."""
     now = now or datetime.now(timezone.utc)
     runs = run_repo.list_all(conn)
     board = latest_board(conn)
@@ -85,24 +85,24 @@ def stage_checklist(conn: sqlite3.Connection, now: datetime | None = None) -> li
 
     fmt_topics = {r["topic"] for r in runs if r["fmt"] in ("long", "shorts")}
     add(
-        "Đào ít nhất 3 ngách hoặc ngách con đúng định dạng sẽ làm",
+        "Dig at least 3 niches or sub-niches in the format you will make",
         len(fmt_topics) >= 3,
-        f"{len(fmt_topics)} chủ đề đã đào riêng video dài hoặc Shorts",
+        f"{len(fmt_topics)} topics dug separately as long-form or Shorts",
     )
 
     sheets = [(r["topic"], seven_cells(r)) for r in board_runs]
     incomplete = [t for t, s in sheets if not s["complete"]]
     add(
-        "Ghi phiếu 7 ô cho mỗi ngách",
+        "Fill in the 7-cell sheet for every niche",
         sheets and not incomplete,
-        "chưa có ngách nào trong bảng chấm" if not sheets else (f"chưa đủ: {', '.join(incomplete)}" if incomplete else f"{len(sheets)} ngách đủ 7 ô"),
+        "no niche on the scorecard yet" if not sheets else (f"incomplete: {', '.join(incomplete)}" if incomplete else f"{len(sheets)} niches with all 7 cells"),
     )
 
     no_trend = [r["topic"] for r in board_runs if not r["result"]["trends"].get("class")]
     add(
-        "Phân loại Google Trends: bền, trào lưu, đang rơi hoặc theo mùa",
+        "Classify Google Trends: evergreen, fad, declining or seasonal",
         board_runs and not no_trend,
-        "chưa có ngách nào trong bảng chấm" if not board_runs else (f"chưa có Trends: {', '.join(no_trend)}" if no_trend else "đủ"),
+        "no niche on the scorecard yet" if not board_runs else (f"no Trends yet: {', '.join(no_trend)}" if no_trend else "done"),
     )
 
     def opened(r: dict) -> int:
@@ -110,7 +110,7 @@ def stage_checklist(conn: sqlite3.Connection, now: datetime | None = None) -> li
         return len(set(r["checked_channels"]) | {c for c, n in notes.items() if n.get("reup")})
 
     best_open = max((opened(r) for r in runs), default=0)
-    add("Xem trực tiếp ít nhất 3 kênh nhỏ đang nổ", best_open >= 3, f"nhiều nhất {best_open} kênh đã mở trong một lần đào")
+    add("Watch at least 3 small booming channels yourself", best_open >= 3, f"at most {best_open} channels opened in one dig")
 
     best_kw = 0
     for s in kw_svc.seeds(conn):
@@ -118,32 +118,32 @@ def stage_checklist(conn: sqlite3.Connection, now: datetime | None = None) -> li
             k for k in kw_svc.scored_for(conn, s["seed"], s["region"]) if k["score"] >= cfg.KEYWORD_GOOD and not k["low_data"]
         ]
         best_kw = max(best_kw, len(good))
-    add(f"Gom 10 từ khoá dài có điểm từ {cfg.KEYWORD_GOOD} trở lên", best_kw >= 10, f"{best_kw}/10 (một ngách con)")
+    add(f"Collect 10 long-tail keywords scoring {cfg.KEYWORD_GOOD} or more", best_kw >= 10, f"{best_kw}/10 (one sub-niche)")
 
-    warns = setup_warnings(board_runs) if len(board_runs) >= 2 else ["chưa có ít nhất 2 ngách để so"]
-    add("So các ngách trong cùng điều kiện, cùng ngày", not warns, "; ".join(warns) or "cùng thiết lập")
+    warns = setup_warnings(board_runs) if len(board_runs) >= 2 else ["fewer than 2 niches to compare"]
+    add("Compare niches under the same conditions, on the same day", not warns, "; ".join(warns) or "same setup")
 
     add(
-        "Điền bảng chấm có trọng số, chốt trọng số trước khi chấm",
+        "Fill in the weighted scorecard, lock the weights before scoring",
         board is not None,
-        f"bảng \"{board['name']}\" khoá lúc {board['locked_at'][:10]}" if board else "chưa có bảng chấm đã khoá và chấm xong",
+        f"scorecard \"{board['name']}\" locked on {board['locked_at'][:10]}" if board else "no locked and fully scored scorecard yet",
     )
 
     d = (board or {}).get("decision") or {}
     ok8 = bool(d.get("main") and d.get("backup") and board["promise"])
     add(
-        "Chốt ngách chính và dự phòng, viết lời hứa kênh một câu",
+        "Lock in the main and backup niche, write a one-sentence channel promise",
         ok8,
         (
-            f"chính: {d['main']['name']}; dự phòng: {d['backup']['name'] if d.get('backup') else 'chưa có'}; "
-            f"lời hứa: {'có' if board['promise'] else 'chưa viết'}"
+            f"main: {d['main']['name']}; backup: {d['backup']['name'] if d.get('backup') else 'none yet'}; "
+            f"promise: {'written' if board['promise'] else 'not written'}"
         )
         if d.get("main")
-        else "chưa chốt",
+        else "not decided yet",
     )
 
     has_plan = bool(board) and conn.execute("SELECT 1 FROM test_plan WHERE scorecard_id = ?", (board["id"],)).fetchone()
-    add("Lên kế hoạch 10 video thử với mốc xem lại ở video 5 và 10", has_plan, "đã có kế hoạch" if has_plan else "chưa lập")
+    add("Plan 10 test videos with review points at video 5 and 10", has_plan, "plan exists" if has_plan else "not planned yet")
 
     due = due_redigs(conn, now)
     main_age = None
@@ -152,9 +152,9 @@ def stage_checklist(conn: sqlite3.Connection, now: datetime | None = None) -> li
         if main_run:
             main_age = _age_days(run_repo.same_setup(conn, main_run)[0], now)
     add(
-        f"Lưu ngách và đào lại mỗi tháng ({cfg.REDIG_DAYS} ngày)",
+        f"Save the niche and dig again every month ({cfg.REDIG_DAYS} days)",
         main_age is not None and not due,
-        ("chưa chốt ngách chính" if main_age is None else f"ngách chính đào lần cuối {main_age} ngày trước")
-        + (f"; {len(due)} ngách đến hạn đào lại" if due else ""),
+        ("main niche not decided yet" if main_age is None else f"main niche last dug {main_age} days ago")
+        + (f"; {len(due)} niches due for a re-dig" if due else ""),
     )
     return items

@@ -1,4 +1,4 @@
-"""Thu thập toàn bộ dữ liệu thô cho một lần "đào ngách" (chưa tính điểm)."""
+"""Collect all raw data for one niche dig (no scoring yet)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from yt_niche.core.formats import classify, parse_duration
 from yt_niche.sources.trends import get_trends
 from yt_niche.sources.youtube import YouTubeClient
 
-# Định dạng của app → videoDuration của API ("short" = dưới 4 phút, sau đó lọc lại ≤ 180s).
+# App format → API videoDuration ("short" = under 4 minutes, then filtered again to ≤ 180s).
 FORMAT_TO_API = {"any": "any", "long": "any", "shorts": "short"}
 
 
@@ -30,7 +30,7 @@ class DigParams:
 
 
 def published_after(window_days: int, now: datetime | None = None) -> str:
-    """Làm tròn về 0h UTC để cùng một ngày cho ra cùng cache key."""
+    """Rounded down to 00:00 UTC so the same day yields the same cache key."""
     now = now or datetime.now(timezone.utc)
     start = (now - timedelta(days=window_days)).replace(hour=0, minute=0, second=0, microsecond=0)
     return start.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -38,7 +38,7 @@ def published_after(window_days: int, now: datetime | None = None) -> str:
 
 def _normalize_video(v: dict) -> dict | None:
     snippet, stats, details = v.get("snippet", {}), v.get("statistics", {}), v.get("contentDetails", {})
-    # Bỏ livestream đang phát / sắp phát: chưa có thời lượng và view chưa ổn định.
+    # Skip live / upcoming streams: no duration yet and views are not settled.
     if snippet.get("liveBroadcastContent", "none") != "none" or not details.get("duration"):
         return None
     seconds = parse_duration(details["duration"])
@@ -56,7 +56,7 @@ def _normalize_video(v: dict) -> dict | None:
 
 
 async def fetch_niche(conn: sqlite3.Connection, params: DigParams, fresh: bool = False) -> dict:
-    """fresh=True: lấy số mới (bỏ cache search/videos/channels/Trends; trung vị kênh vẫn dùng cache 7 ngày)."""
+    """fresh=True: fetch new numbers (skip the search/videos/channels/Trends cache; channel medians still use the 7-day cache)."""
     t0 = time.perf_counter()
     async with YouTubeClient(conn, fresh=fresh) as yt:
         trends_task = (

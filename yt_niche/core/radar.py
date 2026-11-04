@@ -1,8 +1,8 @@
-"""Radar từ khoá: chọn danh mục Google Trends, loại xu hướng ngắn hạn, chấm điểm tiềm năng.
+"""Keyword radar: pick Google Trends categories, drop short-lived trends, score potential.
 
-Phễu: truy vấn của danh mục (miễn phí) → bỏ thực thể ngắn hạn (người, bài hát, show, sự kiện) theo loại thực thể
-của Google → bỏ từ khoá gần như không ai tìm trong 30 ngày gần nhất trên YouTube Search hoặc Google Search
-→ chấm YouTube cho vài từ tốt nhất.
+Funnel: category queries (free) → drop short-lived entities (people, songs, shows, events) by Google's entity type
+→ drop keywords almost nobody searched in the last 30 days on YouTube Search or Google Search
+→ score the few best ones on YouTube.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import unicodedata
 from yt_niche import config as cfg
 from yt_niche.core.stats import log_scale
 
-# Danh mục ngắn hạn theo cây danh mục chính thức của Google Trends (id không đổi giữa các ngôn ngữ).
+# Short-lived categories in Google Trends' official category tree (ids are the same in every language).
 EXCLUDED_CATEGORIES = {
     16: "News",
     112: "Broadcast & Network News",
@@ -34,10 +34,10 @@ EXCLUDED_CATEGORIES = {
     891: "Concerts & Music Festivals",
     358: "TV Shows & Programs",
 }
-# Nhóm gốc bị chi phối bởi tin ngắn hạn: quét theo danh mục con (bỏ con ngắn hạn) thay vì cả nhóm.
+# Root groups dominated by short-lived news: scan their sub-categories (minus the short-lived ones) instead of the whole group.
 SPLIT_ROOTS = {3}  # Arts & Entertainment
 
-# Loại thực thể của Google cho thấy truy vấn là người, tác phẩm mới, đội / giải đấu, sự kiện.
+# Google entity types that show a query is a person, a new release, a team / league, or an event.
 SHORT_TERM_TYPES = re.compile(
     r"singer|rapper|musician|band|group|song|album|single|actor|actress|film|movie|tv |television|series|show|"
     r"episode|politician|president|minister|player|footballer|athlete|team|club|league|match|tournament|cup|"
@@ -46,33 +46,34 @@ SHORT_TERM_TYPES = re.compile(
     re.I,
 )
 
-# Từ khoá vô ích cho kênh YouTube dù bền (xổ số, thời tiết...). Người dùng thêm được ở trang Radar.
+# Keywords useless for a YouTube channel even when evergreen (lottery, weather...). Users can add more on the Radar page.
+# The Vietnamese entries are real search terms to block, so they stay as they are.
 DEFAULT_BLOCKLIST = ["xổ số", "xo so", "lottery", "lotto", "thời tiết", "weather", "karaoke", "login", "đăng nhập"]
 
 PENDING, PASSED, EXCLUDED, IGNORED, WATCHING = "pending", "passed", "excluded", "ignored", "watching"
 STATUS_LABEL = {
-    PENDING: "chờ kiểm tra",
-    PASSED: "đạt",
-    EXCLUDED: "đã loại",
-    IGNORED: "bỏ qua",
-    WATCHING: "theo dõi",
+    PENDING: "to check",
+    PASSED: "passed",
+    EXCLUDED: "excluded",
+    IGNORED: "ignored",
+    WATCHING: "watching",
 }
 
 
 def fold(text: str) -> str:
-    """Bỏ dấu, chữ thường, gom khoảng trắng: 'Nguyễn Sỹ Cương' → 'nguyen sy cuong'."""
+    """Strip accents, lowercase, collapse whitespace: 'Zoë Café' → 'zoe cafe' (Vietnamese d-with-stroke → d)."""
     text = unicodedata.normalize("NFD", text.replace("đ", "d").replace("Đ", "D"))
     text = "".join(c for c in text if unicodedata.category(c) != "Mn")
     return " ".join(re.sub(r"[^\w\s]", " ", text.lower()).split())
 
 
 # ---------------------------------------------------------------------------
-# Danh mục
+# Categories
 # ---------------------------------------------------------------------------
 
 
 def flatten(tree: dict) -> list[dict]:
-    """[{id, name, depth, parent}] theo thứ tự cây; id lặp ở nhiều nhánh chỉ giữ lần đầu."""
+    """[{id, name, depth, parent}] in tree order; an id repeated on several branches is kept once."""
     out, seen = [], set()
 
     def walk(node, depth, parent):
@@ -88,7 +89,7 @@ def flatten(tree: dict) -> list[dict]:
 
 
 def default_categories(tree: dict) -> list[int]:
-    """Nhóm gốc trừ Tin tức; riêng Nghệ thuật & Giải trí thì lấy danh mục con trừ con ngắn hạn."""
+    """Root groups minus News; for Arts & Entertainment take the sub-categories minus the short-lived ones."""
     flat = flatten(tree)
     roots = [c for c in flat if c["depth"] == 1 and c["id"] not in EXCLUDED_CATEGORIES]
     out = [c["id"] for c in roots if c["id"] not in SPLIT_ROOTS]
@@ -101,7 +102,7 @@ def selectable_categories(tree: dict, max_depth: int = 2) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Chọn ứng viên từ một lần quét danh mục
+# Pick candidates from one category scan
 # ---------------------------------------------------------------------------
 
 
@@ -111,9 +112,9 @@ def blocked(query: str, blocklist: list[str]) -> bool:
 
 
 def pick_new(found: dict[str, list[tuple[str, int]]], known: set[str], blocklist: list[str], limit: int) -> list[dict]:
-    """Từ khoá mới đáng kiểm tra: đang tăng từ RADAR_MIN_RISING%, xếp theo % tăng; thiếu thì lấy thêm từ hàng đầu."""
-    # Có trong cả "hàng đầu" lẫn "đang tăng" = vừa nhiều người tìm vừa tăng → kiểm tra trước. Chỉ có ở "đang tăng"
-    # thường là từ gần như không ai tìm (tăng từ 0), dễ bị loại vì "quá ít người tìm".
+    """New keywords worth checking: rising from RADAR_MIN_RISING%, sorted by % growth; top up from the "top" list when short."""
+    # In both "top" and "rising" = many searches and growing → check first. Only in "rising" is usually a term almost
+    # nobody searched (growing from 0), likely to be dropped as "too few searches".
     in_top = {fold(q) for q, _ in found.get("top", [])}
     rising = sorted(
         ((q, v) for q, v in found.get("rising", []) if v >= cfg.RADAR_MIN_RISING),
@@ -133,12 +134,12 @@ def pick_new(found: dict[str, list[tuple[str, int]]], known: set[str], blocklist
 
 
 # ---------------------------------------------------------------------------
-# Kiểm tra: loại thực thể và lượng tìm 30 ngày
+# Checks: entity type and 30-day search volume
 # ---------------------------------------------------------------------------
 
 
 def short_term_entity(query: str, entities: list[dict]) -> dict | None:
-    """Thực thể ngắn hạn mà truy vấn đang nói tới (tiêu đề khớp truy vấn và loại là người / tác phẩm / sự kiện)."""
+    """The short-lived entity the query refers to (title matches the query and the type is a person / release / event)."""
     q = fold(query)
     for e in entities:
         title = fold(e.get("title", ""))
@@ -151,8 +152,8 @@ SOURCE_LABEL = {"youtube": "YouTube Search", "web": "Google Search"}
 
 
 def volume_30d(points: list) -> dict:
-    """Lượng tìm 30 ngày của một nguồn. Trends chấm 0–100 so với ngày cao nhất trong khoảng: trung bình thấp hoặc
-    nhiều ngày bằng 0 nghĩa là ít người tìm (Google làm tròn về 0 khi quá ít), lúc có lúc không."""
+    """30-day search volume of one source. Trends scores 0–100 against the highest day in the range: a low average or
+    many zero days means few searches (Google rounds down to 0 when there are too few), on and off."""
     values = [v for _, v in points]
     if not any(values):
         return {"ok": False, "avg": 0.0, "zeros": 1.0, "change": 0.0}
@@ -160,43 +161,43 @@ def volume_30d(points: list) -> dict:
     zeros = sum(v == 0 for v in values) / len(values)
     half = len(values) // 2
     first, last = values[:half] or values, values[half:]
-    change = (sum(last) / len(last) - sum(first) / len(first)) / max(avg, 1)  # nửa sau so với nửa đầu
+    change = (sum(last) / len(last) - sum(first) / len(first)) / max(avg, 1)  # second half vs first half
     ok = zeros <= cfg.RADAR_30D_MAX_ZERO_SHARE and avg >= cfg.RADAR_30D_MIN_AVG
     return {"ok": ok, "avg": round(avg, 1), "zeros": round(zeros, 2), "change": round(max(-1.0, min(1.0, change)), 2)}
 
 
 def judge_volume(stats: dict[str, dict]) -> dict:
-    """stats: {"youtube": volume_30d, "web": volume_30d} (nguồn trước đã loại thì không có nguồn sau).
-    {"ok", "reason", "volume", "durability" 0–100, "trend_30d"}: thiếu lượng tìm ở nguồn nào cũng loại."""
+    """stats: {"youtube": volume_30d, "web": volume_30d} (when the first source fails, the second is absent).
+    {"ok", "reason", "volume", "durability" 0–100, "trend_30d"}: missing volume on any source excludes the keyword."""
     for source, s in stats.items():
         if s["ok"]:
             continue
         label = SOURCE_LABEL[source]
         if not s["avg"]:
-            reason = f"{label}: không có dữ liệu 30 ngày gần nhất (gần như không ai tìm ở thị trường này)"
+            reason = f"{label}: no data for the last 30 days (almost nobody searches it in this market)"
         elif s["zeros"] > cfg.RADAR_30D_MAX_ZERO_SHARE:
-            reason = f"{label}: {s['zeros']:.0%} số ngày trong 30 ngày bằng 0 (quá ít người tìm)"
+            reason = f"{label}: {s['zeros']:.0%} of the last 30 days are 0 (too few searches)"
         else:
-            reason = f"{label}: trung bình 30 ngày chỉ {s['avg']:.0f}/100 so với ngày cao nhất (lượng tìm thấp, lúc có lúc không)"
+            reason = f"{label}: 30-day average only {s['avg']:.0f}/100 of the highest day (low, on-and-off search volume)"
         return {"ok": False, "reason": reason, "volume": stats}
     avg = sum(s["avg"] for s in stats.values()) / len(stats)
     trend = stats.get("web", next(iter(stats.values())))["change"]
     reason = "; ".join(
-        f"{SOURCE_LABEL[k]} trung bình {s['avg']:.0f}/100, {1 - s['zeros']:.0%} số ngày có người tìm" for k, s in stats.items()
+        f"{SOURCE_LABEL[k]} average {s['avg']:.0f}/100, searched on {1 - s['zeros']:.0%} of days" for k, s in stats.items()
     )
-    # Độ đều: trung bình 50/100 trở lên (không dồn vào vài ngày) = 100 điểm.
+    # Steadiness: an average of 50/100 or more (not bunched into a few days) = 100 points.
     return {"ok": True, "reason": reason, "volume": stats, "durability": round(min(100.0, 2 * avg), 1), "trend_30d": trend}
 
 
 # ---------------------------------------------------------------------------
-# Điểm tiềm năng
+# Potential score
 # ---------------------------------------------------------------------------
 
 
 def momentum(kind: str, value: int, trend_12m: float | None) -> float:
     if kind == "rising":
         return log_scale(max(value, 1), *cfg.RADAR_MOMENTUM_LOG_RANGE)
-    return max(0.0, min(100.0, 50 + 100 * (trend_12m or 0)))  # truy vấn hàng đầu: theo xu hướng gần đây
+    return max(0.0, min(100.0, 50 + 100 * (trend_12m or 0)))  # top queries: follow the recent trend
 
 
 def persistence(seen_days: int) -> float:
@@ -204,12 +205,12 @@ def persistence(seen_days: int) -> float:
 
 
 def potential(row: dict) -> float | None:
-    """Điểm 0–100 cho từ khoá đã qua lọc lượng tìm; chưa chấm YouTube thì chia lại trọng số cho 3 phần còn lại."""
+    """0–100 score for a keyword that passed the volume filter; without a YouTube score the weights are re-spread over the other 3 parts."""
     shape = row.get("trend") or {}
     if row.get("status") == EXCLUDED or not shape.get("ok"):
         return None
     parts = {
-        # trend_12m: từ khoá kiểm theo hình dạng 5 năm trước đây (đến 10/2026)
+        # trend_12m: keywords checked with the earlier 5-year shape (until 10/2026)
         "momentum": momentum(row["kind"], row["value"], shape.get("trend_30d", shape.get("trend_12m"))),
         "durability": shape["durability"],
         "persistence": persistence(row["seen_days"]),

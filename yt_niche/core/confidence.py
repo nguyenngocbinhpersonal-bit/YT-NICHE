@@ -1,10 +1,10 @@
-"""Độ tin cậy của bộ mẫu (bài 2.2)."""
+"""Confidence of the sample (lesson 2.2)."""
 
 from __future__ import annotations
 
 from yt_niche import config as cfg
 
-HIGH, MEDIUM, LOW = "cao", "vừa", "thấp"
+HIGH, MEDIUM, LOW = "high", "medium", "low"
 
 
 def confidence(n: int, n_estimated: int) -> str:

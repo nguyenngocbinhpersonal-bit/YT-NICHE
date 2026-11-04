@@ -1,4 +1,4 @@
-"""Lấy bình luận dạng câu hỏi ở các video vượt trội của một lần đào (≈ 1 unit / video, cache 24h)."""
+"""Fetch question-type comments on the outperformer videos of a dig (≈ 1 unit / video, cached 24h)."""
 
 from __future__ import annotations
 

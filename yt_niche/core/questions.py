@@ -1,7 +1,7 @@
-"""Bình luận dạng câu hỏi (bài 2.1): dấu hiệu nhu cầu chưa được đáp ứng và nguồn ý tưởng video.
+"""Question-type comments (lesson 2.1): a sign of unmet demand and a source of video ideas.
 
-Xét từng câu: câu kết thúc bằng dấu hỏi, có cụm hỏi rõ nghĩa, hoặc là lời xin làm thêm video.
-Bỏ cụm dễ nhầm với câu kể ("đừng bao giờ", "có tiền bao nhiêu", "cho ai biết").
+Each sentence counts when it ends with a question mark, holds a clear question phrase, or asks for more videos.
+Phrases easily confused with statements are left out (Vietnamese "never", "however much money", "let anyone know").
 """
 
 from __future__ import annotations
@@ -10,20 +10,20 @@ import re
 
 from yt_niche.core.text import normalize
 
-# Cụm hỏi rõ nghĩa ở bất kỳ vị trí nào trong câu (so trên chữ đã chuẩn hoá).
+# Clear question phrases anywhere in the sentence (matched on normalized text). Vietnamese and English.
 QUESTION_PHRASES = (
     "tại sao", "vì sao", "làm sao", "làm thế nào", "như thế nào", "là gì", "có ai", "ai biết không", "có nên",
     "được không", "có phải", "cho hỏi", "xin hỏi", "bao giờ thì", "khi nào thì", "ở đâu", "can you", "could you",
     "is there", "does anyone",
 )
-# Lời xin thêm nội dung: tín hiệu cầu chưa được đáp ứng.
+# Requests for more content: a signal of unmet demand.
 REQUEST_PHRASES = (
     "làm video về", "ra video về", "làm thêm video", "làm thêm về", "phần tiếp theo đi", "mong ad làm", "ad làm",
     "please make", "do a video", "make a video", "part 2", "next video",
 )
-# Từ hỏi tiếng Anh chỉ tính khi đứng đầu câu ("what a great video" không phải câu hỏi).
+# English question words count only at the start of a sentence ("what a great video" is not a question).
 EN_LEADING = ("how", "why", "what", "where", "when", "which", "who", "is", "are", "can", "does", "do")
-# Câu cảm thán: "what a great video", "how amazing is this".
+# Exclamations: "what a great video", "how amazing is this".
 EN_EXCLAIM = ("a", "an", "great", "cool", "amazing", "beautiful", "nice", "good", "awesome", "lovely", "sweet")
 
 _NOISE = re.compile(r"https?://\S+")
@@ -53,7 +53,7 @@ def is_question(text: str) -> bool:
 
 
 def question_comments(comments: list[dict], min_chars: int = 15, top: int = 30) -> list[dict]:
-    """Lọc bình luận có câu hỏi, sắp theo lượt thích + trả lời, bỏ trùng. "question" là câu hỏi trích ra."""
+    """Keep comments that hold a question, sorted by likes + replies, deduplicated. "question" is the extracted sentence(s)."""
     seen, out = set(), []
     for c in sorted(comments, key=lambda c: c.get("likes", 0) + 2 * c.get("replies", 0), reverse=True):
         text = " ".join((c.get("text") or "").split())

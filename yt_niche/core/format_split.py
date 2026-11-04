@@ -1,4 +1,4 @@
-"""Tách bộ mẫu Dài / Shorts và gắn nhãn định dạng phù hợp (bài 2.2)."""
+"""Split the sample into Long-form / Shorts and label the format that fits (lesson 2.2)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from yt_niche import config as cfg
 from yt_niche.core.formats import LONG, SHORTS
 from yt_niche.core.stats import median
 
-FIT_LABEL = {LONG: "Ngách hợp video dài", SHORTS: "Ngách hợp Shorts"}
+FIT_LABEL = {LONG: "Fits long-form", SHORTS: "Fits Shorts"}
 
 
 def _summary(videos: list[dict]) -> dict:
@@ -18,7 +18,7 @@ def _summary(videos: list[dict]) -> dict:
 
 
 def format_split(videos: list[dict]) -> dict:
-    """Một định dạng "hợp" khi thắng cả trung vị (≥ 1,5×) lẫn số video vượt trội."""
+    """A format "fits" when it wins both the median (≥ 1.5×) and the number of outperformer videos."""
     long_s = _summary([v for v in videos if v["fmt"] == LONG])
     short_s = _summary([v for v in videos if v["fmt"] == SHORTS])
 

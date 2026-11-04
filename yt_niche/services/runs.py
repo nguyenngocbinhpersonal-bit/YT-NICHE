@@ -1,4 +1,4 @@
-"""Một lần đào trọn vẹn: lấy dữ liệu → tính điểm → lưu. Và tính lại khi đổi affiliate / RPM / ngưỡng."""
+"""One complete dig: fetch data → score → save. Plus re-scoring when affiliates / RPM / thresholds change."""
 
 from __future__ import annotations
 
@@ -11,21 +11,21 @@ from yt_niche.services.fetch import DigParams, fetch_niche
 from yt_niche.sources import rpm as rpm_source
 from yt_niche.sources.trends import TIMEFRAMES, get_trends
 
-# Các chỉ số hiện khi so số cũ / mới.
+# Metrics shown when comparing old / new numbers.
 COMPARE_FIELDS = [
-    ("score", "Điểm ngách"),
-    ("demand", "Nhu cầu"),
-    ("opportunity", "Cơ hội"),
-    ("freshness", "Độ mới"),
-    ("competition", "Cạnh tranh"),
-    ("median_views", "Trung vị view"),
-    ("n", "Số video mẫu"),
+    ("score", "Niche score"),
+    ("demand", "Demand"),
+    ("opportunity", "Opportunity"),
+    ("freshness", "Freshness"),
+    ("competition", "Competition"),
+    ("median_views", "Median views"),
+    ("n", "Sample videos"),
 ]
 
 
 def _analyze(raw: dict, category: str | None, affiliates: list[str]) -> dict:
     rpm = rpm_source.lookup(raw["params"]["region"], category)
-    # Chưa nhập sản phẩm nào → coi như chưa chấm affiliate (không phải 0 sản phẩm).
+    # No products entered yet → treat affiliates as not scored (not as 0 products).
     return analyze(raw, rpm=rpm, affiliates=len(affiliates) if affiliates else None)
 
 
@@ -39,7 +39,7 @@ def dig(
     parent_id: int | None = None,
     filter_type: str = "",
 ) -> int:
-    """parent_id: ngách mẹ khi đào ngách con (bài 2.3); tầng = tầng ngách mẹ + 1."""
+    """parent_id: the parent niche when digging a sub-niche (lesson 2.3); layer = parent's layer + 1."""
     raw = asyncio.run(fetch_niche(conn, params, fresh=fresh))
     affiliates = affiliates or []
     layer = 1
@@ -58,7 +58,7 @@ def dig(
 
 
 def redig(conn: sqlite3.Connection, run_id: int) -> int:
-    """Đào lại cùng thiết lập với số mới; giữ nhóm chủ đề và affiliate của lần trước."""
+    """Dig again with the same settings and fresh numbers; keeps the previous topic category and affiliates."""
     old = run_repo.get(conn, run_id, with_raw=True)
     params = DigParams(**old["raw"]["params"])
     return dig(
@@ -68,7 +68,7 @@ def redig(conn: sqlite3.Connection, run_id: int) -> int:
 
 
 def reanalyze(conn: sqlite3.Connection, run_id: int, *, category: str | None, affiliates: list[str]) -> dict:
-    """Tính lại từ dữ liệu thô đã lưu (không tốn quota)."""
+    """Re-score from the stored raw data (no quota spent)."""
     run = run_repo.get(conn, run_id, with_raw=True)
     result = _analyze(run["raw"], category, affiliates)
     run_repo.update_result(conn, run_id, result, category=category, affiliates=affiliates)
@@ -76,14 +76,14 @@ def reanalyze(conn: sqlite3.Connection, run_id: int, *, category: str | None, af
 
 
 def refetch_trends(conn: sqlite3.Connection, run_id: int) -> dict:
-    """Lấy lại riêng Google Trends cho lần đào đã lưu (không tốn quota YouTube) rồi tính lại điểm.
+    """Fetch only Google Trends again for a saved dig (no YouTube quota) and re-score.
 
-    Khoảng thời gian nào đã có trong cache thì dùng lại, chỉ gọi Google cho khoảng còn thiếu.
+    Timeframes already in the cache are reused; Google is called only for the missing ones.
     """
     run = run_repo.get(conn, run_id, with_raw=True)
     p = run["raw"]["params"]
     trends = asyncio.run(get_trends(conn, p["topic"], p["region"], p.get("trends_source") or "youtube"))
-    # Giữ khoảng đã có của lần trước nếu lần này vẫn chưa lấy được.
+    # Keep the timeframes from last time if this call still could not fetch them.
     old = run["raw"].get("trends") or {}
     series = {**(old.get("series") or {}), **trends["series"]}
     merged = {
@@ -100,15 +100,15 @@ def compare(old: dict, new: dict) -> list[dict]:
     rows = []
     for key, label in COMPARE_FIELDS:
         a, b = old["result"].get(key), new["result"].get(key)
-        rows.append({"Chỉ số": label, "Cũ": a, "Mới": b, "Chênh": (b - a) if a is not None and b is not None else None})
-    for key, label in [("total", "Video vượt trội")]:
+        rows.append({"Metric": label, "Old": a, "New": b, "Change": (b - a) if a is not None and b is not None else None})
+    for key, label in [("total", "Outperformer videos")]:
         a, b = old["result"]["outlier_counts"][key], new["result"]["outlier_counts"][key]
-        rows.append({"Chỉ số": label, "Cũ": a, "Mới": b, "Chênh": b - a})
+        rows.append({"Metric": label, "Old": a, "New": b, "Change": b - a})
     a, b = len(old["result"]["small_boom_channels"]), len(new["result"]["small_boom_channels"])
-    rows.append({"Chỉ số": "Kênh nhỏ nổ", "Cũ": a, "Mới": b, "Chênh": b - a})
-    for key, label in [("label", "Nhãn"), ("confidence", "Độ tin cậy"), ("verdict", "Kết luận")]:
-        rows.append({"Chỉ số": label, "Cũ": old[key], "Mới": new[key], "Chênh": None})
+    rows.append({"Metric": "Small booming channels", "Old": a, "New": b, "Change": b - a})
+    for key, label in [("label", "Label"), ("confidence", "Confidence"), ("verdict", "Verdict")]:
+        rows.append({"Metric": label, "Old": old[key], "New": new[key], "Change": None})
     rows.append(
-        {"Chỉ số": "Trends", "Cũ": old["result"]["trends"]["class"], "Mới": new["result"]["trends"]["class"], "Chênh": None}
+        {"Metric": "Trends", "Old": old["result"]["trends"]["class"], "New": new["result"]["trends"]["class"], "Change": None}
     )
     return rows

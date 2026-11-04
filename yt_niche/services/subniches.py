@@ -1,4 +1,4 @@
-"""Ngách con (bài 2.3): cây ngách mẹ → con, phiếu kiểm tra "đủ sống"."""
+"""Sub-niches (lesson 2.3): parent → child niche tree and the "viable niche" check sheet."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def check(conn: sqlite3.Connection, run_id: int) -> dict:
 
 
 def tree(conn: sqlite3.Connection, root_id: int) -> list[dict]:
-    """Danh sách phẳng theo thứ tự cây: [{"run", "depth", "status"}], bắt đầu từ ngách mẹ."""
+    """Flat list in tree order: [{"run", "depth", "status"}], starting from the parent niche."""
     out: list[dict] = []
 
     def walk(run: dict, depth: int) -> None:
