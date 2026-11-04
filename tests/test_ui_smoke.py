@@ -279,3 +279,18 @@ def test_niche_map_page_with_niches(app_db):
         assert not at.exception, [e.value for e in at.exception]
     at.selectbox(key="map_pick").set_value(child).run()
     assert any("### Lịch sử Việt Nam" in m.value for m in at.markdown)
+
+
+def test_radar_page_survives_trends_unreachable(app_db, monkeypatch):
+    """No network / proxy refused must not crash the page (only the Scope tab degrades)."""
+    from yt_niche.services import radar
+    from yt_niche.sources import trends
+
+    def boom(conn):
+        raise ConnectionError("no route to trends.google.com")
+
+    monkeypatch.setattr(trends, "category_tree", boom)
+    monkeypatch.setattr(radar, "task_status", lambda: False)
+    at = _run("radar_page.py")
+    assert any("Could not load the Google Trends category list" in w.value for w in at.warning)
+    assert len(at.tabs) == 5

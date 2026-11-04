@@ -34,6 +34,12 @@ try:
     cat_names = {c["id"]: c["name"] for c in rd.flatten(tree)}
 except trends.Throttled:
     tree, cat_names = None, {}
+except Exception as e:  # no network, proxy refused, Google changed the endpoint: keep the rest of the page usable
+    tree, cat_names = None, {}
+    st.warning(
+        f"Could not load the Google Trends category list ({type(e).__name__}). Keyword tables still work; "
+        "category names and the Scope tab come back once Google Trends is reachable."
+    )
 
 # ---------------------------------------------------------------------------
 # KPIs + background scanning

@@ -604,7 +604,7 @@ def stats(conn: sqlite3.Connection, now: datetime | None = None) -> dict:
     counts = {r["status"]: r["n"] for r in conn.execute("SELECT status, COUNT(*) AS n FROM radar_keyword GROUP BY status")}
     try:
         state = _pair_state(conn, get_scope(conn))
-    except trends.Throttled:
+    except Exception:  # 429, no network, proxy refused: stats are display-only, show what the DB has
         state = []
     interval = current_interval(conn)
     jobs_per_day = 86400 / interval
