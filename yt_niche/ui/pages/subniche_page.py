@@ -24,20 +24,20 @@ conn = get_conn()
 theme.inject_css()
 
 # Layer status (core.subniche.layer_status): icon + word, never color alone.
-STATUS_ICON = {"alive": "🟢", "weak": "🟡", "too_narrow": "🔴", "video": "🎬"}
+STATUS_TONE = {"alive": "green", "weak": "amber", "too_narrow": "red", "video": ""}
 STATUS_WORD = {"alive": "Alive", "weak": "Weak", "too_narrow": "Too narrow", "video": "Video topic"}
 FILTER_KEY = {v: k for k, v in sn.FILTERS.items()}  # filter label shown in the editor → key stored on the run
 
 
 def _status_text(status: dict) -> str:
-    return f"{STATUS_ICON[status['status']]} {STATUS_WORD[status['status']]}"
+    return STATUS_WORD[status["status"]]
 
 
 # ---------------------------------------------------------------------------
 # Header, niche picker, KPIs
 # ---------------------------------------------------------------------------
 
-theme.page_header("🌿", "Sub-niches & keywords", "Go one layer down: repeated phrases, search suggestions, keyword scores.")
+theme.page_header("", "Sub-niches & keywords", "Go one layer down: repeated phrases, search suggestions, keyword scores.")
 
 all_runs = run_repo.list_all(conn)
 if not all_runs:
@@ -99,7 +99,7 @@ with tab_sub:
     with st.container(border=True):
         c1, c2 = st.columns([1, 2])
         az = c2.checkbox("Expand A–Z (more variants, about 25 suggestion calls)", key="sub_az")
-        if c1.button("🔎 Fetch YouTube suggestions", help="Free, no API quota", width="stretch"):
+        if c1.button("Fetch YouTube suggestions", help="Free, no API quota", width="stretch"):
             with st.spinner("Fetching suggestions…"):
                 try:
                     got = kw_svc.fetch_suggestions(conn, run["topic"], run["region"], az=az)
@@ -172,7 +172,7 @@ with tab_sub:
             "Same market, time window and format as the niche above. "
             f"About {EST_UNITS_PER_DIG} units per sub-niche → {len(todo) * EST_UNITS_PER_DIG} units."
         )
-        if st.button(f"⛏️ Dig {len(todo)} sub-niches", type="primary", disabled=not todo or not cfg.api_key()):
+        if st.button(f"Dig {len(todo)} sub-niches", type="primary", disabled=not todo or not cfg.api_key()):
             params = r["params"]
             for row in todo:
                 topic = " ".join(str(row["Sub-niche"]).split())
@@ -222,7 +222,7 @@ with tab_tree:
     if len(nodes) == 1:
         st.caption("No sub-niche yet. Dig deeper in tab 1.")
     else:
-        with st.expander("📈 Compare Google Trends: parent vs up to 4 sub-niches (same scale)"):
+        with st.expander("Compare Google Trends: parent vs up to 4 sub-niches (same scale)"):
             root_run = nodes[0]["run"]
             kids = list(dict.fromkeys(n["run"]["topic"] for n in nodes[1:] if n["run"]["topic"] != root_run["topic"]))
             chosen = st.multiselect("Sub-niches", kids, default=kids[:4], max_selections=4, key=f"trcmp_{root}")
@@ -242,11 +242,11 @@ with tab_tree:
                         pd.DataFrame(
                             [
                                 {
-                                    "Topic": ("🌳 " if x["is_parent"] else "") + x["topic"],
+                                    "Topic": x["topic"] + (" (parent)" if x["is_parent"] else ""),
                                     "12 months": x["direction_12m"],
                                     "5 years": x["direction_5y"],
                                     "Level, last 13 weeks": x["level"],
-                                    "Good candidate": "⭐" if x["good_candidate"] else "",
+                                    "Good candidate": "Yes" if x["good_candidate"] else "",
                                 }
                                 for x in rows
                             ]
@@ -258,13 +258,13 @@ with tab_tree:
                     if any(points.values()):
                         frames = {t: pd.Series({d: v for d, v in pts}) for t, pts in points.items() if pts}
                         st.line_chart(pd.DataFrame(frames), height=240)
-                    st.caption("A sub-niche that rises while the parent is flat or falling is a good candidate (⭐).")
+                    st.caption("A sub-niche that rises while the parent is flat or falling is a good candidate.")
 
     theme.section(f"Viability check: {run['topic']}", "Five checks. The sub-niche is viable when all five pass.")
     check = sub_svc.check(conn, run_id)
     if ai.enabled(conn, "prompts"):
         if st.button(
-            "🤖 Let AI write the promise and 30 ideas", key=f"ai_fill_{run_id}",
+            "Let AI write the promise and 30 ideas", key=f"ai_fill_{run_id}",
             help="Based on the dig result, scored long-tail keywords and outperformer videos. A promise you already wrote is kept; "
                  "the ideas box is replaced by the AI result. Costs one AI call.",
         ):
@@ -298,9 +298,8 @@ with tab_tree:
             st.rerun()
 
     for c in check["checks"]:
-        icon = "✅" if c["ok"] else "⬜" if c["ok"] is None else "❌"
-        kind = "green" if c["ok"] else "" if c["ok"] is None else "red"
-        st.markdown(f"{icon} **{c['label']}** {theme.pill(c['detail'], kind)}", unsafe_allow_html=True)
+        word, tone = ("Pass", "green") if c["ok"] else ("Open", "") if c["ok"] is None else ("Fail", "red")
+        st.markdown(f"{theme.status_pill(word, tone)} <b>{c['label']}</b> <span class='yt-detail'>{c['detail']}</span>", unsafe_allow_html=True)
     dups = sn.duplicate_ideas(sn.parse_ideas(check["ideas"]))
     if dups:
         ideas_list = sn.parse_ideas(check["ideas"])
@@ -308,7 +307,7 @@ with tab_tree:
             for i, j in dups[:30]:
                 st.markdown(f"- {ideas_list[i]} ↔ {ideas_list[j]}")
     if check["passed"]:
-        st.success("✅ Viable. Next: compare it with other niches (Compare page), then weigh it on the Scorecard.")
+        st.success("Viable. Next: compare it with other niches (Compare page), then weigh it on the Scorecard.")
     elif check["checks"][2]["ok"] is False:
         st.warning(f"Fewer than {cfg.SUBNICHE_MIN_IDEAS} distinct ideas: the niche may be too narrow. Try loosening one filter.")
 
@@ -330,7 +329,7 @@ with tab_kw:
 
         b1, b2 = st.columns([1, 2])
         az_kw = b2.checkbox("Expand A–Z", key=f"kwaz_{run_id}")
-        if b1.button("🔎 Fetch suggestions", key=f"kwget_{run_id}", width="stretch"):
+        if b1.button("Fetch suggestions", key=f"kwget_{run_id}", width="stretch"):
             try:
                 kw_svc.fetch_suggestions(conn, seed_norm, region, az=az_kw)
             except Exception as e:
@@ -391,7 +390,7 @@ with tab_kw:
 
         a1, a2, a3 = st.columns(3)
         if a1.button(
-            f"📊 Score {len(to_score)} keywords (≈ {len(to_score) * kw_svc.UNITS_PER_KEYWORD} units)",
+            f"Score {len(to_score)} keywords (≈ {len(to_score) * kw_svc.UNITS_PER_KEYWORD} units)",
             type="primary",
             disabled=not to_score or not cfg.api_key(),
             key=f"kwscore_{run_id}",
@@ -403,13 +402,13 @@ with tab_kw:
                 with st.spinner("Scoring keywords on real YouTube results…"):
                     if handle_youtube_errors(kw_svc.score, conn, region, to_score) is not None:
                         st.rerun()
-        if a2.button("💾 Save picks", key=f"kwpick_{run_id}", width="stretch"):
+        if a2.button("Save picks", key=f"kwpick_{run_id}", width="stretch"):
             kw_svc.set_picked(conn, region, [k["keyword"] for k in kws], False)
             kw_svc.set_picked(conn, region, picked, True)
             st.rerun()
         dig_list = [k for k in kws if k["picked"] and not k["run_id"]]
         if a3.button(
-            f"⛏️ Dig {len(dig_list)} picked (≈ {len(dig_list) * EST_UNITS_PER_DIG} units)",
+            f"Dig {len(dig_list)} picked (≈ {len(dig_list) * EST_UNITS_PER_DIG} units)",
             disabled=not dig_list or len(dig_list) > kw_svc.MAX_DIG_PICKED or not cfg.api_key(),
             help=f"Save picks first; at most {kw_svc.MAX_DIG_PICKED} keywords",
             key=f"kwdig_{run_id}",

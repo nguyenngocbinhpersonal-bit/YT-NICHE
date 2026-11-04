@@ -17,7 +17,7 @@ EST_UNITS = 200  # first lookup for a niche (channels not cached yet); a repeat 
 conn = get_conn()
 theme.inject_css()
 
-theme.page_header("🔗", "Similar videos & channels", "From one URL: who else serves this audience, and with what.")
+theme.page_header("", "Similar videos & channels", "From one URL: who else serves this audience, and with what.")
 
 # ---------------------------------------------------------------------------
 # Lookup form
@@ -110,13 +110,13 @@ src = res["source"]
 # ---------------------------------------------------------------------------
 
 if src.get("video_id"):
-    st.subheader(f"🎬 {src['video_title']}")
+    st.subheader(f"{src['video_title']}")
     st.caption(
         f"Channel **{src['channel']}** {src.get('handle') or ''} · {fmt_num(src['subs'])} subs · "
         f"video {fmt_num(src['video_views'])} views · [open video](https://www.youtube.com/watch?v={src['video_id']})"
     )
 else:
-    st.subheader(f"📺 {src['channel']}")
+    st.subheader(f"{src['channel']}")
     st.caption(
         f"{src.get('handle') or ''} · {fmt_num(src['subs'])} subs · "
         f"[open channel](https://www.youtube.com/channel/{src['channel_id']})"
@@ -171,7 +171,7 @@ def _subs_ok(subs) -> bool:
     return subs >= min_subs and (not max_subs or subs <= max_subs)
 
 
-tab_c, tab_v = st.tabs([f"📺 Channels ({len(res['channels'])})", f"🎬 Videos ({len(res['videos'])})"])
+tab_c, tab_v = st.tabs([f"Channels ({len(res['channels'])})", f"Videos ({len(res['videos'])})"])
 
 with tab_c:
     rows = [
@@ -204,7 +204,7 @@ with tab_c:
             },
         )
         st.download_button(
-            "⬇️ Download channels CSV",
+            "Download channels CSV",
             df.to_csv(index=False).encode("utf-8-sig"),
             file_name=f"similar_channels_{run_id}.csv",
             mime="text/csv",
@@ -250,7 +250,7 @@ with tab_v:
             },
         )
         st.download_button(
-            "⬇️ Download videos CSV",
+            "Download videos CSV",
             df.to_csv(index=False).encode("utf-8-sig"),
             file_name=f"similar_videos_{run_id}.csv",
             mime="text/csv",
@@ -259,7 +259,7 @@ with tab_v:
         theme.empty_state("No video matches the filters.")
 
 st.divider()
-if st.button("🗑️ Delete this lookup"):
+if st.button("Delete this lookup"):
     similar.delete_run(conn, run_id)
     st.session_state.pop("similar_run", None)
     st.rerun()

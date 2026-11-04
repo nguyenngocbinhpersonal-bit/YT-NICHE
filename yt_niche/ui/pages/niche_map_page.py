@@ -7,7 +7,7 @@ Encoding (docs/NICHE_MAP_MCP_PLAN.md §7, data-viz rules):
 - area = potential ranked by Claude (unranked niches drawn small and grey);
 - color = one measure OTHER than area, user-selectable: Opportunity (demand − competition, diverging red ↔ blue with a
   grey midpoint), Demand (single blue ramp, light → dark), Data freshness (blue, old → fresh);
-- red outline + ⚠ = data changed since the ranking (stale), Claude should re-rank.
+- red outline + "re-rank" = data changed since the ranking (stale), Claude should re-rank.
 A treemap puts every tile next to every other, so ten motivations are not ten colors; motivation shows as group,
 label and badge instead.
 """
@@ -35,8 +35,7 @@ MODES = {"Motivation": "motivation", "Potential band": "potential", "Niche tree"
 COLOR_BY = {"Opportunity (demand − competition)": "opportunity", "Demand of main keywords": "demand", "Data freshness": "fresh"}
 MOTIVATION_SHORT = {"learn": "Learn", "earn": "Earn", "fix": "Fix a problem", "improve": "Improve", "believe": "Believe & meaning",
                     "connect": "Connect", "escape": "Escape", "experience": "Experience", "updated": "Stay updated", "inspired": "Feel inspired"}
-MOTIVATION_ICON = {"learn": "📘", "earn": "💰", "fix": "🔧", "improve": "📈", "believe": "🕯️", "connect": "🤝",
-                   "escape": "🎮", "experience": "🧭", "updated": "📰", "inspired": "✨"}
+MOTIVATION_ICON = {k: "" for k in nm.MOTIVATIONS}  # no icons in the professional style
 TREND_LABEL = {STABLE: "Evergreen", SEASONAL: "Seasonal", FAD: "Fad", FALLING: "Declining"}
 ROLE_LABEL = {"leader": "Leader", "rising": "Rising", "fallen": "Fallen"}
 KIND_LABEL = {"main": "Main", "related": "Related", "longtail": "Long-tail", "trend": "Trend"}
@@ -119,7 +118,7 @@ def _load(include_merged: bool) -> list[dict]:
 # Header: title + KPI tiles
 # ---------------------------------------------------------------------------
 
-theme.page_header("🗺️", "Niche map", "Niches Claude built from real data, sized by potential.")
+theme.page_header("", "Niche map", "Niches Claude built from real data, sized by potential.")
 rows_all = _load(include_merged=st.session_state.get("map_show_merged", False))
 if not rows_all:
     st.info(
@@ -199,11 +198,11 @@ def _fill(r: dict) -> str:
 
 def _group_of(r: dict) -> str:
     if mode_key == "motivation":
-        return f"{MOTIVATION_ICON.get(r['motivation'], '❔')} {MOTIVATION_SHORT.get(r['motivation'], 'No motivation yet')}"
+        return MOTIVATION_SHORT.get(r["motivation"], "No motivation yet")
     if mode_key == "potential":
         return _potential_band(r["potential"])
     if mode_key == "language":
-        return {"vi": "🇻🇳 Vietnamese", "en": "🇺🇸 English", "ja": "🇯🇵 Japanese", "ko": "🇰🇷 Korean"}.get(r["language"], r["language"] or "Unknown language")
+        return {"vi": "Vietnamese", "en": "English", "ja": "Japanese", "ko": "Korean"}.get(r["language"], r["language"] or "Unknown language")
     if mode_key == "trend":
         return TREND_LABEL.get(r["signals"]["trend_class"], "No Trends data")
     return ""
@@ -229,7 +228,7 @@ for r in rows:
     sig, p = r["signals"], r["potential"]
     fill = _fill(r)
     ids.append(f"n{r['id']}")
-    flag = " ⚠" if r["stale"] else ""
+    flag = " · re-rank" if r["stale"] else ""
     tag = " · merged" if r["status"] == "merged" else ""
     meta = f"{MOTIVATION_ICON.get(r['motivation'], '')} {r['language'] or ''}".strip()
     opp = f"{r['opportunity']:+.0f}" if r["opportunity"] is not None else "—"
@@ -292,7 +291,7 @@ else:
 st.markdown(
     f"<div class='yt-legend'><span><b>Area</b> = potential ranked by Claude</span>{legend}"
     f"<span><span class='sw' style='background:{NONE_FILL}'></span>no data / merged</span>"
-    f"<span><span class='sw' style='background:#fff;border:2px solid {STALE_LINE}'></span>⚠ data changed, needs re-rank</span>"
+    f"<span><span class='sw' style='background:#fff;border:2px solid {STALE_LINE}'></span>red outline · data changed, needs re-rank</span>"
     f"<span style='color:{MUTED}'>Click a tile for details · click a group name to zoom</span></div>",
     unsafe_allow_html=True,
 )
@@ -334,7 +333,7 @@ with st.container(border=True):
         pills.append(f"<span class='yt-pill'>+ {MOTIVATION_SHORT[d['motivation_secondary']]}</span>")
     pills.append(f"<span class='yt-pill'>{d['status']}</span>")
     if d["stale"]:
-        pills.append("<span class='yt-pill red'>⚠ needs re-rank</span>")
+        pills.append("<span class='yt-pill red'>Needs re-rank</span>")
     st.markdown(f"### {d['name']}")
     st.markdown("".join(pills), unsafe_allow_html=True)
     if d["summary"]:
@@ -343,14 +342,14 @@ with st.container(border=True):
     m1, m2, m3, m4, m5 = st.columns(5)
     opp = None if sig["main_demand"] is None or sig["main_competition"] is None else sig["main_demand"] - sig["main_competition"]
     m1.metric("Potential", f"{d['potential']:.0f}" if d["potential"] is not None else "not ranked")
-    m2.metric("Demand", sig["main_demand"] if sig["main_demand"] is not None else "—", "main keywords", delta_color="off")
+    m2.metric("Demand", sig["main_demand"] if sig["main_demand"] is not None else "—", "main keywords", delta_color="off", delta_arrow="off")
     m3.metric("Competition", sig["main_competition"] if sig["main_competition"] is not None else "—",
-              f"opportunity {opp:+.0f}" if opp is not None else None, delta_color="normal" if opp is not None and opp >= 0 else "inverse")
+              f"opportunity {opp:+.0f}" if opp is not None else None, delta_color="normal" if opp is not None and opp >= 0 else "inverse", delta_arrow="off")
     m4.metric("Best dig score", f"{sig['best_run_score']:.0f}" if sig["best_run_score"] is not None else "—",
-              f"{sig['n_runs']} digs", delta_color="off")
-    m5.metric("Small booming channels", sig["small_boom_channels"], TREND_LABEL.get(sig["trend_class"], "no Trends data"), delta_color="off")
+              f"{sig['n_runs']} digs", delta_color="off", delta_arrow="off")
+    m5.metric("Small booming channels", sig["small_boom_channels"], TREND_LABEL.get(sig["trend_class"], "no Trends data"), delta_color="off", delta_arrow="off")
     if d["potential_rationale"]:
-        st.caption(f"🤖 Ranking rationale ({(d['ranked_at'] or '')[:10]}): {d['potential_rationale']}")
+        st.caption(f"Ranking rationale ({(d['ranked_at'] or '')[:10]}): {d['potential_rationale']}")
 
     if d["status"] == "merged":
         target = by_id[d["merged_into"]]["name"] if d["merged_into"] in by_id else f"#{d['merged_into']}"
@@ -366,7 +365,7 @@ with st.container(border=True):
             except nm.NicheError as e:
                 st.error(str(e))
 
-    tab_kw, tab_ch, tab_run, tab_ev = st.tabs(["🔑 Keywords", "📺 Competitors", "⛏️ Digs", "📝 Decision log"])
+    tab_kw, tab_ch, tab_run, tab_ev = st.tabs(["Keywords", "Competitors", "Digs", "Decision log"])
     with tab_kw:
         cols = st.columns(2) + st.columns(2)  # 2 rows × 2 columns so tables are wide enough
         for col, kind in zip(cols, nm.KINDS):
@@ -413,7 +412,7 @@ with st.container(border=True):
             st.caption("No dig attached to this niche yet.")
     with tab_ev:
         for e in d["events"]:
-            who = "🤖 Claude" if e["actor"] == "claude" else "👤 You" if e["actor"] == "user" else "⚙️ App"
+            who = "Claude" if e["actor"] == "claude" else "You" if e["actor"] == "user" else "App"
             st.markdown(
                 f"<span class='yt-pill'>{e['kind']}</span> {who} · <span style='color:{MUTED}'>{e['created_at'][:16].replace('T', ' ')}</span>"
                 f"<br>{e['rationale'] or '<i>no rationale recorded</i>'}",

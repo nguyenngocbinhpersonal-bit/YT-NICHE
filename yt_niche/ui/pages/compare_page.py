@@ -18,10 +18,10 @@ from yt_niche.ui.common import NO_CATEGORY, fmt_num, get_conn, market_label, pro
 
 conn = get_conn()
 theme.inject_css()
-BEST = " 🟩"  # marks the best cell of each column
+BEST = " (best)"  # marks the best cell of each column
 SOURCE_MARKET = "VN"  # the multi-market batch starts from a source topic in this market
 
-theme.page_header("🌍", "Compare", "Same topic across markets, side by side.")
+theme.page_header("", "Compare", "Same topic across markets, side by side.")
 
 tab_niche, tab_market, tab_prompt = st.tabs(["Compare niches", "Multi-market", "Prompts"])
 
@@ -65,7 +65,7 @@ with tab_niche:
 
     if cmp:
         if cmp["warnings"]:
-            theme.pills(*[theme.pill(f"⚠ {w}", "amber") for w in cmp["warnings"]])
+            theme.pills(*[theme.pill(f"{w}", "amber") for w in cmp["warnings"]])
         for r in cmp["excluded"]:
             st.error(f"Left out of the ranking: {r['name']} (low confidence, {r['n']} videos). Dig it again for a bigger sample.")
 
@@ -93,7 +93,7 @@ with tab_niche:
                     cmp_core.COLUMNS["format"]: mark(r["id"], "format", fit),
                 }
             )
-        theme.section("Seven columns", f"{BEST.strip()} marks the best cell of each column. Winning format is marked when it fits the format you can make.")
+        theme.section("Seven columns", f"\"{BEST.strip()}\" marks the best cell of each column. Winning format is marked when it fits the format you can make.")
         if rows:
             st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
@@ -110,13 +110,13 @@ with tab_niche:
             if cmp["view_ratio"]:
                 st.metric("Median views: highest ÷ lowest", f"{cmp['view_ratio']:g}×")
             if cmp["big_channel_niches"]:
-                theme.pills(*[theme.pill(f"⚠ {name}: decent score but few small booming channels", "amber") for name in cmp["big_channel_niches"]])
+                theme.pills(*[theme.pill(f"{name}: decent score but few small booming channels", "amber") for name in cmp["big_channel_niches"]])
                 st.caption("A good score with few small booming channels may be a big-channel niche.")
 
         if cmp["leader"]:
             theme.section("Verdict", "The app's suggestion. Rewrite it in your own words before deciding.")
             with st.container(border=True):
-                st.markdown(f"🏆 **Leader: {cmp['leader']['name']}**")
+                st.markdown(f"**Leader: {cmp['leader']['name']}**")
                 st.markdown("**Three-sentence verdict**")
                 st.markdown(
                     f"1. **{cmp['leader']['name']}** leads: {cmp['leader_reason']}.\n"
@@ -124,11 +124,11 @@ with tab_niche:
                     f"3. Biggest risk: {cmp['risk']}."
                 )
             for d in cmp["doors"]:
-                st.caption(f"🚪 Door left open by a losing niche: {d}. Do not drop it without opening its booming-channel frame.")
+                st.caption(f"Door left open by a losing niche: {d}. Do not drop it without opening its booming-channel frame.")
 
             with st.form("cmp_board"):
                 name = st.text_input("Scorecard name", value="Compare " + pd.Timestamp.now().strftime("%d/%m"))
-                if st.form_submit_button("⚖️ Create a scorecard from these niches", type="primary"):
+                if st.form_submit_button("Create a scorecard from these niches", type="primary"):
                     ids = [r["id"] for r in cmp["rows"]]
                     try:
                         st.session_state["board"] = sc_svc.create(conn, name, ids)
@@ -144,7 +144,7 @@ with tab_market:
     batches = mk_svc.list_batches(conn)
     NEW = 0
     options = [NEW] + [b["id"] for b in batches]
-    labels = {NEW: "➕ New batch"} | {
+    labels = {NEW: "New batch"} | {
         b["id"]: f"{b['topic']} · {b['n_done'] or 0}/{b['n']} markets · {b['created_at'][:10]} (#{b['id']})" for b in batches
     }
     current = st.session_state.get("batch")
@@ -179,7 +179,7 @@ with tab_market:
                 if topic and regions:
                     tr_prompt = report.build_translate_prompt(topic, [r for r in regions if r != SOURCE_MARKET] or regions)
                     st.code(tr_prompt, language="markdown")
-                    if ai.enabled(conn, "prompts") and st.button("🤖 Translate with AI (fills the box below)", key="mk_ai_translate"):
+                    if ai.enabled(conn, "prompts") and st.button("Translate with AI (fills the box below)", key="mk_ai_translate"):
                         with st.spinner("AI is translating…"):
                             try:
                                 answer = ai.run_prompt(conn, tr_prompt, tier="fast").strip().strip("`").strip()
@@ -203,7 +203,7 @@ with tab_market:
             )
             keywords = {row["Market"]: str(row["Keyword"] or "") for _, row in editor.iterrows()}
 
-            if st.button("🔎 Check that people type these keywords (YouTube suggestions, free)", disabled=not any(keywords.values())):
+            if st.button("Check that people type these keywords (YouTube suggestions, free)", disabled=not any(keywords.values())):
 
                 async def _check():
                     return await asyncio.gather(
@@ -214,8 +214,8 @@ with tab_market:
                     results = asyncio.run(_check())
                     for (r, kw), sug in zip([(r, kw) for r, kw in keywords.items() if kw.strip()], results):
                         top = ", ".join(s["keyword"] for s in sug[:4]) or "no suggestions"
-                        icon = "🟢" if sug else "🔴"
-                        st.markdown(f"{icon} **{market_label(r)}** \"{kw}\": {top}")
+                        badge = theme.status_pill("Found", "green") if sug else theme.status_pill("Not found", "red")
+                        st.markdown(f"{badge} **{market_label(r)}** \"{kw}\": {top}", unsafe_allow_html=True)
                 except Exception as e:
                     st.error(f"Could not fetch suggestions: {e}")
 
@@ -232,7 +232,7 @@ with tab_market:
             if category == NO_CATEGORY:
                 st.warning("Pick a topic category to get RPM; without RPM the opportunity score cannot be computed.")
             st.caption(f"Estimated {mk_svc.estimate_units(n, pages):,} units for {n} markets (less when channels are already cached).")
-            if st.button(f"⛏️ Dig {n} markets", type="primary", disabled=n < 2 or not cfg.api_key()):
+            if st.button(f"Dig {n} markets", type="primary", disabled=n < 2 or not cfg.api_key()):
                 try:
                     bid = mk_svc.create_batch(
                         conn, topic, keywords, category=None if category == NO_CATEGORY else category,
@@ -276,7 +276,7 @@ with tab_market:
                     "Market": market_label(it["region"]),
                     "Keyword": it["keyword"],
                     "Opportunity": o["score"],
-                    "Zone": ("🟢 green" if o.get("green") else "") if o["score"] is not None else o["formula"],
+                    "Zone": ("green" if o.get("green") else "") if o["score"] is not None else o["formula"],
                     "Niche score": round(r["score"]),
                     "Confidence": r["confidence"],
                     "Median views": r["median_views"],
@@ -310,14 +310,14 @@ with tab_market:
                     "Estimated income is only for relative comparison, not a salary figure."
                 )
         for it in missing:
-            st.caption(f"⏳ {market_label(it['region'])} \"{it['keyword']}\": {it['error'] or 'not dug yet'}")
+            st.caption(f"{market_label(it['region'])} \"{it['keyword']}\": {it['error'] or 'not dug yet'}")
         b1, b2, _ = st.columns([1, 1, 2])
         if missing and b1.button(f"Dig the {len(missing)} missing markets", type="primary", disabled=not cfg.api_key(), width="stretch"):
             out = mk_svc.run_batch(conn, batch_id)
             if out["stopped"]:
                 st.error(out["stopped"])
             st.rerun()
-        if b2.button("🗑️ Delete this batch", width="stretch"):
+        if b2.button("Delete this batch", width="stretch"):
             mk_svc.delete_batch(conn, batch_id)
             st.session_state.pop("batch", None)
             st.rerun()

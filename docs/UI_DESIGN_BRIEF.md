@@ -8,13 +8,19 @@ is the reference implementation; copy its patterns.
 | Helper | Use for |
 |---|---|
 | `inject_css()` | call once at the top of every page (after `get_conn()`); loads pills, legends, section styles |
-| `page_header(icon, title, subtitle)` | the first thing on every page: `st.title` + one-line muted subtitle saying what the page is for |
+| `page_header(icon, title, subtitle)` | the first thing on every page: `st.title` + one-line muted subtitle saying what the page is for (`icon` is ignored) |
 | `kpi_row([(label, value, delta, delta_color), ...])` | 3–5 bordered stat tiles right under the header; values short, deltas as small context ("2 not ranked") |
 | `pill(text, kind="")` | inline badge; kinds: `""` neutral, `"blue"` info, `"green"` good, `"red"` warning |
 | `section(title, help=None)` | `###` heading with optional muted help line; use instead of bare `st.subheader` |
 | `empty_state(message, hint=None)` | friendly `st.info` for "nothing here yet" + what to do next |
-| `label_icon(label)` / `verdict_icon(v)` / `tier_icon(t)` | status icons for niche labels, verdicts, tiers (shared mapping) |
+| `status_pill(word, tone=None)` | a status word in a coloured badge; tone comes from `STATUS_TONE` (Green niche → green, DROP → red…) |
+| `check_line(ok, label, detail)` | checklist row: Done / To do / Open badge + bold item + muted detail |
 | `COLORS` | the palette (blue ramp, red pole, ink, muted, surfaces); charts take colors from here |
+
+## Style
+
+Professional and quiet: neutral surfaces, one blue accent, typography and spacing do the work. No icons or emoji.
+KPI deltas are context text without arrows (`delta_arrow="off"`).
 
 ## Typography
 
@@ -32,7 +38,9 @@ is the reference implementation; copy its patterns.
 2. **Forms in a bordered container** (`st.container(border=True)`), primary action as `type="primary"`, one primary per form.
 3. **Tables**: `st.dataframe(..., hide_index=True, width="stretch")`, 0–100 scores as `st.column_config.ProgressColumn`,
    money/views with `NumberColumn(format=...)`. Column names short, English, no abbreviations the user has to decode.
-4. **Status, never color alone**: icon + word (🟢 Green niche, ⛔ DROP, ⚠ small sample).
+4. **No icons, no emoji — anywhere.** Not in navigation, titles, tabs, buttons, tables or charts. Status is a word,
+   optionally in a coloured badge (`status_pill`): the word carries the meaning, the colour only supports it. Yes/No columns
+   say "Yes". `tests/test_ui_smoke.py::test_no_icons_in_ui_source` enforces this.
 5. **Details in tabs** when a record has several facets (keywords / channels / digs / log).
 6. **Long explanations** go in `st.expander("How this is computed")`, not inline paragraphs.
 7. **Charts**: Plotly, `config={"displayModeBar": False}`, transparent background, palette from `theme.COLORS`,

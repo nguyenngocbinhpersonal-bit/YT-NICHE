@@ -201,7 +201,7 @@ def test_radar_page(app_db, monkeypatch):
 
 def test_settings_markets_tab(app_db):
     at = _run("settings_page.py")
-    assert any(t.label == "🌐 Markets" for t in at.tabs)
+    assert any(t.label == "Markets" for t in at.tabs)
 
 
 def test_settings_ai_tab_and_prompt_button(app_db, monkeypatch):
@@ -209,14 +209,14 @@ def test_settings_ai_tab_and_prompt_button(app_db, monkeypatch):
 
     db = common.get_conn()
     at = _run("settings_page.py")
-    assert any(t.label == "🤖 AI" for t in at.tabs)
+    assert any(t.label == "AI" for t in at.tabs)
     assert any(b.label == "Save AI settings" for b in at.button)
     # AI on: the Dig page shows the run-prompt button; clicking shows the (fake) answer
     monkeypatch.setenv("COMMANDCODE_API_KEY", "sk-test-1234567890")
     monkeypatch.setattr(ai, "_post", lambda url, payload: {"choices": [{"message": {"content": "Sample AI review"}}]})
     ai.save_config(db, {"enabled": True, "model_fast": "f", "model_deep": "d"})
     at = _run("dig.py", current_run=app_db)
-    btn = next(b for b in at.button if b.label == "🤖 Run with AI")
+    btn = next(b for b in at.button if b.label == "Run with AI")
     btn.click().run()
     assert any("Sample AI review" in m.value for m in at.markdown)
 
@@ -225,7 +225,7 @@ def test_settings_google_trends_tab(app_db, monkeypatch):
     from yt_niche.sources import dataforseo as dfs
 
     at = _run("settings_page.py")
-    assert any(t.label == "📈 Google Trends" for t in at.tabs)
+    assert any(t.label == "Google Trends" for t in at.tabs)
     btn = next(b for b in at.button if b.label == "Save Google Trends settings")
     next(t for t in at.toggle if t.label == "Use DataForSEO when Google blocks").set_value(True)
     btn.click().run()
@@ -294,3 +294,17 @@ def test_radar_page_survives_trends_unreachable(app_db, monkeypatch):
     at = _run("radar_page.py")
     assert any("Could not load the Google Trends category list" in w.value for w in at.warning)
     assert len(at.tabs) == 5
+
+
+def test_no_icons_in_ui_source():
+    """Professional style: no emoji / pictograph icons in any UI label (docs/UI_DESIGN_BRIEF.md)."""
+    import re
+
+    icon = re.compile("[\U0001F000-\U0001FAFF☀-➿⬀-⯿⏩-⏺▶◀↩↪️]")
+    hits = [
+        f"{p.relative_to(UI)}:{i}"
+        for p in sorted(UI.rglob("*.py"))
+        for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
+        if icon.search(line)
+    ]
+    assert not hits, hits

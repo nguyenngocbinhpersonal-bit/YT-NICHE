@@ -13,7 +13,7 @@ from yt_niche.ui.theme import inject_css, page_header
 
 conn = get_conn()
 inject_css()
-page_header("⛏️", "Dig", "Measure demand × supply × money with real numbers. One weak tier and the niche is weak.")
+page_header("", "Dig", "Measure demand × supply × money with real numbers. One weak tier and the niche is weak.")
 
 ORDER_LABEL = {"relevance": "Relevance", "viewCount": "View count"}
 TRENDS_SOURCE_LABEL = {"youtube": "YouTube", "web": "Google Web"}

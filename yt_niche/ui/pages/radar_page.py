@@ -18,7 +18,7 @@ C = theme.COLORS
 
 conn = get_conn()
 theme.inject_css()
-theme.page_header("📡", "Keyword radar", "Google Trends categories scanned on a schedule; keywords that pass are worth a dig.")
+theme.page_header("", "Keyword radar", "Google Trends categories scanned on a schedule; keywords that pass are worth a dig.")
 with st.expander("How the radar works"):
     st.markdown(
         "Seeds come from Google Trends' official category tree (top and rising queries per category and market), minus news, "
@@ -79,7 +79,7 @@ with st.container(border=True):
         if b2.button("Turn on scheduled task", type="primary", width="stretch"):
             st.toast(radar.enable_task())
             st.rerun()
-    if b3.button("▶️ Run one scan now", help="Skips the schedule; still respects the cooldown when Google blocks", width="stretch"):
+    if b3.button("Run one scan now", help="Skips the schedule; still respects the cooldown when Google blocks", width="stretch"):
         with st.spinner("Running one scan…"):
             result = radar.tick(conn, force=True)
         st.toast(f"{result['action']}: {result['detail']}")
@@ -124,7 +124,7 @@ with st.container(border=True):
 KIND = {"rising": "rising", "top": "top"}
 # Link to the keyword's 12-month Google Trends chart (YouTube Search) for its market.
 LINKS = {
-    "Trends YouTube": st.column_config.LinkColumn(display_text="▶️ Open", help="Google Trends, 12 months, YouTube Search, same market"),
+    "Trends YouTube": st.column_config.LinkColumn(display_text="Open", help="Google Trends, 12 months, YouTube Search, same market"),
 }
 POTENTIAL_COL = {"Potential": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f")}
 
@@ -135,7 +135,7 @@ def _table(rows: list[dict], extra: bool = False) -> pd.DataFrame:
         yt = r.get("yt") or {}
         out.append(
             {
-                "⭐": "⭐" if (r["potential"] or 0) >= cfg.RADAR_GOOD_MIN else "",
+                "Top": "Yes" if (r["potential"] or 0) >= cfg.RADAR_GOOD_MIN else "",
                 "Keyword": r["keyword"],
                 "Trends YouTube": trends.explore_url(r["keyword"], r["region"], "youtube", trends.TIMEFRAMES["12m"]),
                 **({"Meaning (AI)": r.get("ai_vi") or "", "Type (AI)": ai.KEYWORD_TYPES.get(r.get("ai_type"), ("",))[0]} if show_ai else {}),
@@ -162,7 +162,7 @@ picked = st.multiselect(
 regions = picked or list(cfg.ENABLED_MARKETS)
 
 tab_good, tab_pending, tab_out, tab_scope, tab_log = st.tabs(
-    ["⭐ Passed", "⏳ To check", "🚫 Excluded", "⚙️ Scope", "📜 Log"]
+    ["Passed", "To check", "Excluded", "Scope", "Log"]
 )
 
 with tab_good:
@@ -177,7 +177,7 @@ with tab_good:
                 f"Potential = momentum × {cfg.RADAR_WEIGHTS['momentum']:.0%} + 30-day steadiness × {cfg.RADAR_WEIGHTS['durability']:.0%} "
                 f"+ YouTube × {cfg.RADAR_WEIGHTS['youtube']:.0%} + days repeated × {cfg.RADAR_WEIGHTS['persistence']:.0%}. "
                 "Without a YouTube score the weight is spread over the other three. The radar scores the highest-potential "
-                f"keywords on YouTube by itself within the daily quota budget. ⭐ marks potential ≥ {cfg.RADAR_GOOD_MIN:g}."
+                f"keywords on YouTube by itself within the daily quota budget. The Top column marks potential ≥ {cfg.RADAR_GOOD_MIN:g}."
             )
         event = st.dataframe(
             _table(rows), hide_index=True, width="stretch", on_select="rerun", selection_mode="multi-row", key="radar_good",
@@ -186,20 +186,20 @@ with tab_good:
         chosen = [rows[i] for i in event.selection.rows]
         items = [(r["region"], r["keyword"]) for r in chosen]
         a1, a2, a3, a4 = st.columns([0.8, 1.2, 1.4, 1])
-        if a1.button("👁️ Watch", disabled=not chosen, width="stretch"):
+        if a1.button("Watch", disabled=not chosen, width="stretch"):
             radar.set_status(conn, items, rd.WATCHING)
             st.rerun()
-        if a2.button("🙈 Ignore (hide for good)", disabled=not chosen, width="stretch"):
+        if a2.button("Ignore (hide for good)", disabled=not chosen, width="stretch"):
             radar.set_status(conn, items, rd.IGNORED)
             st.rerun()
-        if a3.button(f"🔎 Score on YouTube (≈{102 * len(chosen)} units)", disabled=not chosen or len(chosen) > 5 or not cfg.api_key(),
+        if a3.button(f"Score on YouTube (≈{102 * len(chosen)} units)", disabled=not chosen or len(chosen) > 5 or not cfg.api_key(),
                      width="stretch"):
             with st.spinner("Scoring…"):
                 for region, kw in items:
                     if handle_youtube_errors(radar.score_youtube, conn, region, kw) is None:
                         break
             st.rerun()
-        if a4.button("⛏️ Dig (≈320 units)", disabled=len(chosen) != 1 or not cfg.api_key(), type="primary", width="stretch"):
+        if a4.button("Dig (≈320 units)", disabled=len(chosen) != 1 or not cfg.api_key(), type="primary", width="stretch"):
             r = chosen[0]
             params = DigParams(topic=r["keyword"], region=r["region"], language=cfg.MARKETS[r["region"]][0])
             with st.spinner(f"Digging \"{r['keyword']}\"…"):
@@ -225,7 +225,7 @@ with tab_out:
             key="radar_out", column_config={**POTENTIAL_COL, **LINKS},
         )
         picked = [(rows[i]["region"], rows[i]["keyword"]) for i in event.selection.rows]
-        if st.button("↩️ Send back to the check queue", disabled=not picked):
+        if st.button("Send back to the check queue", disabled=not picked):
             radar.set_status(conn, picked, rd.PENDING)
             st.rerun()
     else:
@@ -269,7 +269,7 @@ with tab_scope:
                 st.rerun()
 
 with tab_log:
-    theme.section("📈 Scan pace", "Use this to tune the fastest safe pace.")
+    theme.section("Scan pace", "Use this to tune the fastest safe pace.")
     days = st.segmented_control("Window", [1, 3, 7, 30, 180], default=7, format_func=lambda d: f"{d} days", key="pace_days") or 7
     rep = radar.pace_report(conn, days)
     if not rep["rows"]:
@@ -324,10 +324,10 @@ with tab_log:
                 hide_index=True, width="stretch",
             )
         st.download_button(
-            "⬇️ Download pace log (CSV)", df.to_csv(index=False).encode("utf-8-sig"),
+            "Download pace log (CSV)", df.to_csv(index=False).encode("utf-8-sig"),
             file_name=f"radar_pace_{days}d.csv", mime="text/csv",
         )
-    theme.section("📜 Last 50 scans")
+    theme.section("Last 50 scans")
     if stats["log"]:
         st.dataframe(
             pd.DataFrame([{"When": e["at"][:19].replace("T", " ") + " UTC", "Action": e["action"], "Detail": e["detail"]} for e in stats["log"]]),

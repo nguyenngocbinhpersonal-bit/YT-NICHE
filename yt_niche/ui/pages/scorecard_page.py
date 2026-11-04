@@ -12,7 +12,7 @@ from yt_niche.ui.common import get_conn, prompt_box, run_label
 
 conn = get_conn()
 theme.inject_css()
-theme.page_header("⚖️", "Scorecard", "Ten weighted criteria to lock in a main niche and a backup.")
+theme.page_header("", "Scorecard", "Ten weighted criteria to lock in a main niche and a backup.")
 
 # ---------------------------------------------------------------------------
 # Pick a scorecard / create one
@@ -21,7 +21,7 @@ theme.page_header("⚖️", "Scorecard", "Ten weighted criteria to lock in a mai
 boards = svc.list_all(conn)
 board_ids = [b["id"] for b in boards]
 labels = {
-    b["id"]: f"{b['name']} · v{b['version']} · {b['n_items']} niches · {'🔒 locked' if b['locked_at'] else '✏️ draft'}"
+    b["id"]: f"{b['name']} · v{b['version']} · {b['n_items']} niches · {'locked' if b['locked_at'] else 'draft'}"
     for b in boards
 }
 current = st.session_state.get("board")
@@ -35,7 +35,7 @@ with st.container(border=True):
             format_func=labels.get,
         )
         st.session_state["board"] = board_id
-    with st.expander("➕ New scorecard", expanded=not boards):
+    with st.expander("New scorecard", expanded=not boards):
         candidates = [r for r in run_repo.list_all(conn) if r["result"]["can_shortlist"]]
         if len(candidates) < svc.MIN_ITEMS:
             theme.empty_state(
@@ -69,7 +69,7 @@ names = {r["id"]: r["topic"] for r in data["runs"]}
 weights = data["weights"]
 
 for w in data["warnings"]:
-    st.warning(f"⚠️ {w}. Lesson 2.4: only compare niches dug with the same setup on the same day.")
+    st.warning(f"{w}. Lesson 2.4: only compare niches dug with the same setup on the same day.")
 if data["missing_runs"]:
     st.warning(f"{data['missing_runs']} digs on this scorecard were deleted and are not shown.")
 if data["parent_id"]:
@@ -111,7 +111,7 @@ if not data["locked_at"]:
                 st.rerun()
             except svc.ScorecardError as e:
                 st.error(str(e))
-        if b2.button("🔒 Lock weights", type="primary", disabled=total != 100, width="stretch"):
+        if b2.button("Lock weights", type="primary", disabled=total != 100, width="stretch"):
             try:
                 svc.set_weights(conn, board_id, new_weights)
                 svc.lock(conn, board_id)
@@ -123,7 +123,7 @@ if not data["locked_at"]:
 with st.container(border=True):
     theme.pills(*[theme.pill(f"{c.label} · {weights[c.key]}", "blue" if weights[c.key] > 0 else "") for c in sc.CRITERIA])
     c1, c2 = st.columns([2.4, 1.2])
-    c1.caption(f"🔒 Locked at {data['locked_at'][:16].replace('T', ' ')} (UTC).")
+    c1.caption(f"Locked at {data['locked_at'][:16].replace('T', ' ')} (UTC).")
     if c2.button("New version to change weights", width="stretch"):
         st.session_state["board"] = svc.new_version(conn, board_id)
         st.rerun()
@@ -181,7 +181,7 @@ table = pd.DataFrame(
     [
         {
             "Niche": r["name"],
-            **{c.label: ("🚩 1" if r["scores"].get(c.key) == 1 else r["scores"].get(c.key) or "—") for c in active},
+            **{c.label: ("1 (red flag)" if r["scores"].get(c.key) == 1 else r["scores"].get(c.key) or "—") for c in active},
             "Final score": r["final"],
             "Red flags": len(r["red_flags"]) or "",
         }
@@ -209,7 +209,7 @@ if not decision["complete"]:
 
 flagged = [r for r in decision["ranking"] if r["red_flags"]]
 for r in flagged:
-    crits = [theme.pill(f"🚩 {sc.CRITERIA_BY_KEY[k].label}", "red") for k in r["red_flags"]]
+    crits = [theme.pill(f"Red flag: {sc.CRITERIA_BY_KEY[k].label}", "red") for k in r["red_flags"]]
     st.markdown(f"**{r['name']}** ({r['final']:g} points) has a 1 in " + "".join(crits) + " — cannot be the main niche.",
                 unsafe_allow_html=True)
 
@@ -220,16 +220,16 @@ if not main:
 
 m, b = st.columns(2)
 with m.container(border=True):
-    st.markdown(f"### 🎯 Main niche: {main['name']}")
+    st.markdown(f"### Main niche: {main['name']}")
     st.metric("Final score", f"{main['final']:g}/100")
     st.caption(f"Why: {decision['main_reason']}")
 with b.container(border=True):
     if backup:
-        st.markdown(f"### 🛟 Backup niche: {backup['name']}")
+        st.markdown(f"### Backup niche: {backup['name']}")
         st.metric("Final score", f"{backup['final']:g}/100")
         st.caption(f"Why: {decision['backup_reason']}")
     else:
-        st.markdown("### 🛟 Backup niche: none yet")
+        st.markdown("### Backup niche: none yet")
         st.caption("No other niche qualifies. Dig one more niche close to the main niche.")
 
 with st.container(border=True):
@@ -254,12 +254,12 @@ if backup and not data["backup_close"]:
     st.warning("The backup should share the main niche's audience. If it does not, consider another backup.")
 st.caption("Do not run the main and backup niche side by side on one channel; the backup is only for switching.")
 
-with st.expander("📋 Prompt: challenge this scorecard (Claude / ChatGPT)"):
+with st.expander("Prompt: challenge this scorecard (Claude / ChatGPT)"):
     prompt_box(build_scorecard_review_prompt(data))
-st.info("Next: open 🎬 10 test videos to plan the main niche.")
+st.info("Next: open 10 test videos to plan the main niche.")
 
 st.divider()
-if st.button("🗑️ Delete this scorecard"):
+if st.button("Delete this scorecard"):
     st.session_state["confirm_delete_board"] = board_id
 if st.session_state.get("confirm_delete_board") == board_id:
     st.warning("Delete this scorecard for good? The digs stay.")

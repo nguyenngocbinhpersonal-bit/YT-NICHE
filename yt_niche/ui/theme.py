@@ -39,6 +39,8 @@ _CSS = """<style>
 .yt-pill.red{background:#fbe5e5;color:#9f2626;border-color:#f3b4b4}
 .yt-pill.amber{background:#fff3d6;color:#7a5200;border-color:#f6dc9a}
 .yt-sub{color:#52514e;font-size:17px;margin-top:-10px;margin-bottom:14px}
+.yt-status{min-width:64px;text-align:center}
+.yt-detail{color:#52514e;font-size:14px}
 .yt-help{color:#898781;font-size:14px;margin-top:-6px;margin-bottom:8px}
 .yt-legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:#52514e;margin:2px 0 10px}
 .yt-legend span.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;
@@ -57,7 +59,8 @@ def inject_css() -> None:
 
 
 def page_header(icon: str, title: str, subtitle: str | None = None) -> None:
-    st.title(f"{icon} {title}")
+    """`icon` is accepted for compatibility and ignored: the professional style uses no icons."""
+    st.title(title)
     if subtitle:
         st.markdown(f"<div class='yt-sub'>{subtitle}</div>", unsafe_allow_html=True)
 
@@ -70,7 +73,7 @@ def kpi_row(items: list[tuple]) -> None:
         delta = item[2] if len(item) > 2 else None
         delta_color = item[3] if len(item) > 3 else "off"
         with col, st.container(border=True):
-            st.metric(label, value, delta, delta_color=delta_color)
+            st.metric(label, value, delta, delta_color=delta_color, delta_arrow="off")
 
 
 def pill(text: str, kind: str = "") -> str:
@@ -92,12 +95,34 @@ def empty_state(message: str, hint: str | None = None) -> None:
     st.info(message + (f"\n\n{hint}" if hint else ""))
 
 
-# Status icons — shared so every page shows the same symbol for the same state.
-LABEL_ICON = {"Green niche": "🟢", "Promising niche": "🟡", "Red niche": "🔴", "Small sample": "⚠️"}
-VERDICT_ICON = {"TRY": "✅", "TRY AFTER FIXING": "🛠️", "DROP": "⛔"}
-TIER_ICON = {"Strong": "🟢", "Medium": "🟡", "Weak": "🔴"}
-CONFIDENCE_ICON = {"high": "🟢", "medium": "🟡", "low": "🔴"}
-TREND_ICON = {"evergreen": "🌳", "fad": "🎈", "declining": "📉", "seasonal": "🍂"}
+# Professional style: no icons anywhere. Status is carried by the word itself, inside a coloured badge where it matters.
+# The *_ICON dicts are kept (empty values) so existing imports keep working; with_icon() returns the plain word.
+LABEL_ICON = {"Green niche": "", "Promising niche": "", "Red niche": "", "Small sample": ""}
+VERDICT_ICON = {"TRY": "", "TRY AFTER FIXING": "", "DROP": ""}
+TIER_ICON = {"Strong": "", "Medium": "", "Weak": ""}
+CONFIDENCE_ICON = {"high": "", "medium": "", "low": ""}
+TREND_ICON = {"evergreen": "", "fad": "", "declining": "", "seasonal": ""}
+
+# Tone per status word, for badges (pill kinds).
+STATUS_TONE = {
+    "Green niche": "green", "Promising niche": "amber", "Red niche": "red", "Small sample": "amber",
+    "TRY": "green", "TRY AFTER FIXING": "amber", "DROP": "red",
+    "Strong": "green", "Medium": "amber", "Weak": "red",
+    "high": "green", "medium": "amber", "low": "red",
+}
+
+
+def status_pill(word: str | None, tone: str | None = None) -> str:
+    """A status word in a coloured badge ('Done', 'Missing', 'TRY'…). The word carries the meaning, colour supports it."""
+    if not word:
+        return pill("—")
+    return pill(word, tone if tone is not None else STATUS_TONE.get(word, ""))
+
+
+def check_line(ok: bool | None, label: str, detail: str = "") -> str:
+    """Checklist row without icons: a fixed-width status badge, the item in bold, then the detail."""
+    word, tone = ("Done", "green") if ok else ("Open", "") if ok is None else ("To do", "amber")
+    return f"<span class='yt-pill yt-status {tone}'>{word}</span> <b>{label}</b>" + (f" <span class='yt-detail'>{detail}</span>" if detail else "")
 
 
 def label_icon(label: str | None) -> str:
@@ -113,8 +138,5 @@ def tier_icon(tier: str | None) -> str:
 
 
 def with_icon(mapping: dict, value: str | None) -> str:
-    """'🟢 Green niche' — icon + word, never color alone."""
-    if not value:
-        return "—"
-    icon = mapping.get(value, "")
-    return f"{icon} {value}".strip()
+    """Kept for compatibility: returns the plain status word (the app uses no icons)."""
+    return value or "—"

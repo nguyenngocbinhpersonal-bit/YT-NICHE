@@ -11,7 +11,7 @@ from yt_niche.ui.theme import CONFIDENCE_ICON, empty_state, inject_css, kpi_row,
 
 conn = get_conn()
 inject_css()
-page_header("🗂️", "Saved niches", "Every dig you ran. Re-dig for fresh numbers, compare old vs new.")
+page_header("", "Saved niches", "Every dig you ran. Re-dig for fresh numbers, compare old vs new.")
 
 
 def _cell(x, signed: bool = False) -> str:
@@ -64,7 +64,7 @@ table = pd.DataFrame(
             "Label": with_icon(LABEL_ICON, r["label"]),
             "Confidence": with_icon(CONFIDENCE_ICON, r["confidence"]),
             "Verdict": with_icon(VERDICT_ICON, r["verdict"]),
-            "Scorecard": "⭐" if r["shortlisted"] else "",
+            "Scorecard": "Yes" if r["shortlisted"] else "",
         }
         for r in runs
     ]
@@ -88,7 +88,7 @@ st.divider()
 
 with st.container(border=True):
     c1, c2, _ = st.columns([1.4, 1.1, 2.5])
-    if c1.button("🔄 Re-dig (fresh numbers)", type="primary", width="stretch",
+    if c1.button("Re-dig (fresh numbers)", type="primary", width="stretch",
                  help="Same setup, skips the cache; uses about 200–300 units"):
         with st.spinner("Re-digging…"):
             new_id = handle_youtube_errors(redig, conn, selected["id"])
@@ -97,7 +97,7 @@ with st.container(border=True):
             st.session_state["compare_pair"] = (selected["id"], new_id)
             st.rerun()
 
-    if c2.button("🗑️ Delete this dig", width="stretch"):
+    if c2.button("Delete this dig", width="stretch"):
         st.session_state["confirm_delete"] = selected["id"]
     if st.session_state.get("confirm_delete") == selected["id"]:
         st.warning(f"Permanently delete dig #{selected['id']} ({selected['topic']})?")

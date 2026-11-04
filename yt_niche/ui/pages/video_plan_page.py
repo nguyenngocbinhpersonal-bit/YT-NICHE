@@ -15,14 +15,14 @@ from yt_niche.services.report import build_test_plan_prompt
 from yt_niche.ui import theme
 from yt_niche.ui.common import get_conn, prompt_box
 
-DECISION_ICON = {tp.KEEP: "✅", tp.ADJUST: "🛠️", tp.SWITCH: "🔀"}
+DECISION_ICON = {tp.KEEP: "", tp.ADJUST: "", tp.SWITCH: ""}  # no icons; kept for with_icon()
 # Drop signals the user ticks by hand (the constant is being renamed in core; accept either name).
 DROP_SIGNALS = getattr(tp, "DROP_SIGNALS", None) or getattr(tp, "DROP_FLAGS", {})
 C = theme.COLORS
 
 conn = get_conn()
 theme.inject_css()
-theme.page_header("🎬", "10 test videos", "Plan ten videos, log the numbers, decide at video 5 and 10.")
+theme.page_header("", "10 test videos", "Plan ten videos, log the numbers, decide at video 5 and 10.")
 
 # ---- Pick a locked scorecard that has a main niche ----
 boards = []
@@ -32,7 +32,7 @@ for b in scorecards.list_all(conn):
         if data["decision"] and data["decision"]["main"]:
             boards.append(data)
 if not boards:
-    theme.empty_state("No scorecard has a main niche yet.", "Go to the ⚖️ Scorecard page first, lock the weights and score every niche.")
+    theme.empty_state("No scorecard has a main niche yet.", "Go to the Scorecard page first, lock the weights and score every niche.")
     st.stop()
 
 by_id = {b["id"]: b for b in boards}
@@ -71,7 +71,7 @@ if plan is None:
     theme.section("Plan the ten videos", "Each pillar is one content strand; the ten videos rotate through three pillars (4 / 3 / 3). You can change them later.")
     with st.container(border=True):
         per_week = st.number_input("Long-form videos per week", min_value=1, max_value=7, value=2)
-        with st.expander("📋 Prompt: suggest 3 pillars, 10 titles, hooks and thumbnails (Claude / ChatGPT)"):
+        with st.expander("Prompt: suggest 3 pillars, 10 titles, hooks and thumbnails (Claude / ChatGPT)"):
             style = st.text_input("Planned channel style", placeholder="e.g. faceless, AI voice, 8–12 minute videos")
             prompt_box(
                 build_test_plan_prompt(
@@ -101,7 +101,7 @@ if plan["run_id"] != main["id"]:
 for issue in tp.plan_issues(plan["pillars"], videos):
     st.warning(issue)
 
-tab_plan, tab_measure, tab_decide, tab_prompt = st.tabs(["📝 Plan", "📊 Numbers after 7 days", "🚦 Milestones", "📋 Prompt"])
+tab_plan, tab_measure, tab_decide, tab_prompt = st.tabs(["Plan", "Numbers after 7 days", "Milestones", "Prompt"])
 
 
 def _to_date(s):
@@ -159,11 +159,11 @@ with tab_plan:
         st.rerun()
 
     ideas = svc.keyword_ideas(conn, main_run)
-    with st.expander(f"💡 Topics from long-tail keywords ({len(ideas)}/10 scored ≥ 55) and outperformer videos"):
+    with st.expander(f"Topics from long-tail keywords ({len(ideas)}/10 scored ≥ 55) and outperformer videos"):
         st.caption("Lesson 2.5: pick ten topics from the long-tail keyword list and the outperformer videos; put the main keyword first in the title.")
         if ideas:
             st.dataframe(
-                pd.DataFrame([{"Long-tail keyword": k["keyword"], "Score": round(k["score"]), "Picked": "⭐" if k["picked"] else ""} for k in ideas]),
+                pd.DataFrame([{"Long-tail keyword": k["keyword"], "Score": round(k["score"]), "Picked": "Yes" if k["picked"] else ""} for k in ideas]),
                 hide_index=True,
                 width="stretch",
                 column_config={"Score": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d")},
@@ -173,7 +173,7 @@ with tab_plan:
                 st.success(f"Filled {n} draft titles. Rewrite them to be compelling, keeping the keyword first.")
                 st.rerun()
         else:
-            st.caption("No long-tail keyword scored ≥ 55 for the main niche yet: score some on the 🌿 Sub-niches & keywords page.")
+            st.caption("No long-tail keyword scored ≥ 55 for the main niche yet: score some on the Sub-niches & keywords page.")
         top = main_run["result"]["outliers"][:10]
         if top:
             st.markdown("**Outperformer videos of the main niche** (learn the angle, do not copy)")
@@ -244,7 +244,7 @@ with tab_decide:
             st.markdown("**Drop signals (even if the views are fine)**")
             history = run_repo.same_setup(conn, main_run) if main_run else []
             for hint in tp.auto_drop_hints(history):
-                st.caption(f"⚠️ From the re-dig: {hint}")
+                st.caption(f"From the re-dig: {hint}")
             drop = [k for k, label in DROP_SIGNALS.items() if st.checkbox(label, value=k in plan["drop_flags"], key=f"drop_{k}")]
             if st.form_submit_button("Save", type="primary"):
                 svc.set_flags(conn, board_id, fixes_applied=fixes, out_of_ideas=out_of_ideas, drop_flags=drop)
@@ -268,7 +268,7 @@ with tab_decide:
         if result["actions"]:
             st.markdown("**What to do**")
             for a in result["actions"]:
-                st.markdown(f"- 👉 {a}")
+                st.markdown(f"- {a}")
         if result["decision"] == tp.SWITCH and backup:
             st.info(f"Backup niche: **{backup['name']}**. Do not run two niches side by side on one channel.")
     with st.expander("How the decision is made"):
@@ -317,7 +317,7 @@ with tab_prompt:
     prompt_box(build_test_plan_prompt(board, main_run, per_week=plan["per_week"], channel_style=style))
 
 st.divider()
-if st.button("🗑️ Delete this plan"):
+if st.button("Delete this plan"):
     st.session_state["confirm_delete_plan"] = board_id
 if st.session_state.get("confirm_delete_plan") == board_id:
     st.warning("Delete the plan and every number you entered?")

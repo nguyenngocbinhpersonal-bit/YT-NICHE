@@ -19,10 +19,10 @@ from yt_niche.ui.common import get_conn
 
 conn = get_conn()
 theme.inject_css()
-theme.page_header("⚙️", "Settings", "API keys, markets, thresholds, AI and RPM table.")
+theme.page_header("", "Settings", "API keys, markets, thresholds, AI and RPM table.")
 
 tab_key, tab_ai, tab_gt, tab_rpm, tab_mk, tab_thr = st.tabs(
-    ["🔑 YouTube API key", "🤖 AI", "📈 Google Trends", "💵 RPM table", "🌐 Markets", "🎚️ Thresholds"]
+    ["YouTube API key", "AI", "Google Trends", "RPM table", "Markets", "Thresholds"]
 )
 
 # ---------------------------------------------------------------------------
@@ -31,9 +31,9 @@ with tab_key:
         theme.section("YouTube Data API key", "Every dig, keyword score and similar-channel lookup spends quota from this key.")
         key = cfg.api_key()
         if key:
-            theme.pills(theme.pill(f"🟢 Key in use: {key[:4]}…{key[-4:]}", "green"))
+            theme.pills(theme.pill(f"Key in use: {key[:4]}…{key[-4:]}", "green"))
         else:
-            theme.pills(theme.pill("🔴 No key yet", "red"))
+            theme.pills(theme.pill("No key yet", "red"))
         with st.expander("Where to get a key"):
             st.markdown("Google Cloud Console → enable *YouTube Data API v3* → Credentials → Create API key. The key is stored in the `.env` file.")
         new_key = st.text_input("New key", type="password")
@@ -65,9 +65,9 @@ with tab_ai:
                 "the prompt text. Never your email or YouTube API key. If AI is off or fails, the app runs as before."
             )
         if ai.api_key():
-            theme.pills(theme.pill(f"🟢 Key in use: {ai.masked_key()}", "green"))
+            theme.pills(theme.pill(f"Key in use: {ai.masked_key()}", "green"))
         else:
-            theme.pills(theme.pill("🔴 No AI key yet", "red"))
+            theme.pills(theme.pill("No AI key yet", "red"))
         new_ai_key = st.text_input("New key (COMMANDCODE_API_KEY, stored in .env)", type="password", key="ai_new_key")
         k1, k2, _ = st.columns([1, 2, 2])
         if k1.button("Save AI key", disabled=not new_ai_key.strip(), width="stretch"):
@@ -149,9 +149,9 @@ with tab_gt:
                 "of up to 5 keywords). Only keywords, country code, Web/YouTube source and category id are sent."
             )
         if all(dfs.credentials()):
-            theme.pills(theme.pill(f"🟢 DataForSEO login in use: {dfs.masked_login()}", "green"))
+            theme.pills(theme.pill(f"DataForSEO login in use: {dfs.masked_login()}", "green"))
         else:
-            theme.pills(theme.pill("🔴 No DataForSEO login yet", "red"))
+            theme.pills(theme.pill("No DataForSEO login yet", "red"))
             st.caption("Create an account at dataforseo.com → Dashboard → API Access (API login and password).")
         l_col, p_col = st.columns(2)
         new_login = l_col.text_input("API login", key="dfs_login")
@@ -244,7 +244,7 @@ with tab_mk:
             f"Google list: {len(cat['regions'])} regions, {len(cat['languages'])} languages, loaded {cat['fetched_at'][:10]}. {n_on} markets enabled."
             if cat else f"Google's list is not loaded yet: the table only shows stored markets. {n_on} markets enabled."
         )
-        if k2.button("🔄 Load Google's regions and languages (2 units)", disabled=not cfg.api_key(), width="stretch"):
+        if k2.button("Load Google's regions and languages (2 units)", disabled=not cfg.api_key(), width="stretch"):
             try:
                 mc.refresh_catalog(conn)
                 st.rerun()

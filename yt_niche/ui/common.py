@@ -24,6 +24,7 @@ from yt_niche.sources import rpm as rpm_source
 from yt_niche.sources import trends as trends_source
 from yt_niche.ui.theme import (
     CONFIDENCE_ICON,
+    check_line,
     LABEL_ICON,
     TIER_ICON,
     TREND_ICON,
@@ -100,7 +101,7 @@ def quota_sidebar() -> int:
         except Exception:  # a reminder must never break the sidebar
             due = []
         if due:
-            st.info(f"🔔 {len(due)} niches due for the monthly re-dig: see Stage progress.")
+            st.info(f"{len(due)} niches due for the monthly re-dig: see Stage progress.")
         try:
             from yt_niche.services.radar import new_good_count
 
@@ -108,7 +109,7 @@ def quota_sidebar() -> int:
         except Exception:
             good = 0
         if good:
-            st.info(f"📡 {good} new promising keywords in the last 24 hours: see Keyword radar.")
+            st.info(f"{good} new promising keywords in the last 24 hours: see Keyword radar.")
     return left
 
 
@@ -138,7 +139,7 @@ def verdict_pill(verdict: str | None) -> str:
 
 
 def trend_label(trend_class: str | None) -> str:
-    """'🌳 evergreen' or 'no Trends data'."""
+    """'evergreen' or 'no Trends data'."""
     return with_icon(TREND_ICON, trend_class) if trend_class else "no Trends data"
 
 
@@ -220,15 +221,15 @@ def _render_reading_notes(r: dict, p: dict) -> None:
     if r["n_estimated"]:
         st.markdown(f"- {r['n_estimated']} estimated numbers (≈). {reading.ESTIMATE_NOTE}")
     if warn := reading.topic_warning(p["topic"], p["language"]):
-        st.markdown(f"- ⚠️ {warn}")
+        st.markdown(f"- {warn}")
 
 
 def _render_seven_cells(run: dict) -> None:
     sheet = reading.seven_cells(run)
-    title = "✅ Seven-cell sheet: complete" if sheet["complete"] else f"📝 Seven-cell sheet: missing {', '.join(sheet['missing'])}"
+    title = "Seven-cell sheet: complete" if sheet["complete"] else f"Seven-cell sheet: missing {', '.join(sheet['missing'])}"
     with st.expander(title, expanded=False):
         for c in sheet["cells"]:
-            st.markdown(f"{'✅' if c['ok'] else '⬜'} **{c['label']}**: {c['value']}")
+            st.markdown(check_line(c["ok"], c["label"], c["value"]), unsafe_allow_html=True)
         st.caption("Only a complete sheet (medium or high confidence, with Trends) goes into the Compare page.")
 
 
@@ -242,7 +243,7 @@ def _render_three_tier(run: dict, key: str) -> None:
             st.markdown(f"{tier_icon(level)} **{TIER_NAMES[tier]}** · {level}")
             st.caption(t[tier]["reason"])
     for fix in t["fixes"]:
-        st.markdown(f"- 🛠️ {fix}")
+        st.markdown(f"- {fix}")
 
 
 def _render_money_inputs(run: dict, key: str) -> None:
@@ -264,7 +265,7 @@ def _render_money_inputs(run: dict, key: str) -> None:
                 f"{income[0]:g}–{income[1]:g} USD. An estimate for comparing niches, not real income."
             )
         st.caption(reading.MONETIZATION)
-        st.caption("To see the estimated income change by market: 🌍 Compare → Multi-market.")
+        st.caption("To see the estimated income change by market: Compare → Multi-market.")
         if st.button("Recalculate (no quota)", key=f"{key}_reanalyze"):
             affiliates = [line.strip() for line in affiliates_text.splitlines() if line.strip()]
             reanalyze(get_conn(), run["id"], category=None if category == NO_CATEGORY else category, affiliates=affiliates)
@@ -297,7 +298,7 @@ def _render_outliers(r: dict) -> None:
         width="stretch",
         column_config={
             "×": st.column_config.NumberColumn(format="%.1f×"),
-            "Open": st.column_config.LinkColumn(display_text="▶"),
+            "Open": st.column_config.LinkColumn(display_text="Open"),
             "Views": st.column_config.NumberColumn(format="localized"),
             "Channel median": st.column_config.NumberColumn(format="localized"),
             "Channel subs": st.column_config.NumberColumn(format="localized"),
@@ -313,7 +314,7 @@ def _render_questions(run: dict, key: str) -> None:
     n = min(MAX_VIDEOS, len(run["result"]["outliers"]))
     state_key = f"{key}_questions"
     if st.button(
-        f"❓ Question comments on the top {n} outperformers (≈ {n} units)",
+        f"Question comments on the top {n} outperformers (≈ {n} units)",
         key=f"{key}_qbtn",
         help="Unanswered questions are unmet demand and a source of video ideas (lesson 2.1).",
         disabled=not cfg.api_key(),
@@ -388,7 +389,7 @@ def _render_all_channels(run: dict, rows: list[dict], key: str) -> None:
         },
     )
     st.download_button(
-        "⬇️ Download CSV", df.to_csv(index=False).encode("utf-8-sig"),
+        "Download CSV", df.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"channels_{run['id']}.csv", mime="text/csv", key=f"{key}_allch_csv",
     )
 
@@ -418,13 +419,13 @@ def _render_small_channels(run: dict, key: str) -> None:
                     "Subs": c["subs"],
                     "Age (months)": c["age_months"],
                     "Videos": c["video_count"],
-                    "Young": "🌱" if c["young"] else "",
+                    "Young": "Yes" if c["young"] else "",
                     "Top video": c["best_title"],
                     "Views": c["best_views"],
                     "×": c["best_outlier"],
                     "Video link": f"https://www.youtube.com/watch?v={c['best_video_id']}",
-                    "Opened": "✅" if c["channel_id"] in checked else "",
-                    "Re-up": "♻️" if notes.get(c["channel_id"], {}).get("reup") else "",
+                    "Opened": "Yes" if c["channel_id"] in checked else "",
+                    "Re-up": "Yes" if notes.get(c["channel_id"], {}).get("reup") else "",
                     "Note": notes.get(c["channel_id"], {}).get("note", ""),
                 }
                 for c in cards
@@ -465,7 +466,7 @@ def _render_small_channels(run: dict, key: str) -> None:
         c = by_id[cid]
         st.caption(
             f"[{c['title']}](https://www.youtube.com/channel/{cid}) · {fmt_num(c['subs'])} subs · {c['age_months']} months · "
-            f"{c['video_count']} videos{' · 🌱 young channel' if c['young'] else ''} · "
+            f"{c['video_count']} videos{' · young channel' if c['young'] else ''} · "
             f"[{c['best_title'][:80]}](https://www.youtube.com/watch?v={c['best_video_id']}) "
             f"{fmt_num(c['best_views'])} views, **{c['best_outlier']:g}×**"
         )
@@ -550,7 +551,7 @@ def _render_format_redig(run: dict, key: str) -> None:
         return
     label = report.FMT_LABEL[fs["fit"]]
     if st.button(
-        f"⛏️ Re-dig {label} only to compare scores (≈ {EST_UNITS_PER_DIG} units)", key=f"{key}_fmtdig", disabled=not cfg.api_key()
+        f"Re-dig {label} only to compare scores (≈ {EST_UNITS_PER_DIG} units)", key=f"{key}_fmtdig", disabled=not cfg.api_key()
     ):
         params = DigParams(**{**r["params"], "fmt": fs["fit"]})
         with st.spinner(f"Digging {label} only…"):
@@ -596,8 +597,8 @@ def _render_trends(run: dict) -> None:
         until = trends_source.cooldown_until(get_conn())
         backup = until and dfs.available(get_conn(), "dig")
         label = (
-            "🔄 Fetch Trends again via DataForSEO (≈ $0.009)" if backup
-            else "🔄 Fetch Google Trends again" + (f" (after {until:%H:%M})" if until else "")
+            "Fetch Trends again via DataForSEO (≈ $0.009)" if backup
+            else "Fetch Google Trends again" + (f" (after {until:%H:%M})" if until else "")
         )
         if st.button(label, key=f"trends_refetch_{run['id']}", disabled=bool(until) and not backup, help="No YouTube quota"):
             with st.spinner("Fetching Google Trends…"):
@@ -620,7 +621,7 @@ def _render_actions(run: dict, key: str) -> None:
     st.divider()
     c1, c2 = st.columns(2)
     c1.download_button(
-        "⬇️ Export Excel",
+        "Export Excel",
         data=report.to_excel(run),
         file_name=f"dig_{run['id']}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -636,7 +637,7 @@ def _render_actions(run: dict, key: str) -> None:
     if shortlisted != bool(run["shortlisted"]):
         run_repo.set_shortlisted(conn, run["id"], shortlisted)
 
-    with st.expander("📋 Prompt for Claude / ChatGPT"):
+    with st.expander("Prompt for Claude / ChatGPT"):
         style = st.text_input(
             "Planned channel style", placeholder="e.g. faceless, AI voice, 8–12 minute videos", key=f"{key}_style"
         )
@@ -654,7 +655,7 @@ def prompt_box(prompt: str) -> None:
     if not ai.enabled(conn, "prompts"):
         return
     answer = ai.cached_answer(conn, prompt)
-    if st.button("🔄 Run again with AI" if answer else "🤖 Run with AI", key="aip_" + hashlib.sha1(prompt.encode()).hexdigest()[:16]):
+    if st.button("Run again with AI" if answer else "Run with AI", key="aip_" + hashlib.sha1(prompt.encode()).hexdigest()[:16]):
         with st.spinner("AI is answering…"):
             try:
                 answer = ai.run_prompt(conn, prompt)
