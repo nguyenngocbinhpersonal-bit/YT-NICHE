@@ -6,7 +6,7 @@ headless = true
 [browser]
 gatherUsageStats = false
 
-# Bảng màu theo docs/NICHE_MAP_MCP_PLAN.md §7: nền ấm nhẹ, chữ đậm, màu nhấn xanh (slot 1 của bảng màu biểu đồ).
+# Theme (docs/UI_DESIGN_BRIEF.md): warm light surface, dark ink, blue accent (chart palette slot 1).
 [theme]
 base = "light"
 primaryColor = "#2a78d6"

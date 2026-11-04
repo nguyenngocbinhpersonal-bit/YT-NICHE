@@ -1,8 +1,9 @@
-"""Các mục bổ sung sau khi đối chiếu khóa học: phiếu 7 ô, lời khuyên, nhận xét kênh, bình luận câu hỏi,
-so Trends mẹ–con, từ khoá vào kế hoạch 10 video, nhắc đào lại hằng tháng, checklist chặng."""
+"""Items added after checking against the course: 7-cell sheet, advice, channel notes, question comments,
+parent vs sub-niche Trends, keywords into the 10-video plan, monthly re-dig reminder, stage checklist."""
 
 import asyncio
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -12,7 +13,9 @@ import pytest
 from yt_niche import config as cfg
 from yt_niche.core import reading
 from yt_niche.core import subniche as sn
+from yt_niche.core.confidence import LOW, MEDIUM
 from yt_niche.core.questions import is_question, question_comments
+from yt_niche.core.trends_classify import FLAT, UP
 from yt_niche.db import runs as run_repo
 from yt_niche.services import keywords as kw_svc
 from yt_niche.services import report, scorecards, tracking
@@ -36,28 +39,28 @@ def rpm_tmp(tmp_path, monkeypatch):
 
 def _insert(conn, raw, topic="kể chuyện lịch sử", **kw):
     r = {**raw, "params": {**raw["params"], "topic": topic, **kw}}
-    return run_repo.insert(conn, raw=r, result=_analyze(r, "Lịch sử", []), category="Lịch sử", affiliates=[])
+    return run_repo.insert(conn, raw=r, result=_analyze(r, "History", []), category="History", affiliates=[])
 
 
 # ---------------------------------------------------------------------------
-# Đọc kết quả (bài 2.1, 2.2)
+# Reading results (lessons 2.1, 2.2)
 # ---------------------------------------------------------------------------
 
 
 def test_advice_texts():
-    assert "ngách con và từ khoá dài" in reading.zone_advice(70)
-    assert "2–3 ngách con" in reading.zone_advice(69)
-    assert "đổi thị trường" in reading.zone_advice(49)
-    assert "Nới khoảng thời gian" in reading.confidence_advice("thấp")
-    assert "mở vài kênh thật" in reading.confidence_advice("vừa")
-    assert "10 triệu" in reading.format_advice("shorts") and "Shorts làm mồi" in reading.format_advice("long")
+    assert "sub-niches and long-tail keywords" in reading.zone_advice(70)
+    assert "2–3 sub-niches" in reading.zone_advice(69)
+    assert "change market" in reading.zone_advice(49)
+    assert "Widen the time window" in reading.confidence_advice(LOW)
+    assert "open a few real channels" in reading.confidence_advice(MEDIUM)
+    assert "10 million" in reading.format_advice("shorts") and "Shorts as bait" in reading.format_advice("long")
     assert reading.format_advice(None) is None
-    assert "4.000 giờ" in reading.MONETIZATION
+    assert "4,000 watch hours" in reading.MONETIZATION
 
 
 def test_topic_warning():
     assert reading.topic_warning("lịch sử", "vi") is None
-    assert reading.topic_warning("history", "en") and "2–4 từ" in reading.topic_warning("history", "en")
+    assert reading.topic_warning("history", "en") and "2–4 specific words" in reading.topic_warning("history", "en")
     assert reading.topic_warning("tâm lý học về tiền cho mẹ bỉm sữa miền trung", "vi")
     assert reading.topic_warning("朝の祈り", "ja") is None
 
@@ -69,18 +72,18 @@ def test_seven_cells(conn, raw, rpm_tmp):
 
     no_trends = {**raw, "trends": None}
     run2 = run_repo.get(conn, run_repo.insert(conn, raw=no_trends, result=_analyze(no_trends, None, []), category=None, affiliates=[]))
-    assert reading.seven_cells(run2)["missing"] == ["Hình dạng Trends"]
+    assert reading.seven_cells(run2)["missing"] == ["Trends shape"]
 
 
 def test_channel_notes_and_prompt(conn, raw, rpm_tmp):
     rid = _insert(conn, raw)
     cid = run_repo.get(conn, rid)["result"]["small_boom_channels"][0]["channel_id"]
-    run_repo.set_channel_note(conn, rid, cid, note="  kể như phim,   10 phút ", reup=False)
+    run_repo.set_channel_note(conn, rid, cid, note="  told like a film,   10 minutes ", reup=False)
     run_repo.set_channel_note(conn, rid, "UCreup", note="", reup=True)
     run = run_repo.get(conn, rid)
-    assert run["channel_notes"][cid] == {"note": "kể như phim, 10 phút", "reup": False}
+    assert run["channel_notes"][cid] == {"note": "told like a film, 10 minutes", "reup": False}
     block = report.data_block(run)
-    assert "kể như phim, 10 phút" in block and "re-up, không học theo" in block
+    assert "told like a film, 10 minutes" in block and "re-up" in block
     run_repo.set_channel_note(conn, rid, "UCreup", note="", reup=False)
     assert "UCreup" not in run_repo.get(conn, rid)["channel_notes"]
 
@@ -94,7 +97,7 @@ def test_format_variants(conn, raw, rpm_tmp):
 
 
 # ---------------------------------------------------------------------------
-# Bình luận dạng câu hỏi (bài 2.1)
+# Question-type comments (lesson 2.1) — Vietnamese sample comments are test data for the Vietnamese phrase lists
 # ---------------------------------------------------------------------------
 
 
@@ -124,7 +127,7 @@ def test_comment_threads_client(conn):
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.params["videoId"] == "off":
             return httpx.Response(403, json={"error": {"errors": [{"reason": "commentsDisabled"}], "message": "off"}})
-        item = {"snippet": {"totalReplyCount": 2, "topLevelComment": {"snippet": {"textDisplay": "Vì sao?", "likeCount": 3}}}}
+        item = {"snippet": {"totalReplyCount": 2, "topLevelComment": {"snippet": {"textDisplay": "Why?", "likeCount": 3}}}}
         return httpx.Response(200, json={"items": [item]})
 
     async def go():
@@ -135,11 +138,11 @@ def test_comment_threads_client(conn):
             return a, b, yt.meter.total
 
     a, b, units = asyncio.run(go())
-    assert a == [{"video_id": "v1", "text": "Vì sao?", "likes": 3, "replies": 2}] and b == [] and units == 2
+    assert a == [{"video_id": "v1", "text": "Why?", "likes": 3, "replies": 2}] and b == [] and units == 2
 
 
 # ---------------------------------------------------------------------------
-# So Trends ngách mẹ với ngách con (bài 2.2)
+# Parent-niche vs sub-niche Trends (lesson 2.2)
 # ---------------------------------------------------------------------------
 
 
@@ -149,12 +152,12 @@ def _pts(values):
 
 def test_compare_trends_marks_rising_child():
     series = {
-        "5y": {"tâm lý học": _pts([50] * 260), "tâm lý học về tiền": _pts([5] * 200 + [20] * 60)},
-        "12m": {"tâm lý học": _pts([50] * 52), "tâm lý học về tiền": _pts(list(range(5, 57)))},
+        "5y": {"psychology": _pts([50] * 260), "psychology of money": _pts([5] * 200 + [20] * 60)},
+        "12m": {"psychology": _pts([50] * 52), "psychology of money": _pts(list(range(5, 57)))},
     }
-    rows = {r["topic"]: r for r in sn.compare_trends(series, "tâm lý học")}
-    assert rows["tâm lý học"]["direction_12m"] == "đi ngang" and rows["tâm lý học"]["is_parent"]
-    assert rows["tâm lý học về tiền"]["direction_12m"] == "đi lên" and rows["tâm lý học về tiền"]["good_candidate"]
+    rows = {r["topic"]: r for r in sn.compare_trends(series, "psychology")}
+    assert rows["psychology"]["direction_12m"] == FLAT and rows["psychology"]["is_parent"]
+    assert rows["psychology of money"]["direction_12m"] == UP and rows["psychology of money"]["good_candidate"]
 
 
 def test_trends_compare_source_caches_success(conn, monkeypatch):
@@ -172,7 +175,7 @@ def test_trends_compare_source_caches_success(conn, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Từ khoá dài vào kế hoạch 10 video (bài 2.5)
+# Long-tail keywords into the 10-video plan (lesson 2.5)
 # ---------------------------------------------------------------------------
 
 
@@ -211,18 +214,25 @@ def test_keywords_fill_plan_titles(conn, board):
     from datetime import date
 
     plan_svc.create(conn, bid, ["a", "b", "c"], date(2026, 11, 2), 2)
-    plan_svc.save_videos(conn, bid, [{"idx": 1, "title": "Đã có tiêu đề"}])
+    plan_svc.save_videos(conn, bid, [{"idx": 1, "title": "Already has a title"}])
     assert plan_svc.fill_titles(conn, bid, [k["keyword"] for k in ideas]) == 2
     titles = [v["title"] for v in plan_svc.get(conn, bid)["videos"][:3]]
-    assert titles == ["Đã có tiêu đề", "Vua quang trung đánh quân thanh", "Bí mật nhà nguyễn"]
+    assert titles == ["Already has a title", "Vua quang trung đánh quân thanh", "Bí mật nhà nguyễn"]
 
     prompt = report.build_test_plan_prompt(scorecards.load(conn, bid), main_run, keywords=ideas)
-    assert "- bí mật nhà nguyễn (70 điểm)" in prompt and "{" not in prompt
+    assert "- bí mật nhà nguyễn (score 70)" in prompt and "{" not in prompt
 
 
 # ---------------------------------------------------------------------------
-# Đào lại mỗi tháng + checklist chặng
+# Monthly re-dig + stage checklist
 # ---------------------------------------------------------------------------
+
+
+def _item(items: list[dict], pattern: str) -> dict:
+    """The single checklist item whose label matches `pattern` (case-insensitive)."""
+    found = [i for i in items if re.search(pattern, i["label"], re.I)]
+    assert len(found) == 1, (pattern, [i["label"] for i in items])
+    return found[0]
 
 
 def test_due_redigs_and_checklist(conn, board):
@@ -234,15 +244,15 @@ def test_due_redigs_and_checklist(conn, board):
     due = tracking.due_redigs(conn, now=later)
     assert {d["run"]["topic"] for d in due} == {"kể chuyện lịch sử", "lịch sử thế giới"}
 
-    items = {i["label"]: i for i in tracking.stage_checklist(conn)}
+    items = tracking.stage_checklist(conn)
     assert len(items) == 10
-    assert items["Điền bảng chấm có trọng số, chốt trọng số trước khi chấm"]["ok"]
-    assert items["Ghi phiếu 7 ô cho mỗi ngách"]["ok"]
-    assert not items["Chốt ngách chính và dự phòng, viết lời hứa kênh một câu"]["ok"]  # chưa có lời hứa
-    scorecards.set_promise(conn, bid, "Kênh giúp bạn hiểu sử Việt.", True)
-    items = {i["label"]: i for i in tracking.stage_checklist(conn)}
-    assert items["Chốt ngách chính và dự phòng, viết lời hứa kênh một câu"]["ok"]
-    assert items[f"Lưu ngách và đào lại mỗi tháng ({cfg.REDIG_DAYS} ngày)"]["ok"]
+    assert _item(items, r"weight")["ok"]
+    assert _item(items, r"7")["ok"]
+    assert not _item(items, r"promise")["ok"]  # no promise yet
+    scorecards.set_promise(conn, bid, "A channel that helps you understand Vietnamese history.", True)
+    items = tracking.stage_checklist(conn)
+    assert _item(items, r"promise")["ok"]
+    assert _item(items, rf"dig again.*{cfg.REDIG_DAYS} days")["ok"]
     assert not tracking.stage_checklist(conn, now=later)[-1]["ok"]
 
 

@@ -1,13 +1,15 @@
-"""Trang Bản đồ ngách: treemap nhiều chế độ nhóm (động cơ, mức tiềm năng, cây, ngôn ngữ, trend) + bảng chi tiết.
+"""Niche map page: a treemap with several grouping modes (motivation, potential band, tree, language, trend) + details.
 
-Trang chỉ đọc và vẽ. Việc dựng ngách, gán động cơ, gộp, xếp tiềm năng do Claude làm qua MCP (skill `yt-niche`).
+The page only reads and draws. Building niches, assigning motivations, merging and ranking potential are done by
+Claude through MCP (the `yt-niche` skill).
 
-Mã hoá (theo docs/NICHE_MAP_MCP_PLAN.md §7 và quy tắc dữ liệu-hình):
-- diện tích = tiềm năng Claude đã xếp (ngách chưa xếp vẽ nhỏ, xám);
-- màu = một thước đo KHÁC diện tích, chọn được: Cơ hội (nhu cầu − cạnh tranh, thang phân kỳ xanh ↔ đỏ, giữa xám),
-  Nhu cầu (một màu xanh, nhạt → đậm), Độ mới số liệu (xanh, mới → đậm);
-- viền đỏ + ⚠ = số liệu đã đổi so với lúc xếp (stale), cần Claude xếp lại.
-Treemap là dạng "mọi ô kề nhau" nên không tô 10 màu cho 10 động cơ; động cơ hiện bằng nhóm / nhãn / huy hiệu.
+Encoding (docs/NICHE_MAP_MCP_PLAN.md §7, data-viz rules):
+- area = potential ranked by Claude (unranked niches drawn small and grey);
+- color = one measure OTHER than area, user-selectable: Opportunity (demand − competition, diverging red ↔ blue with a
+  grey midpoint), Demand (single blue ramp, light → dark), Data freshness (blue, old → fresh);
+- red outline + ⚠ = data changed since the ranking (stale), Claude should re-rank.
+A treemap puts every tile next to every other, so ten motivations are not ten colors; motivation shows as group,
+label and badge instead.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ from yt_niche.ui.common import get_conn, market_label
 conn = get_conn()
 theme.inject_css()
 
-MIN_SIZE = 3.0  # diện tích cho ngách chưa xếp tiềm năng
+MIN_SIZE = 3.0  # area for niches without a potential yet
 MODES = {"Motivation": "motivation", "Potential band": "potential", "Niche tree": "tree", "Language": "language", "Trend": "trend"}
 COLOR_BY = {"Opportunity (demand − competition)": "opportunity", "Demand of main keywords": "demand", "Data freshness": "fresh"}
 MOTIVATION_SHORT = {"learn": "Learn", "earn": "Earn", "fix": "Fix a problem", "improve": "Improve", "believe": "Believe & meaning",
@@ -39,7 +41,7 @@ TREND_LABEL = {STABLE: "Evergreen", SEASONAL: "Seasonal", FAD: "Fad", FALLING: "
 ROLE_LABEL = {"leader": "Leader", "rising": "Rising", "fallen": "Fallen"}
 KIND_LABEL = {"main": "Main", "related": "Related", "longtail": "Long-tail", "trend": "Trend"}
 
-# Bảng màu (references/palette.md của phương pháp dữ liệu-hình): xanh tuần tự 100→700, đỏ đối cực, xám giữa, trạng thái.
+# Palette comes from theme.COLORS.
 C = theme.COLORS
 BLUE = C["blue"]
 RED_POLE, BLUE_POLE, MID = C["red_pole"], C["blue_pole"], C["mid"]
@@ -69,7 +71,7 @@ def _potential_band(p: float | None) -> str:
 
 
 def _seq(v: float | None, lo: float, hi: float) -> str:
-    """Một màu xanh, nhạt → đậm theo v trong [lo, hi]; không có số → xám."""
+    """Single blue, light → dark for v in [lo, hi]; no number → grey."""
     if v is None:
         return NONE_FILL
     t = 0.0 if hi <= lo else max(0.0, min(1.0, (v - lo) / (hi - lo)))
@@ -77,7 +79,7 @@ def _seq(v: float | None, lo: float, hi: float) -> str:
 
 
 def _div(v: float | None, span: float = 60.0) -> str:
-    """Phân kỳ xanh ↔ đỏ, giữa xám: v > 0 (cầu hơn cung) xanh, v < 0 đỏ."""
+    """Diverging blue ↔ red with a grey midpoint: v > 0 (more demand) blue, v < 0 red."""
     if v is None:
         return NONE_FILL
     t = max(-1.0, min(1.0, v / span))
@@ -86,7 +88,7 @@ def _div(v: float | None, span: float = 60.0) -> str:
 
 
 def _ink_on(fill: str) -> str:
-    """Chữ trắng trên ô đậm, chữ đen trên ô nhạt (độ sáng tương đối)."""
+    """White text on dark tiles, black on light ones (relative luminance)."""
     if not fill.startswith("#"):
         return INK
     r, g, b = (int(fill[i:i + 2], 16) / 255 for i in (1, 3, 5))
@@ -96,7 +98,7 @@ def _ink_on(fill: str) -> str:
 
 @st.cache_data(ttl=10, show_spinner=False)
 def _load(include_merged: bool) -> list[dict]:
-    """Mỗi ngách: dòng list_tree + signals + stale + độ mới. Cache 10 giây để Claude ghi xong là thấy."""
+    """Per niche: list_tree row + signals + stale flag + freshness. Cached 10 s so Claude's writes show up quickly."""
     c = get_conn()
     basis = {r["id"]: json.loads(r["basis_json"] or "null") for r in c.execute("SELECT id, basis_json FROM niche")}
     out = []
@@ -114,7 +116,7 @@ def _load(include_merged: bool) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Đầu trang: tiêu đề + thẻ số
+# Header: title + KPI tiles
 # ---------------------------------------------------------------------------
 
 theme.page_header("🗺️", "Niche map", "Niches Claude built from real data, sized by potential.")
@@ -142,7 +144,7 @@ theme.kpi_row([
 ])
 
 # ---------------------------------------------------------------------------
-# Bộ lọc (một hàng, trên biểu đồ)
+# Filters (above the chart)
 # ---------------------------------------------------------------------------
 
 r1a, r1b = st.columns([1.15, 1])
@@ -232,7 +234,7 @@ for r in rows:
     meta = f"{MOTIVATION_ICON.get(r['motivation'], '')} {r['language'] or ''}".strip()
     opp = f"{r['opportunity']:+.0f}" if r["opportunity"] is not None else "—"
     shown = '%.0f' % p if p is not None else '—'
-    if f"n{r['id']}" in parent_ids:  # ngách mẹ có con: nhãn một dòng nằm ở dải tiêu đề phía trên các con
+    if f"n{r['id']}" in parent_ids:  # parent with children: one-line label in the header strip above them
         labels.append(f"<b>{r['name']}</b>{flag}{tag} · {shown} · {meta} · opp {opp}")
     else:
         labels.append(
@@ -277,7 +279,7 @@ fig.update_layout(
 event = st.plotly_chart(fig, width="stretch", on_select="rerun", selection_mode="points", key="map_chart",
                         config={"displayModeBar": False})
 
-# Chú giải nằm dưới biểu đồ: màu đang dùng + viền stale + ô xám
+# Legend under the chart: active color scale + stale outline + grey tile
 if color_by == "opportunity":
     ramp = f"linear-gradient(90deg,{RED_POLE},{MID},{BLUE_POLE})"
     legend = (f"<span><b>Color</b> = demand − competition: more competition <span class='yt-ramp' style='background:{ramp}'></span> more demand</span>")
@@ -296,7 +298,7 @@ st.markdown(
 )
 
 # ---------------------------------------------------------------------------
-# Chọn ngách: từ ô vừa bấm, hoặc hộp chọn
+# Pick a niche: from the clicked tile or the select box
 # ---------------------------------------------------------------------------
 
 picked_id = None
@@ -308,7 +310,7 @@ try:
         if cd:
             picked_id = int(cd)
             break
-except Exception:  # cấu trúc selection khác giữa các bản Streamlit: rơi về hộp chọn
+except Exception:  # selection shape differs between Streamlit versions: fall back to the select box
     picked_id = None
 
 options = [r["id"] for r in rows]
@@ -318,7 +320,7 @@ if st.session_state.get("map_pick") not in options:
     st.session_state["map_pick"] = options[0]
 
 # ---------------------------------------------------------------------------
-# Chi tiết
+# Details
 # ---------------------------------------------------------------------------
 
 with st.container(border=True):
@@ -366,7 +368,7 @@ with st.container(border=True):
 
     tab_kw, tab_ch, tab_run, tab_ev = st.tabs(["🔑 Keywords", "📺 Competitors", "⛏️ Digs", "📝 Decision log"])
     with tab_kw:
-        cols = st.columns(2) + st.columns(2)  # 2 hàng × 2 cột để bảng đủ rộng
+        cols = st.columns(2) + st.columns(2)  # 2 rows × 2 columns so tables are wide enough
         for col, kind in zip(cols, nm.KINDS):
             with col:
                 kws = d["keywords"][kind]
@@ -419,7 +421,7 @@ with st.container(border=True):
             )
 
 # ---------------------------------------------------------------------------
-# Bubble: cầu cao, cung yếu
+# Bubble: high demand, weak supply
 # ---------------------------------------------------------------------------
 
 with st.expander("Bubble view: demand × (100 − competition), size = potential, color = language"):

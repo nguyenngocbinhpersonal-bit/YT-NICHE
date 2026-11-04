@@ -56,7 +56,7 @@ OLD_RESULT = {
         "verdict": "THỬ",
     },
     "trends": {"class": "theo mùa", "direction": "đi lên", "reason": "nền 5 năm đi lên"},
-    "outliers": [{"video_id": "v1", "level": "Nổ view", "title": "Vượt trội"}],
+    "outliers": [{"video_id": "v1", "level": "Nổ view", "title": "Video vượt trội nhất"}],
     "format_split": {"fit": "long", "fit_label": "Ngách hợp video dài"},
     "note": "kể chuyện lịch sử — THỬ",
 }
@@ -95,7 +95,7 @@ def test_language_migration_maps_old_values_once(tmp_path):
     assert r["outliers"][0]["level"] == LEVEL_VIRAL and r["format_split"]["fit_label"] == FIT_LABEL["long"]
     # free text and other leaves are untouched
     assert r["three_tier"]["demand"]["reason"] == "Nhu cầu 70/100, Trends: theo mùa"
-    assert r["outliers"][0]["title"] == "Vượt trội" and r["note"] == "kể chuyện lịch sử — THỬ"
+    assert r["outliers"][0]["title"] == "Video vượt trội nhất" and r["note"] == "kể chuyện lịch sử — THỬ"
     assert conn.execute("SELECT category FROM market_batch").fetchone()[0] == "Spirituality / religion"
     assert conn.execute("SELECT trend_class FROM radar_keyword").fetchone()[0] == "evergreen"
     markets = {m["region"]: (m["name"], m["group_name"]) for m in conn.execute("SELECT * FROM market")}

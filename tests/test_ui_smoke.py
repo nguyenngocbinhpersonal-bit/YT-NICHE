@@ -140,7 +140,7 @@ def test_subniche_page(app_db):
     [t for t in at.text_area if "video ideas" in t.label][0].input("Idea one\nIdea two")
     [b for b in at.button if b.label == "Save and check"][0].click().run()
     assert not at.exception
-    assert any("2 ý không trùng / 2 dòng" in m.value for m in at.markdown)
+    assert any("2 unique ideas / 2 lines" in m.value for m in at.markdown)
 
 
 def test_compare_page(app_db):
@@ -169,7 +169,7 @@ def test_run_view_shows_sheet_and_notes(app_db):
     at = _run("dig.py", current_run=app_db)
     assert any("Seven-cell sheet" in e.label for e in at.expander)
     assert any(t.label.startswith("All channels (") for t in at.tabs)
-    assert any("Link video" in d.value.columns for d in at.dataframe)
+    assert any("Video link" in d.value.columns for d in at.dataframe)
     note = [t for t in at.text_input if t.label == "What repeats"][0]
     note.input("kể như phim").run()
     assert not at.exception

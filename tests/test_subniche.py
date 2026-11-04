@@ -1,4 +1,7 @@
-"""Bài 2.3: ngách con, kiểm tra đủ sống, từ khoá dài."""
+"""Lesson 2.3: sub-niches, the viability check, long-tail keywords.
+
+The Vietnamese titles and keywords below are text-processing test data (the tokenizer counts Vietnamese syllables).
+"""
 
 import asyncio
 import json
@@ -12,6 +15,8 @@ from yt_niche import config as cfg
 from yt_niche.core import keyword_score as ks
 from yt_niche.core import scorecard as sc
 from yt_niche.core import subniche as sn
+from yt_niche.core.confidence import LOW, MEDIUM
+from yt_niche.core.money import RPM_LOW, RPM_MEDIUM
 from yt_niche.core.text import contains_all, tokens, word_count
 from yt_niche.db import runs as run_repo
 from yt_niche.db.connection import connect
@@ -39,8 +44,8 @@ def _run(result_overrides=None, **kw):
     r = {
         "outlier_counts": {"total": 5},
         "small_boom_channels": [{}, {}],
-        "confidence": "vừa",
-        "rpm_tier": "vừa",
+        "confidence": MEDIUM,
+        "rpm_tier": RPM_MEDIUM,
         "outliers": [],
     }
     r.update(result_overrides or {})
@@ -48,7 +53,7 @@ def _run(result_overrides=None, **kw):
 
 
 # ---------------------------------------------------------------------------
-# Tách từ, cụm lặp lại, phân loại gợi ý
+# Tokenizing, repeated phrases, suggestion columns
 # ---------------------------------------------------------------------------
 
 
@@ -68,13 +73,13 @@ def test_repeated_phrases_needs_two_channels_and_drops_topic_words():
     ]
     phrases = [p["phrase"] for p in sn.repeated_phrases(videos, "tâm lý học")]
     assert "tâm lý học về tiền" in phrases
-    assert "tâm lý học" not in phrases  # chỉ gồm từ của chủ đề gốc
-    assert "học về" not in phrases  # cụm con bị cụm dài hơn phủ
-    assert "mua sắm online" not in phrases  # chỉ 1 kênh
+    assert "tâm lý học" not in phrases  # only the topic's own words
+    assert "học về" not in phrases  # sub-phrase covered by a longer phrase
+    assert "mua sắm online" not in phrases  # only 1 channel
 
 
 def test_repeated_phrases_on_real_fixture(raw, rpm_tmp):
-    r = run_svc._analyze(raw, "Lịch sử", [])
+    r = run_svc._analyze(raw, "History", [])
     phrases = sn.repeated_phrases(r["outliers"], raw["params"]["topic"])
     assert phrases and all(p["channels"] >= 2 for p in phrases)
     assert not any(p["phrase"] in ("kể chuyện", "lịch sử", "chuyện lịch sử") for p in phrases)
@@ -85,7 +90,7 @@ def test_keyword_kind_three_columns():
     assert sn.keyword_kind("tiêu tiền khi buồn", "tâm lý học", "vi") == sn.LONG
     assert sn.keyword_kind("tâm lý", "tâm lý học", "vi") == sn.SHORT
     assert sn.keyword_kind("朝の祈り 短い", "朝の祈り", "ja") == sn.SUBNICHE
-    # Từ gốc đã là ngách con tầng 2 (đủ dài): gợi ý mở rộng là từ khoá dài để chấm.
+    # The seed is already a layer-2 sub-niche (long enough): extensions are long-tail keywords to score.
     assert sn.keyword_kind("podcast tâm lý học về tiền", "tâm lý học về tiền", "vi") == sn.LONG
 
 
@@ -102,51 +107,51 @@ def test_columns_rank_subniches_by_evidence():
 
 
 # ---------------------------------------------------------------------------
-# Tầng và "đủ sống"
+# Layers and "viable"
 # ---------------------------------------------------------------------------
 
 
 def test_layer_status_rules():
     assert sn.layer_status(_run())["status"] == "alive"
-    # Câu hỏi kiểm tra bài 2.3: "Mẫu còn ít", không có video vượt trội → quá hẹp, lùi lên một tầng.
-    narrow = sn.layer_status(_run({"confidence": "thấp", "outlier_counts": {"total": 0}}))
-    assert narrow["status"] == "too_narrow" and "lùi lên một tầng" in narrow["text"]
+    # Lesson 2.3 check question: "Small sample", no outperformer videos → too narrow, go up one layer.
+    narrow = sn.layer_status(_run({"confidence": LOW, "outlier_counts": {"total": 0}}))
+    assert narrow["status"] == "too_narrow" and "go up one layer" in narrow["text"]
     assert sn.layer_status(_run({"small_boom_channels": []}))["status"] == "weak"
     assert sn.layer_status(_run(layer=4))["status"] == "video"
 
 
 def test_ideas_parsing_and_duplicates():
-    text = "1. Vì sao tiêu tiền khi buồn\n- vì sao tiêu tiền khi buồn?\n\n2) Bẫy giảm giá 50%\n• Tiết kiệm khi lương thấp"
+    text = "1. Why we spend when sad\n- why we spend when sad?\n\n2) The 50% discount trap\n• Saving on a low salary"
     ideas = sn.parse_ideas(text)
-    assert ideas[0] == "Vì sao tiêu tiền khi buồn" and len(ideas) == 4
+    assert ideas[0] == "Why we spend when sad" and len(ideas) == 4
     assert sn.duplicate_ideas(ideas) == [(0, 1)]
     assert sn.unique_ideas(ideas) == 3
 
 
 def test_viability_five_checks():
     words = (
-        "lương thưởng nợ thẻ vay mua sắm online giảm giá tiết kiệm đầu tư vàng bạc nhà xe cưới con cái bố mẹ "
-        "bạn bè hẹn hò quà sách game"
+        "salary bonus debt card loan shopping online discount saving investing gold silver house car wedding kids parents "
+        "friends dating gifts books games rent travel insurance pets fashion coffee hobbies subscriptions"
     ).split()
-    ideas = "\n".join(f"Bẫy tâm lý {w}" for w in words)
-    v = sn.viability(_run(), ideas, "Kênh giúp người mới đi làm hiểu vì sao mình tiêu tiền như vậy.")
+    ideas = "\n".join(f"Spending trap {w}" for w in words)
+    v = sn.viability(_run(), ideas, "A channel that helps young professionals understand why they spend the way they do.")
     assert v["passed"] and v["unique_ideas"] == 30
 
-    v = sn.viability(_run({"rpm_tier": None}), "", "Câu một. Câu hai.")
+    v = sn.viability(_run({"rpm_tier": None}), "", "Sentence one. Sentence two.")
     by = {c["key"]: c for c in v["checks"]}
     assert by["ideas"]["ok"] is None and by["promise"]["ok"] is False and by["money"]["ok"] is None
     assert not v["passed"]
 
-    v = sn.viability(_run({"rpm_tier": "thấp"}, affiliates=["sách"]), "", "")
-    assert {c["key"]: c for c in v["checks"]}["money"]["ok"] is True  # RPM thấp nhưng còn affiliate
+    v = sn.viability(_run({"rpm_tier": RPM_LOW}, affiliates=["books"]), "", "")
+    assert {c["key"]: c for c in v["checks"]}["money"]["ok"] is True  # low RPM but affiliates remain
 
 
 # ---------------------------------------------------------------------------
-# Điểm từ khoá dài
+# Long-tail keyword score
 # ---------------------------------------------------------------------------
 
 
-def _results(n, views, subs, title="khác"):
+def _results(n, views, subs, title="other"):
     return [{"title": title, "views": views, "subs": subs, "channel_id": f"c{i}"} for i in range(n)]
 
 
@@ -169,7 +174,7 @@ def test_keyword_labels_thresholds():
 def test_long_keyword_scorecard_suggestion():
     good = [{"score": 60, "low_data": False}] * 10
     assert ks.long_keyword_score(good)[0] == 5
-    assert ks.long_keyword_score([{"score": 80, "low_data": True}] * 10)[0] == 1  # ít dữ liệu không tính
+    assert ks.long_keyword_score([{"score": 80, "low_data": True}] * 10)[0] == 1  # low data does not count
     assert ks.long_keyword_score([])[0] is None
 
     run = {"id": 7, "result": {"median_views": 1000, "trends": {}, "small_boom_channels": [], "competition": 10},
@@ -179,7 +184,7 @@ def test_long_keyword_scorecard_suggestion():
 
 
 # ---------------------------------------------------------------------------
-# Nguồn gợi ý + service từ khoá
+# Suggestion source + keyword service
 # ---------------------------------------------------------------------------
 
 
@@ -198,7 +203,7 @@ def test_suggestions_cache_and_az(conn):
     out = asyncio.run(suggest.suggestions(conn, "tâm lý học", "VN", "vi", transport=_suggest_transport(calls)))
     assert [x["keyword"] for x in out] == ["tâm lý học", "tâm lý học về tiền", "tâm lý học tội phạm"]
     asyncio.run(suggest.suggestions(conn, "tâm lý học", "VN", "vi", transport=_suggest_transport(calls)))
-    assert len(calls) == 1  # lần 2 đọc cache
+    assert len(calls) == 1  # 2nd call is served from the cache
 
     out = asyncio.run(suggest.suggestions(conn, "tâm lý học", "VN", "vi", az=True, transport=_suggest_transport(calls)))
     assert len(calls) == 1 + len(suggest.AZ_LETTERS)
@@ -229,7 +234,7 @@ def test_keyword_service_flow(conn, monkeypatch):
     scored = kw_svc.scored_for(conn, "tâm lý học về tiền", "VN")
     assert [k["keyword"] for k in scored] == ["tiêu tiền khi buồn"] and scored[0]["low_data"] is False
 
-    # Lấy gợi ý lại không xoá điểm đã chấm.
+    # Refetching suggestions does not erase scores.
     kw_svc.fetch_suggestions(conn, "tâm lý học về tiền", "VN")
     assert kw_svc.scored_for(conn, "tâm lý học về tiền", "VN")[0]["score"] == scored[0]["score"]
 
@@ -239,7 +244,7 @@ def test_keyword_service_flow(conn, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Đào ngách con: tầng, cây, migration
+# Digging sub-niches: layers, tree, migration
 # ---------------------------------------------------------------------------
 
 
@@ -248,9 +253,9 @@ def test_dig_child_sets_layer_and_tree(conn, raw, rpm_tmp, monkeypatch):
         return {**raw, "params": {**raw["params"], "topic": params.topic}}
 
     monkeypatch.setattr(run_svc, "fetch_niche", fake_fetch)
-    root = run_svc.dig(conn, DigParams(topic="lịch sử"), category="Lịch sử")
-    child = run_svc.dig(conn, DigParams(topic="lịch sử nhật thời edo"), category="Lịch sử", parent_id=root, filter_type="angle")
-    grand = run_svc.dig(conn, DigParams(topic="samurai thời edo"), category="Lịch sử", parent_id=child, filter_type="audience")
+    root = run_svc.dig(conn, DigParams(topic="lịch sử"), category="History")
+    child = run_svc.dig(conn, DigParams(topic="lịch sử nhật thời edo"), category="History", parent_id=root, filter_type="angle")
+    grand = run_svc.dig(conn, DigParams(topic="samurai thời edo"), category="History", parent_id=child, filter_type="audience")
 
     assert run_repo.get(conn, grand)["layer"] == 3
     again = run_svc.redig(conn, child)
@@ -261,9 +266,9 @@ def test_dig_child_sets_layer_and_tree(conn, raw, rpm_tmp, monkeypatch):
     assert [n["depth"] for n in nodes] == [0, 1, 2, 1]
     assert sub_svc.root_of(conn, grand) == root
 
-    sub_svc.save_check(conn, child, ideas="a\nb", promise="  Kênh   giúp bạn hiểu Edo. ")
+    sub_svc.save_check(conn, child, ideas="a\nb", promise="  A channel   that explains Edo. ")
     c = sub_svc.check(conn, child)
-    assert c["promise"] == "Kênh giúp bạn hiểu Edo." and c["layer"]["status"] in ("alive", "weak")
+    assert c["promise"] == "A channel that explains Edo." and c["layer"]["status"] in ("alive", "weak")
     run_repo.delete(conn, child)
     assert conn.execute("SELECT COUNT(*) FROM niche_check").fetchone()[0] == 0
 
@@ -286,22 +291,22 @@ def test_migration_adds_columns_to_old_db(tmp_path):
     conn = connect(path)
     row = conn.execute("SELECT layer, parent_id, filter_type FROM dig_run").fetchone()
     assert (row["layer"], row["parent_id"], row["filter_type"]) == (1, None, "")
-    connect(path).close()  # chạy lại không lỗi
+    connect(path).close()  # running again does not fail
 
 
 # ---------------------------------------------------------------------------
-# Prompt bài 2.3
+# Lesson 2.3 prompts
 # ---------------------------------------------------------------------------
 
 
 def test_lesson_23_prompts(conn, raw, rpm_tmp):
-    rid = run_repo.insert(conn, raw=raw, result=run_svc._analyze(raw, "Lịch sử", []), category="Lịch sử", affiliates=[])
+    rid = run_repo.insert(conn, raw=raw, result=run_svc._analyze(raw, "History", []), category="History", affiliates=[])
     run = run_repo.get(conn, rid)
     cols = sn.columns([{"keyword": "kể chuyện lịch sử việt nam", "rank": 1, "source": "suggest"}], run["topic"], "vi", [])
-    p1 = report.build_subniche_prompt(run, cols, sn.repeated_phrases(run["result"]["outliers"], run["topic"]), "không lộ mặt")
-    assert "kể chuyện lịch sử việt nam" in p1 and "MỘT bộ lọc" in p1 and "{" not in p1
-    p2 = report.build_ideas_prompt(run, "Kênh giúp bạn hiểu sử Việt.", [{"keyword": "a b c d", "score": 61.0, "low_data": True}])
-    assert "a b c d: 61 (ít dữ liệu)" in p2 and "30 ý tưởng" in p2 and "{" not in p2
+    p1 = report.build_subniche_prompt(run, cols, sn.repeated_phrases(run["result"]["outliers"], run["topic"]), "faceless")
+    assert "kể chuyện lịch sử việt nam" in p1 and "{" not in p1
+    p2 = report.build_ideas_prompt(run, "A channel that helps you understand Vietnamese history.", [{"keyword": "a b c d", "score": 61.0, "low_data": True}])
+    assert "a b c d: 61" in p2 and "30" in p2 and "{" not in p2
 
 
 def test_keyword_belongs_to_many_seeds_and_shares_score(conn, monkeypatch):
