@@ -1,4 +1,4 @@
-"""Trang Bảng chấm: chốt trọng số → chấm 10 tiêu chí → ngách chính + dự phòng (bài 2.5)."""
+"""Scorecard page: lock the weights → score ten criteria → main niche + backup (lesson 2.5)."""
 
 import pandas as pd
 import streamlit as st
@@ -6,129 +6,135 @@ import streamlit as st
 from yt_niche.core import scorecard as sc
 from yt_niche.db import runs as run_repo
 from yt_niche.services import scorecards as svc
-from yt_niche.services.report import FMT_LABEL, build_scorecard_review_prompt
-from yt_niche.ui.common import get_conn, market_label, prompt_box
+from yt_niche.services.report import build_scorecard_review_prompt
+from yt_niche.ui import theme
+from yt_niche.ui.common import get_conn, prompt_box, run_label
 
-st.title("⚖️ Bảng chấm chốt ngách")
-st.caption("Chốt trọng số trước, chấm sau. Ô 1 điểm là cờ đỏ, dù tổng cao đến đâu.")
 conn = get_conn()
-
-
-def _run_label(r: dict) -> str:
-    return (
-        f"{r['topic']} · {market_label(r['region'])} · {FMT_LABEL[r['fmt']]} · {r['window_days']} ngày · "
-        f"{r['created_at'][:10]} · {r['score']:.0f} điểm (#{r['id']})"
-    )
-
+theme.inject_css()
+theme.page_header("", "Scorecard", "Ten weighted criteria to lock in a main niche and a backup.")
 
 # ---------------------------------------------------------------------------
-# Tạo / chọn bảng chấm
+# Pick a scorecard / create one
 # ---------------------------------------------------------------------------
 
 boards = svc.list_all(conn)
-with st.expander("➕ Tạo bảng chấm mới", expanded=not boards):
-    candidates = [r for r in run_repo.list_all(conn) if r["result"]["can_shortlist"]]
-    if len(candidates) < svc.MIN_ITEMS:
-        st.info("Cần ít nhất 2 lần đào có độ tin cậy vừa hoặc cao. Vào trang Đào ngách để đào thêm.")
-    else:
-        by_id = {r["id"]: r for r in candidates}
-        default = [r["id"] for r in candidates if r["shortlisted"]][: svc.MAX_ITEMS]
-        with st.form("create_board"):
-            name = st.text_input("Tên bảng chấm", placeholder="vd. Chọn ngách tháng 10")
-            picked = st.multiselect(
-                f"Chọn {svc.MIN_ITEMS}–{svc.MAX_ITEMS} ngách (mặc định là các ngách đã bật \"Đưa vào bảng chấm\")",
-                list(by_id),
-                default=default,
-                format_func=lambda i: _run_label(by_id[i]),
-                max_selections=svc.MAX_ITEMS,
+board_ids = [b["id"] for b in boards]
+labels = {
+    b["id"]: f"{b['name']} · v{b['version']} · {b['n_items']} niches · {'locked' if b['locked_at'] else 'draft'}"
+    for b in boards
+}
+current = st.session_state.get("board")
+
+with st.container(border=True):
+    if boards:
+        board_id = st.selectbox(
+            "Scorecard",
+            board_ids,
+            index=board_ids.index(current) if current in board_ids else 0,
+            format_func=labels.get,
+        )
+        st.session_state["board"] = board_id
+    with st.expander("New scorecard", expanded=not boards):
+        candidates = [r for r in run_repo.list_all(conn) if r["result"]["can_shortlist"]]
+        if len(candidates) < svc.MIN_ITEMS:
+            theme.empty_state(
+                f"You need at least {svc.MIN_ITEMS} digs with medium or high confidence.",
+                "Go to the Dig page and dig more niches first.",
             )
-            if st.form_submit_button("Tạo bảng chấm", type="primary"):
-                try:
-                    st.session_state["board"] = svc.create(conn, name, picked)
-                    st.rerun()
-                except svc.ScorecardError as e:
-                    st.error(str(e))
+        else:
+            by_id = {r["id"]: r for r in candidates}
+            default = [r["id"] for r in candidates if r["shortlisted"]][: svc.MAX_ITEMS]
+            with st.form("create_board"):
+                name = st.text_input("Name", placeholder="e.g. October niche pick")
+                picked = st.multiselect(
+                    f"Pick {svc.MIN_ITEMS}–{svc.MAX_ITEMS} niches (digs marked \"Add to scorecard\" are preselected)",
+                    list(by_id),
+                    default=default,
+                    format_func=lambda i: run_label(by_id[i]),
+                    max_selections=svc.MAX_ITEMS,
+                )
+                if st.form_submit_button("Create scorecard", type="primary"):
+                    try:
+                        st.session_state["board"] = svc.create(conn, name, picked)
+                        st.rerun()
+                    except svc.ScorecardError as e:
+                        st.error(str(e))
 
 if not boards:
     st.stop()
 
-board_ids = [b["id"] for b in boards]
-labels = {
-    b["id"]: f"{b['name']} · v{b['version']} · {b['n_items']} ngách · {'🔒 đã khoá' if b['locked_at'] else '✏️ chưa khoá'}"
-    for b in boards
-}
-current = st.session_state.get("board")
-board_id = st.selectbox(
-    "Bảng chấm",
-    board_ids,
-    index=board_ids.index(current) if current in board_ids else 0,
-    format_func=labels.get,
-)
-st.session_state["board"] = board_id
 data = svc.load(conn, board_id)
 names = {r["id"]: r["topic"] for r in data["runs"]}
+weights = data["weights"]
 
 for w in data["warnings"]:
-    st.warning(f"⚠️ {w}. Bài 2.4: chỉ so các ngách đào cùng thiết lập, cùng ngày.")
+    st.warning(f"{w}. Lesson 2.4: only compare niches dug with the same setup on the same day.")
 if data["missing_runs"]:
-    st.warning(f"{data['missing_runs']} lần đào trong bảng đã bị xoá nên không hiện.")
+    st.warning(f"{data['missing_runs']} digs on this scorecard were deleted and are not shown.")
 if data["parent_id"]:
-    st.caption(f"Phiên bản {data['version']}, tạo từ bảng #{data['parent_id']} (bản cũ vẫn giữ để đối chiếu).")
+    st.caption(f"Version {data['version']}, created from scorecard #{data['parent_id']} (the old version is kept for reference).")
 
 # ---------------------------------------------------------------------------
-# Bước 1: trọng số
+# Step 1: weights
 # ---------------------------------------------------------------------------
 
-st.subheader("1. Trọng số")
-weights = data["weights"]
+theme.section("1. Weights", "Set the weights first, score later. They must add up to 100 and cannot change once locked.")
 if not data["locked_at"]:
-    st.caption(
-        "Trọng số là gợi ý; ví dụ kênh sống bằng affiliate có thể đẩy \"Tiền ngoài quảng cáo\" lên 20 và hạ \"Giá quảng cáo\" "
-        "xuống 0. Tổng phải bằng 100. Sau khi khoá thì không sửa được nữa."
-    )
-    cols = st.columns(2)
-    new_weights = {
-        c.key: cols[i % 2].number_input(
-            c.label, min_value=0, max_value=100, value=int(weights[c.key]), step=5, help=c.guide, key=f"w_{board_id}_{c.key}"
+    with st.expander("How to set the weights"):
+        st.markdown(
+            "The defaults are a suggestion. A channel that lives on affiliate income can push *Money beyond ads* to 20 "
+            "and drop *Ad price* to 0. A criterion with weight 0 is skipped when scoring."
         )
-        for i, c in enumerate(sc.CRITERIA)
-    }
-    total = sum(new_weights.values())
-    (st.success if total == 100 else st.error)(f"Tổng: {total}/100")
-    b1, b2, _ = st.columns([1, 1, 3])
-    if b1.button("Lưu trọng số"):
-        try:
-            svc.set_weights(conn, board_id, new_weights)
-            st.rerun()
-        except svc.ScorecardError as e:
-            st.error(str(e))
-    if b2.button("🔒 Khoá trọng số", type="primary", disabled=total != 100):
-        try:
-            svc.set_weights(conn, board_id, new_weights)
-            svc.lock(conn, board_id)
-            st.rerun()
-        except svc.ScorecardError as e:
-            st.error(str(e))
+    with st.container(border=True):
+        cols = st.columns(5)
+        new_weights = {
+            c.key: cols[i % 5].number_input(
+                c.label, min_value=0, max_value=100, value=int(weights[c.key]), step=5, help=c.guide, key=f"w_{board_id}_{c.key}"
+            )
+            for i, c in enumerate(sc.CRITERIA)
+        }
+        total = sum(new_weights.values())
+        if total == 100:
+            delta, color = "adds up to 100", "off"
+        else:
+            delta, color = f"{total - 100:+d} (must be 100)", "normal" if total < 100 else "inverse"
+        theme.kpi_row([
+            ("Weights total", f"{total}/100", delta, color),
+            ("Criteria in use", sum(1 for w in new_weights.values() if w > 0), "weight above 0"),
+            ("Niches on the card", len(data["runs"]), None),
+        ])
+        b1, b2, _ = st.columns([1, 1, 3])
+        if b1.button("Save weights", width="stretch"):
+            try:
+                svc.set_weights(conn, board_id, new_weights)
+                st.rerun()
+            except svc.ScorecardError as e:
+                st.error(str(e))
+        if b2.button("Lock weights", type="primary", disabled=total != 100, width="stretch"):
+            try:
+                svc.set_weights(conn, board_id, new_weights)
+                svc.lock(conn, board_id)
+                st.rerun()
+            except svc.ScorecardError as e:
+                st.error(str(e))
     st.stop()
 
-st.dataframe(
-    pd.DataFrame([{"Tiêu chí": c.label, "Trọng số": weights[c.key]} for c in sc.CRITERIA]).set_index("Tiêu chí").T,
-    width="stretch",
-)
-c1, c2 = st.columns([3, 1])
-c1.caption(f"🔒 Đã khoá lúc {data['locked_at'][:16].replace('T', ' ')} (UTC).")
-if c2.button("Tạo phiên bản mới để đổi trọng số"):
-    st.session_state["board"] = svc.new_version(conn, board_id)
-    st.rerun()
+with st.container(border=True):
+    theme.pills(*[theme.pill(f"{c.label} · {weights[c.key]}", "blue" if weights[c.key] > 0 else "") for c in sc.CRITERIA])
+    c1, c2 = st.columns([2.4, 1.2])
+    c1.caption(f"Locked at {data['locked_at'][:16].replace('T', ' ')} (UTC).")
+    if c2.button("New version to change weights", width="stretch"):
+        st.session_state["board"] = svc.new_version(conn, board_id)
+        st.rerun()
 
 # ---------------------------------------------------------------------------
-# Bước 2: chấm điểm
+# Step 2: scoring
 # ---------------------------------------------------------------------------
 
-st.subheader("2. Chấm điểm 1–5")
-h1, h2 = st.columns([3, 1])
-h1.caption("App điền sẵn ô tính được từ số liệu đào; bạn xác nhận hoặc sửa, và chấm tay các ô còn trống.")
-if h2.button("Cập nhật gợi ý từ số liệu mới"):
+theme.section("2. Score each niche 1–5", "Cells the app can compute from the dig are prefilled: confirm or change them, then score the rest by hand.")
+_, h2 = st.columns([2.4, 1.2])
+if h2.button("Refresh suggestions from new data", width="stretch"):
     svc.refresh_suggestions(conn, board_id)
     st.rerun()
 
@@ -137,14 +143,14 @@ for tab, run in zip(tabs, data["runs"]):
     rid = run["id"]
     cells = data["cells"][rid]
     with tab, st.form(f"score_{board_id}_{rid}"):
-        st.caption(_run_label(run))
+        st.caption(run_label(run))
         values = {}
         for c in sc.CRITERIA:
             cell = cells[c.key]
             if weights[c.key] == 0:
                 continue
             left, mid, right = st.columns([2, 2, 3])
-            left.markdown(f"**{c.label}** · {weights[c.key]}")
+            left.markdown(f"**{c.label}** · weight {weights[c.key]}")
             left.caption(c.guide)
             score = mid.radio(
                 c.label,
@@ -154,30 +160,30 @@ for tab, run in zip(tabs, data["runs"]):
                 label_visibility="collapsed",
                 key=f"s_{board_id}_{rid}_{c.key}",
             )
-            hint = f"Gợi ý: {cell['auto_score']} — {cell['rationale']}" if cell["auto_score"] else cell["rationale"]
+            hint = f"Suggested {cell['auto_score']} — {cell['rationale']}" if cell["auto_score"] else cell["rationale"]
             mid.caption(hint)
             note = right.text_input(
-                "Căn cứ", value=cell["note"], placeholder="vì sao chấm điểm này", key=f"n_{board_id}_{rid}_{c.key}"
+                "Reason", value=cell["note"], placeholder="why this score", key=f"n_{board_id}_{rid}_{c.key}"
             )
             values[c.key] = (score, note)
-        if st.form_submit_button(f"Lưu điểm: {names[rid]}", type="primary"):
+        if st.form_submit_button(f"Save scores: {names[rid]}", type="primary"):
             svc.set_scores(conn, board_id, rid, values)
             st.rerun()
 
 # ---------------------------------------------------------------------------
-# Bước 3: kết quả
+# Step 3: result
 # ---------------------------------------------------------------------------
 
-st.subheader("3. Kết quả")
+theme.section("3. Result", "A 1 in any cell is a red flag: that niche cannot be the main niche, however high its total.")
 decision = data["decision"]
 active = [c for c in sc.CRITERIA if weights[c.key] > 0]
 table = pd.DataFrame(
     [
         {
-            "Ngách": r["name"],
-            **{c.label: ("🚩 1" if r["scores"].get(c.key) == 1 else r["scores"].get(c.key) or "—") for c in active},
-            "Điểm chốt": r["final"],
-            "Cờ đỏ": len(r["red_flags"]) or "",
+            "Niche": r["name"],
+            **{c.label: ("1 (red flag)" if r["scores"].get(c.key) == 1 else r["scores"].get(c.key) or "—") for c in active},
+            "Final score": r["final"],
+            "Red flags": len(r["red_flags"]) or "",
         }
         for r in decision["ranking"]
     ]
@@ -186,73 +192,83 @@ st.dataframe(
     table,
     hide_index=True,
     width="stretch",
-    column_config={"Điểm chốt": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.1f")},
+    column_config={"Final score": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.1f")},
 )
+with st.expander("How the final score is computed"):
+    st.markdown(
+        "Final score = Σ(weight × score 1–5) ÷ 5, so it runs from 20 to 100. Only criteria with weight above 0 count. "
+        f"When two niches are within {sc.TIE_GAP} points, the tie is broken by *Sustainable production* + *Money beyond ads*."
+    )
 
 if not decision["complete"]:
-    st.info("Chấm đủ các ô (có trọng số > 0) của mọi ngách để xem ngách chính và dự phòng.")
+    theme.empty_state(
+        "Score every weighted cell of every niche to see the main and backup niche.",
+        "Open each tab above, confirm the suggestions and fill the empty cells.",
+    )
     st.stop()
 
 flagged = [r for r in decision["ranking"] if r["red_flags"]]
 for r in flagged:
-    crits = ", ".join(sc.CRITERIA_BY_KEY[k].label for k in r["red_flags"])
-    st.error(f"🚩 {r['name']} ({r['final']:g} điểm) có ô 1 điểm ({crits}): không được làm ngách chính.")
+    crits = [theme.pill(f"Red flag: {sc.CRITERIA_BY_KEY[k].label}", "red") for k in r["red_flags"]]
+    st.markdown(f"**{r['name']}** ({r['final']:g} points) has a 1 in " + "".join(crits) + " — cannot be the main niche.",
+                unsafe_allow_html=True)
 
 main, backup = decision["main"], decision["backup"]
 if not main:
-    st.error("Không ngách nào đủ điều kiện làm ngách chính (mọi ngách đều có ô dưới 2). Hãy đào ngách khác hoặc ngách con.")
+    st.error("No niche qualifies as the main niche (every niche has a cell below 2). Dig another niche or a sub-niche.")
     st.stop()
 
 m, b = st.columns(2)
 with m.container(border=True):
-    st.markdown(f"### 🎯 Ngách chính: {main['name']}")
-    st.metric("Điểm chốt", f"{main['final']:g}/100")
-    st.caption(f"Lý do: {decision['main_reason']}")
+    st.markdown(f"### Main niche: {main['name']}")
+    st.metric("Final score", f"{main['final']:g}/100")
+    st.caption(f"Why: {decision['main_reason']}")
 with b.container(border=True):
     if backup:
-        st.markdown(f"### 🛟 Dự phòng: {backup['name']}")
-        st.metric("Điểm chốt", f"{backup['final']:g}/100")
-        st.caption(f"Lý do: {decision['backup_reason']}")
+        st.markdown(f"### Backup niche: {backup['name']}")
+        st.metric("Final score", f"{backup['final']:g}/100")
+        st.caption(f"Why: {decision['backup_reason']}")
     else:
-        st.markdown("### 🛟 Dự phòng: chưa có")
-        st.caption("Không còn ngách nào đủ điều kiện. Hãy đào thêm một ngách gần ngách chính.")
+        st.markdown("### Backup niche: none yet")
+        st.caption("No other niche qualifies. Dig one more niche close to the main niche.")
 
-with st.form(f"promise_{board_id}"):
-    promise = st.text_input(
-        "Lời hứa kênh (một câu, đặt ở đầu mô tả kênh)",
-        value=data["promise"],
-        placeholder="vd. Hiểu vì sao mình tiêu tiền như vậy, và đổi một thói quen mỗi tuần.",
-    )
-    close = st.checkbox(
-        "Ngách dự phòng gần ngách chính về khán giả và phong cách hình ảnh",
-        value=bool(data["backup_close"]),
-        help="Để khi chuyển không mất khán giả và không phải làm lại nhận diện kênh.",
-    )
-    if st.form_submit_button("Lưu"):
-        svc.set_promise(conn, board_id, promise, close)
-        st.rerun()
+with st.container(border=True):
+    with st.form(f"promise_{board_id}"):
+        promise = st.text_input(
+            "Channel promise (one sentence, goes at the top of the channel description)",
+            value=data["promise"],
+            placeholder="e.g. Understand why you spend the way you do, and change one habit a week.",
+        )
+        close = st.checkbox(
+            "The backup niche shares the main niche's audience and visual style",
+            value=bool(data["backup_close"]),
+            help="So a switch keeps the audience and does not force a new channel identity.",
+        )
+        if st.form_submit_button("Save", type="primary"):
+            svc.set_promise(conn, board_id, promise, close)
+            st.rerun()
 
 if not data["promise"]:
-    st.warning("Chưa có lời hứa kênh.")
+    st.warning("No channel promise yet.")
 if backup and not data["backup_close"]:
-    st.warning("Dự phòng nên gần ngách chính về khán giả. Nếu không gần, cân nhắc chọn ngách khác làm dự phòng.")
-st.caption("Không chạy ngách chính và dự phòng song song trên một kênh; dự phòng chỉ để chuyển khi cần.")
+    st.warning("The backup should share the main niche's audience. If it does not, consider another backup.")
+st.caption("Do not run the main and backup niche side by side on one channel; the backup is only for switching.")
 
-with st.expander("📋 Prompt: phản biện bảng chấm (Claude / ChatGPT)"):
+with st.expander("Prompt: challenge this scorecard (Claude / ChatGPT)"):
     prompt_box(build_scorecard_review_prompt(data))
-st.info("Tiếp theo: vào trang 🎬 10 video thử để lập kế hoạch cho ngách chính.")
+st.info("Next: open 10 test videos to plan the main niche.")
 
 st.divider()
-if st.button("🗑️ Xoá bảng chấm này"):
+if st.button("Delete this scorecard"):
     st.session_state["confirm_delete_board"] = board_id
 if st.session_state.get("confirm_delete_board") == board_id:
-    st.warning("Xoá vĩnh viễn bảng chấm này? Các lần đào vẫn giữ nguyên.")
+    st.warning("Delete this scorecard for good? The digs stay.")
     d1, d2, _ = st.columns([1, 1, 4])
-    if d1.button("Xoá", type="primary"):
+    if d1.button("Delete", type="primary", width="stretch"):
         svc.delete(conn, board_id)
         st.session_state.pop("confirm_delete_board")
         st.session_state.pop("board", None)
         st.rerun()
-    if d2.button("Huỷ"):
+    if d2.button("Cancel", width="stretch"):
         st.session_state.pop("confirm_delete_board")
         st.rerun()

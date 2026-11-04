@@ -1,7 +1,7 @@
-"""Endpoint nội bộ của trang YouTube (youtubei/v1): danh sách "Up next" và search, không tốn quota API.
+"""YouTube's internal web endpoints (youtubei/v1): the "Up next" list and search, no API quota.
 
-API chính thức đã bỏ relatedToVideoId (8/2023), nên đây là cách duy nhất miễn phí để lấy video gợi ý.
-Endpoint không chính thức: YouTube có thể đổi cấu trúc hoặc chặn bất cứ lúc nào. Có cache SQLite 24h.
+The official API dropped relatedToVideoId (8/2023), so this is the only free way to get suggested videos.
+Unofficial endpoint: YouTube can change the structure or block it at any time. SQLite cache for 24h.
 """
 
 from __future__ import annotations
@@ -20,9 +20,9 @@ URL = "https://www.youtube.com/youtubei/v1"
 CLIENT_VERSION = "2.20261020.00.00"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 CONCURRENCY = 4
-SEARCH_VIDEOS = "EgIQAQ=="  # bộ lọc search: chỉ video
-SEARCH_CHANNELS = "EgIQAg=="  # chỉ kênh
-CHANNEL_VIDEOS_TAB = "EgZ2aWRlb3PyBgQKAjoA"  # tab Video của kênh, mới nhất trước
+SEARCH_VIDEOS = "EgIQAQ=="  # search filter: videos only
+SEARCH_CHANNELS = "EgIQAg=="  # channels only
+CHANNEL_VIDEOS_TAB = "EgZ2aWRlb3PyBgQKAjoA"  # the channel's Videos tab, newest first
 
 
 class InnertubeError(RuntimeError):
@@ -30,7 +30,7 @@ class InnertubeError(RuntimeError):
 
 
 def walk(o: Any, key: str) -> Iterator[Any]:
-    """Mọi giá trị của khoá `key` ở mọi tầng trong JSON."""
+    """Every value of key `key` at any depth of the JSON."""
     if isinstance(o, dict):
         for k, v in o.items():
             if k == key:
@@ -57,7 +57,7 @@ _NUM = re.compile(r"([\d.,]+)\s*([KMB]?)\b", re.IGNORECASE)
 
 
 def parse_count(s: str) -> int | None:
-    """"151,902 views" → 151902, "16K" → 16000, "1.2M views" → 1200000 (dạng tiếng Anh, hl=en)."""
+    """"151,902 views" → 151902, "16K" → 16000, "1.2M views" → 1200000 (English format, hl=en)."""
     m = _NUM.search(s or "")
     if not m:
         return None
@@ -73,14 +73,14 @@ def _channel_id(o: Any) -> str | None:
     return next((b["browseId"] for b in walk(o, "browseEndpoint") if b.get("browseId", "").startswith("UC")), None)
 
 
-# ---- Bộ đọc kết quả ----
+# ---- Result readers ----
 
 def lockups(data: dict) -> list[dict]:
-    """Video dạng lockupViewModel (cột "Up next", tab Video của kênh)."""
+    """Videos in lockupViewModel form (the "Up next" column, a channel's Videos tab)."""
     out = []
     for lk in walk(data, "lockupViewModel"):
         if lk.get("contentType") != "LOCKUP_CONTENT_TYPE_VIDEO":
-            continue  # bỏ playlist, mix
+            continue  # skip playlists, mixes
         meta = lk.get("metadata", {}).get("lockupMetadataViewModel", {})
         rows = [
             [text(p.get("text")) for p in r.get("metadataParts", [])]
@@ -123,7 +123,7 @@ def search_channels(data: dict) -> list[dict]:
 
 
 def watch_info(data: dict) -> dict:
-    """Trang xem video (/next): tiêu đề (đã dịch theo hl), mô tả, kênh, và danh sách Up next."""
+    """Watch page (/next): title (translated per hl), description, channel, and the Up next list."""
     pri = next(walk(data, "videoPrimaryInfoRenderer"), {})
     owner = next(walk(data, "videoOwnerRenderer"), {})
     return {
@@ -138,7 +138,7 @@ def watch_info(data: dict) -> dict:
 # ---- Client ----
 
 class Innertube:
-    """Dùng với `async with Innertube(conn, hl, gl) as it:`."""
+    """Use as `async with Innertube(conn, hl, gl) as it:`."""
 
     def __init__(
         self,
@@ -179,7 +179,7 @@ class Innertube:
                         data = resp.json()
                         cache.put(self.conn, key, data, TTL_INNERTUBE)
                         return data
-                    last = InnertubeError(f"YouTube ({endpoint}) trả lỗi {resp.status_code}")
+                    last = InnertubeError(f"YouTube ({endpoint}) returned error {resp.status_code}")
                 except (httpx.HTTPError, ValueError) as e:
                     last = e
                 await asyncio.sleep(1.5 * (attempt + 1))
@@ -194,5 +194,5 @@ class Innertube:
         return search_videos(data) if kind == "videos" else search_channels(data)
 
     async def channel_videos(self, channel_id: str, hl: str | None = None, gl: str | None = None) -> list[dict]:
-        """Video mới nhất của kênh; tiêu đề đã được YouTube tự dịch theo hl (có với en, không phải ngôn ngữ nào cũng có)."""
+        """The channel's newest videos; titles auto-translated by YouTube per hl (works for en, not for every language)."""
         return lockups(await self._post("browse", {"browseId": channel_id, "params": CHANNEL_VIDEOS_TAB}, hl, gl))

@@ -1,6 +1,8 @@
-"""AI qua API chuẩn OpenAI (mặc định Command Code). Cấu hình ở Cài đặt → AI; tắt hoặc lỗi thì app chạy như không có AI.
+"""AI through an OpenAI-compatible API (Command Code by default). Configured in Settings → AI; when it is off or fails,
+the app runs as if there were no AI.
 
-Chỉ gửi dữ liệu công khai (từ khoá, tiêu đề, số liệu kênh, nội dung prompt). Không gửi email, API key YouTube hay đường dẫn máy.
+Only public data is sent (keywords, titles, channel numbers, prompt text). Never the email, the YouTube API key or
+local paths.
 """
 
 from __future__ import annotations
@@ -18,15 +20,15 @@ from yt_niche import config as cfg
 from yt_niche.db import cache
 
 CONFIG_KEY = "ai_config"
-TIERS = {"fast": "Nhanh (phân loại, dịch)", "deep": "Sâu (phân tích, ý tưởng)"}
+TIERS = {"fast": "Fast (classify, translate)", "deep": "Deep (analysis, ideas)"}
 FEATURES = {
-    "radar": "Radar: phân loại từ khoá ngắn hạn / lâu dài và dịch nghĩa tiếng Việt (trước khi tốn lượt Google Trends)",
-    "prompts": "Nút \"🤖 Chạy bằng AI\" cạnh mọi prompt có sẵn (đọc kết quả đào, ngách con, 30 ý tưởng, so sánh, dịch từ khoá…)",
+    "radar": "Radar: classify keywords as short-lived / lasting and gloss their meaning (before spending Google Trends requests)",
+    "prompts": "\"🤖 Run with AI\" button next to every built-in prompt (read dig results, sub-niches, 30 ideas, compare, translate keywords…)",
 }
-# reasoning_effort theo Command Code; "" = không gửi (để model tự chọn). Nhà cung cấp khác chê giá trị nào thì
-# app tự đổi sang mức gần nhất họ nhận (đọc từ lỗi "expected one of …").
-EFFORTS = {"": "Mặc định (không gửi)", "off": "Tắt suy nghĩ", "low": "Thấp", "medium": "Vừa", "high": "Cao",
-           "xhigh": "Rất cao", "max": "Tối đa"}
+# reasoning_effort as Command Code defines it; "" = not sent (the model picks). When another provider rejects a value,
+# the app switches to the nearest value it accepts (read from the "expected one of …" error).
+EFFORTS = {"": "Default (not sent)", "off": "Thinking off", "low": "Low", "medium": "Medium", "high": "High",
+           "xhigh": "Very high", "max": "Max"}
 EFFORT_RANK = {"off": 0, "none": 0, "minimal": 0, "low": 1, "medium": 2, "high": 3, "xhigh": 4, "max": 5}
 LEGACY_EFFORT = {"minimal": "off", "none": "off"}
 DEFAULT_CONFIG = {
@@ -36,7 +38,7 @@ DEFAULT_CONFIG = {
     "model_deep": "",
     "effort_fast": "low",
     "effort_deep": "medium",
-    "models": [],  # danh sách lấy từ /models lúc bấm "Kiểm tra kết nối"
+    "models": [],  # list fetched from /models when "Test connection" is clicked
     "features": {k: True for k in FEATURES},
     "max_requests_per_day": cfg.AI_MAX_REQUESTS_PER_DAY,
 }
@@ -45,27 +47,28 @@ CLASSIFY_TTL = 90 * 86400
 PROMPT_TTL = 30 * 86400
 RADAR_BATCH = 40
 
-# Loại từ khoá do AI trả về → nhãn tiếng Việt; loại có short=True bị Radar bỏ trước khi kiểm Trends.
+# Keyword type returned by the AI → label; types with short=True are dropped by the Radar before the Trends check.
 KEYWORD_TYPES = {
-    "evergreen": ("Lâu dài", False),
-    "seasonal": ("Theo mùa", False),
-    "how_to": ("Hướng dẫn / kỹ năng", False),
-    "product": ("Sản phẩm / dịch vụ", False),
-    "news": ("Tin tức / sự kiện", True),
-    "person": ("Người nổi tiếng", True),
-    "sports_match": ("Trận / giải đấu", True),
-    "entertainment_release": ("Phim / nhạc / show mới", True),
-    "brand_launch": ("Ra mắt sản phẩm / game mới", True),
-    "other_short": ("Ngắn hạn khác", True),
+    "evergreen": ("Evergreen", False),
+    "seasonal": ("Seasonal", False),
+    "how_to": ("How-to / skill", False),
+    "product": ("Product / service", False),
+    "news": ("News / event", True),
+    "person": ("Celebrity", True),
+    "sports_match": ("Match / tournament", True),
+    "entertainment_release": ("New film / music / show", True),
+    "brand_launch": ("Product / game launch", True),
+    "other_short": ("Other short-lived", True),
 }
 
 
-# Tham số tuỳ chọn → chữ nhận ra trong lỗi khi model không hỗ trợ nó.
-# Token thêm cho phần suy nghĩ theo mức effort (cộng vào max_tokens của từng việc).
+# Extra tokens for the thinking part per effort level (added to each task's max_tokens).
 REASONING_BUDGET = {"minimal": 1000, "low": 3000, "medium": 8000, "high": 20000, "xhigh": 32000, "max": 48000}
+# Optional parameter → words that identify it in the error when the model does not support it.
 OPTIONAL_PARAMS = {"reasoning_effort": ("reasoning",), "response_format": ("response_format", "json"), "temperature": ("temperature",)}
-# Có model vẫn suy nghĩ dù effort "off" (vd. deepseek-v4.1-flash trên Command Code, đo 10/2026: ~450 token suy nghĩ cho
-# 2 từ khoá). Gặp lần đầu (trả lời rỗng vì hết token) thì nhớ model đó, từ đó luôn chừa ít nhất THINK_FLOOR token.
+# Some models still think with effort "off" (e.g. deepseek-v4.1-flash on Command Code, measured 10/2026: ~450 thinking
+# tokens for 2 keywords). On the first hit (empty answer because tokens ran out) remember that model and from then on
+# always leave at least THINK_FLOOR tokens.
 THINK_FLOOR = 4000
 THINKS_TTL = 180 * 86400
 _UNSUPPORTED: set[tuple[str, str]] = set()
@@ -73,7 +76,7 @@ _EFFORT_FIX: dict[tuple[str, str], str] = {}
 
 
 def _nearest_effort(error: str, effort: str) -> str | None:
-    """Lỗi kiểu 'expected one of "off"|"low"|…': chọn giá trị được nhận gần mức đang gửi nhất."""
+    """Error like 'expected one of "off"|"low"|…': pick the accepted value closest to the one being sent."""
     if "expected one of" not in error.lower():
         return None
     allowed = [v for v in re.findall(r'"([a-z]+)"', error) if v in EFFORT_RANK]
@@ -88,7 +91,7 @@ class AIError(Exception):
 
 
 # ---------------------------------------------------------------------------
-# Cấu hình
+# Configuration
 # ---------------------------------------------------------------------------
 
 
@@ -135,7 +138,7 @@ def enabled(conn: sqlite3.Connection, feature: str | None = None) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Lượt dùng trong ngày
+# Daily usage
 # ---------------------------------------------------------------------------
 
 
@@ -157,7 +160,7 @@ def _add_usage(conn: sqlite3.Connection, usage: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Gọi API
+# API calls
 # ---------------------------------------------------------------------------
 
 
@@ -175,25 +178,25 @@ def _error_text(r: httpx.Response) -> str:
 
 
 def _post(url: str, payload: dict) -> dict:
-    """Tách riêng để test thay thế."""
+    """Kept separate so tests can replace it."""
     try:
         r = httpx.post(url, json=payload, headers=_headers(), timeout=TIMEOUT)
     except httpx.HTTPError as e:
-        raise AIError(f"Không kết nối được AI: {type(e).__name__}") from e
+        raise AIError(f"Could not reach the AI: {type(e).__name__}") from e
     if r.status_code >= 400:
         raise AIError(_error_text(r))
     return r.json()
 
 
 def list_models(base_url: str | None = None) -> list[str]:
-    """Gọi /models (kiểm tra key + lấy tên model). Không tính vào lượt dùng."""
+    """Call /models (checks the key and lists model names). Not counted against the daily usage."""
     if not api_key():
-        raise AIError("Chưa có API key.")
+        raise AIError("No API key yet.")
     url = (base_url or cfg.AI_BASE_URL).rstrip("/") + "/models"
     try:
         r = httpx.get(url, headers=_headers(), timeout=30)
     except httpx.HTTPError as e:
-        raise AIError(f"Không kết nối được {url}: {type(e).__name__}") from e
+        raise AIError(f"Could not reach {url}: {type(e).__name__}") from e
     if r.status_code >= 400:
         raise AIError(_error_text(r))
     body = r.json()
@@ -206,16 +209,16 @@ def _thinks_key(model: str) -> str:
 
 
 def _send(url: str, payload: dict, model: str, effort: str | None) -> dict:
-    """Gửi; tham số tuỳ chọn bị chê thì sửa / bỏ, nhớ lại rồi gửi lại."""
+    """Send; when an optional parameter is rejected, fix or drop it, remember that, and send again."""
     while True:
         try:
             return _post(url, payload)
         except AIError as e:
             if "reasoning_effort" in payload and (alt := _nearest_effort(str(e), payload["reasoning_effort"])):
-                _EFFORT_FIX[(model, effort)] = alt  # nhà cung cấp không nhận mức này: dùng mức gần nhất họ nhận
+                _EFFORT_FIX[(model, effort)] = alt  # the provider rejects this level: use the nearest one it accepts
                 payload["reasoning_effort"] = alt
                 continue
-            # Model không hỗ trợ tham số tuỳ chọn (effort, JSON mode, temperature): bỏ nó, nhớ lại, thử lại.
+            # The model does not support an optional parameter (effort, JSON mode, temperature): drop it, remember, retry.
             bad = next((k for k, words in OPTIONAL_PARAMS.items() if k in payload and any(w in str(e).lower() for w in words)), None)
             if bad is None:
                 raise
@@ -226,9 +229,9 @@ def _send(url: str, payload: dict, model: str, effort: str | None) -> dict:
 def chat(conn: sqlite3.Connection, tier: str, messages: list[dict], max_tokens: int = 4000, json_mode: bool = False) -> str:
     c = get_config(conn)
     if not enabled(conn):
-        raise AIError("AI chưa bật hoặc chưa đủ cấu hình (Cài đặt → AI).")
+        raise AIError("AI is off or not fully configured (Settings → AI).")
     if usage_today(conn)["requests"] >= c["max_requests_per_day"]:
-        raise AIError(f"Đã hết {c['max_requests_per_day']} lượt AI hôm nay (đổi ở Cài đặt → AI).")
+        raise AIError(f"Used all {c['max_requests_per_day']} AI requests for today (change the limit in Settings → AI).")
     model = c[f"model_{tier}"]
     payload = {"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0.2}
     budget = 0
@@ -238,7 +241,7 @@ def chat(conn: sqlite3.Connection, tier: str, messages: list[dict], max_tokens: 
         budget = REASONING_BUDGET.get(effort, 0)
     if cache.get(conn, _thinks_key(model)):
         budget = max(budget, THINK_FLOOR)
-    # Model suy nghĩ tính cả phần suy nghĩ vào max_tokens: thêm chỗ để còn token cho câu trả lời.
+    # Thinking models count their thinking against max_tokens: add room so tokens are left for the answer.
     payload["max_tokens"] = max_tokens + budget
     if json_mode and ("response_format", model) not in _UNSUPPORTED:
         payload["response_format"] = {"type": "json_object"}
@@ -250,25 +253,25 @@ def chat(conn: sqlite3.Connection, tier: str, messages: list[dict], max_tokens: 
             choice = body["choices"][0]
             content = choice["message"].get("content") or ""
         except (KeyError, IndexError, TypeError, AttributeError) as e:
-            raise AIError(f"Phản hồi AI không đúng định dạng: {str(body)[:200]}") from e
+            raise AIError(f"Malformed AI response: {str(body)[:200]}") from e
         if content.strip():
             return content
         if choice.get("finish_reason") != "length":
-            raise AIError(f"Model {model} trả về câu trả lời rỗng. Thử lại, hạ Effort hoặc chọn model khác.")
+            raise AIError(f"Model {model} returned an empty answer. Try again, lower the effort or pick another model.")
         if attempt == 0 and not cache.get(conn, _thinks_key(model)):
-            # Hết token khi đang suy nghĩ (kể cả khi đã tắt suy nghĩ): nhớ model này, chừa thêm chỗ rồi hỏi lại một lần.
+            # Ran out of tokens while thinking (even with thinking off): remember this model, add room and ask once more.
             cache.put(conn, _thinks_key(model), True, THINKS_TTL)
             payload["max_tokens"] = max_tokens + max(budget, THINK_FLOOR)
             continue
         break
     raise AIError(
-        f"Model {model} dùng hết {payload['max_tokens']:,} token cho phần suy nghĩ mà chưa kịp trả lời. "
-        "Hạ Effort (Cài đặt → AI) hoặc chọn model khác."
+        f"Model {model} spent all {payload['max_tokens']:,} tokens thinking and never answered. "
+        "Lower the effort (Settings → AI) or pick another model."
     )
 
 
 def parse_json(text: str):
-    """Lấy JSON từ câu trả lời (bỏ ```json … ``` và chữ thừa quanh nó)."""
+    """Extract JSON from the answer (strip ```json … ``` fences and stray text around it)."""
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
     try:
         return json.loads(text)
@@ -279,11 +282,11 @@ def parse_json(text: str):
                 return json.loads(m.group(0))
             except json.JSONDecodeError:
                 pass
-    raise AIError(f"AI không trả về JSON hợp lệ: {text[:150]}")
+    raise AIError(f"The AI did not return valid JSON: {text[:150]}")
 
 
 # ---------------------------------------------------------------------------
-# Chạy prompt có sẵn
+# Running a built-in prompt
 # ---------------------------------------------------------------------------
 
 
@@ -296,49 +299,51 @@ def cached_answer(conn: sqlite3.Connection, prompt: str) -> str | None:
 
 
 def run_prompt(conn: sqlite3.Connection, prompt: str, tier: str = "deep") -> str:
-    system = "Bạn là chuyên gia nghiên cứu ngách YouTube. Trả lời bằng tiếng Việt, ngắn gọn, đúng định dạng prompt yêu cầu."
+    system = "You are a YouTube niche research expert. Answer in English, concisely, in exactly the format the prompt asks for."
     answer = chat(conn, tier, [{"role": "system", "content": system}, {"role": "user", "content": prompt}], max_tokens=8000)
     cache.put(conn, _prompt_key(prompt), answer, PROMPT_TTL)
     return answer
 
 
 # ---------------------------------------------------------------------------
-# Tự điền phiếu "đủ sống" (bài 2.3)
+# Auto-fill the "viable niche" check (lesson 2.3)
 # ---------------------------------------------------------------------------
 
 FILL_SYSTEM = (
-    "Bạn là biên tập viên kênh YouTube khó tính. Đọc dữ liệu ngách con rồi trả về DUY NHẤT một JSON "
+    "You are a demanding YouTube channel editor. Read the sub-niche data and return ONLY one JSON object "
     '{{"promise": "...", "ideas": ["...", ...]}}.\n'
-    "- promise: lời hứa kênh một câu theo mẫu \"Kênh giúp [ai] hiểu / làm được [điều gì]\". Đã có lời hứa thì giữ nguyên.\n"
-    "- ideas: đúng {n} ý tưởng video không trùng, chia 3 trụ nội dung đều nhau, xếp liền theo trụ. Mỗi ý là một tiêu đề "
-    "video cụ thể, ưu tiên gắn với từ khoá dài điểm cao; không đổi vài chữ để giả làm ý mới.\n"
-    "- Viết bằng ngôn ngữ của khán giả kênh (mã ngôn ngữ: {language}). Không hứa kiếm tiền, không bịa số liệu.\n"
-    "Phần \"Yêu cầu\" trong dữ liệu (bảng, đánh dấu làm đầu tiên) chỉ là bối cảnh: bỏ qua định dạng đó, chỉ trả JSON, "
-    "mỗi ý là chữ thuần, không đánh số, không ký hiệu."
+    "- promise: a one-sentence channel promise in the form \"This channel helps [who] understand / do [what]\". "
+    "If a promise is already given, keep it as is.\n"
+    "- ideas: exactly {n} video ideas with no duplicates, split evenly across 3 content pillars, grouped by pillar. Each idea "
+    "is a specific video title, preferably built on a high-scoring long-tail keyword; do not change a few words to fake a new idea.\n"
+    "- Write in the language of the channel's audience (language code: {language}). Never promise income, never invent numbers.\n"
+    "The \"Task\" section in the data (table, mark the first ones to make) is context only: ignore that format, return JSON only, "
+    "each idea as plain text with no numbering and no symbols."
 )
 
 
-_IDEA_MARKS = re.compile(r"^[\s*•⭐★✅\-–—]*(?:\d+[.)]\s*)?[⭐★✅]*")  # số thứ tự, gạch đầu dòng, dấu sao ở đầu ý
+_IDEA_MARKS = re.compile(r"^[\s*•⭐★✅\-–—]*(?:\d+[.)]\s*)?[⭐★✅]*")  # numbering, bullets and stars at the start of an idea
 
 
 def fill_viability(conn: sqlite3.Connection, prompt: str, language: str, promise: str = "") -> dict:
-    """{"promise", "ideas": [...]} cho phiếu "đủ sống", từ prompt "Kiểm tra 30 ý tưởng" (ngách, từ khoá, video thắng)."""
+    """{"promise", "ideas": [...]} for the "viable niche" check, from the "Check 30 ideas" prompt (niche, keywords, winning videos)."""
     system = FILL_SYSTEM.format(n=cfg.SUBNICHE_MIN_IDEAS, language=language)
     data = parse_json(chat(conn, "deep", [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
                            max_tokens=4000, json_mode=True))
     if not isinstance(data, dict):
-        raise AIError("AI trả về sai định dạng (cần promise và ideas).")
+        raise AIError("The AI returned the wrong shape (promise and ideas expected).")
     clean = (" ".join(_IDEA_MARKS.sub("", str(x)).split()) for x in data.get("ideas") or [])
     ideas = list(dict.fromkeys(x for x in clean if x))[: cfg.SUBNICHE_MIN_IDEAS]
     if not ideas:
-        raise AIError("AI không trả về ý tưởng nào. Thử lại hoặc chọn model khác.")
+        raise AIError("The AI returned no ideas. Try again or pick another model.")
     return {"promise": promise.strip() or " ".join(str(data.get("promise") or "").split()), "ideas": ideas}
 
 
 # ---------------------------------------------------------------------------
-# Phân loại từ khoá cho Radar
+# Keyword classification for the Radar
 # ---------------------------------------------------------------------------
 
+# The "vi" field (and the radar_keyword.ai_vi column) keeps its legacy name; it now holds the keyword's meaning in English.
 CLASSIFY_SYSTEM = (
     "You classify YouTube/Google search keywords for a niche-research tool. For each keyword decide whether it can "
     "support a long-term YouTube channel (stable demand over years) or is a short-term spike.\n"
@@ -347,8 +352,9 @@ CLASSIFY_SYSTEM = (
     "- news, person (celebrity, influencer, politician, athlete), sports_match (a specific match/fixture/tournament edition), "
     "entertainment_release (a specific movie, series, song, album, show episode), brand_launch (a specific new phone, game, "
     "app version), other_short (any other one-off spike).\n"
-    "vi = natural Vietnamese meaning of the keyword (short, as a Vietnamese viewer would understand it).\n"
-    "why = at most 12 Vietnamese words explaining the type.\n"
+    "vi = natural English meaning of the keyword (short, as an English-speaking viewer would understand it; keywords in other "
+    "languages are translated).\n"
+    "why = at most 12 English words explaining the type.\n"
     'Reply with JSON only: {"items": [{"i": <index>, "type": "...", "vi": "...", "why": "..."}]}'
 )
 
@@ -360,7 +366,7 @@ def _classify_key(keyword: str) -> str:
 
 
 def classify_keywords(conn: sqlite3.Connection, keywords: list[str]) -> dict[str, dict]:
-    """{từ khoá: {"type", "label", "short", "vi", "why"}}. Kết quả dùng chung giữa các nước, giữ 90 ngày."""
+    """{keyword: {"type", "label", "short", "vi", "why"}}. Results are shared across markets and kept for 90 days."""
     out, todo = {}, []
     for kw in dict.fromkeys(keywords):
         if (hit := cache.get(conn, _classify_key(kw))) is not None:

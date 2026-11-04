@@ -1,4 +1,4 @@
-"""Google Trends bị chặn 429: dừng sớm, nghỉ, cache từng khoảng, suy 12 tháng, lấy lại cho lần đào đã lưu."""
+"""Google Trends blocked with 429: stop early, cool down, cache per range, derive 12 months, refetch for a saved dig."""
 
 import asyncio
 import json
@@ -20,7 +20,7 @@ class TooManyRequestsError(Exception):
 
 
 class FakeClient:
-    """Trả 429 cho các khoảng trong `blocked`, còn lại trả chuỗi tuần."""
+    """Returns 429 for the ranges in `blocked`, weekly series otherwise."""
 
     calls: list[str] = []
     blocked: set[str] = set()
@@ -54,20 +54,20 @@ def fake(monkeypatch):
 def test_stops_on_429_and_cools_down(conn, fake):
     fake.blocked = {"today 5-y"}
     r = asyncio.run(trends.get_trends(conn, "story", "US"))
-    assert fake.calls == ["today 5-y"] * 3  # 1 lần + 2 lần thử lại, không gọi tiếp 12m/3m
+    assert fake.calls == ["today 5-y"] * 3  # 1 call + 2 retries, no further 12m/3m calls
     assert set(r["errors"]) == {"5y", "12m", "3m"} and r["series"] == {}
     assert trends.cooldown_until(conn) is not None
-    assert "tự hết sau" in trends.describe_errors(r["errors"])
+    assert "clears on its own" in trends.describe_errors(r["errors"])
 
     fake.calls.clear()
     fake.blocked = set()
-    r = asyncio.run(trends.get_trends(conn, "story", "US"))  # đang nghỉ: không gọi Google
-    assert fake.calls == [] and "tạm nghỉ gọi Trends đến" in r["errors"]["5y"]
+    r = asyncio.run(trends.get_trends(conn, "story", "US"))  # cooling down: Google is not called
+    assert fake.calls == [] and trends.PAUSED in r["errors"]["5y"]
 
 
 def test_one_call_derives_12m_and_3m(conn, fake):
     r = asyncio.run(trends.get_trends(conn, "story", "US"))
-    assert fake.calls == ["today 5-y"]  # 1 lần gọi thay vì 3
+    assert fake.calls == ["today 5-y"]  # 1 call instead of 3
     assert len(r["series"]["5y"]) == 261 and r["derived"] == ["12m", "3m"] and r["errors"] == {}
     assert 50 <= len(r["series"]["12m"]) <= 53 and max(v for _, v in r["series"]["12m"]) == 100
     assert 12 <= len(r["series"]["3m"]) <= 14 and r["provider"] == "google"
@@ -76,12 +76,12 @@ def test_one_call_derives_12m_and_3m(conn, fake):
 
 
 def test_low_resolution_fetches_12m(conn, fake):
-    fake.values = lambda i, n: 100 if n == 261 and i < 50 else 3  # năm nay chỉ ≈ 3% đỉnh 5 năm
+    fake.values = lambda i, n: 100 if n == 261 and i < 50 else 3  # this year is only ≈ 3% of the 5-year peak
     r = asyncio.run(trends.get_trends(conn, "story", "US"))
     assert fake.calls == ["today 5-y", "today 12-m"] and r["derived"] == ["3m"]
 
     fake.calls.clear()
-    fake.blocked = {"today 12-m"}  # gọi thêm bị chặn: vẫn suy 12 tháng, không báo lỗi
+    fake.blocked = {"today 12-m"}  # the extra call is blocked: 12 months is still derived, no error
     r = asyncio.run(trends.get_trends(conn, "other", "US"))
     assert r["errors"] == {} and r["derived"] == ["12m", "3m"]
 
@@ -105,10 +105,10 @@ def test_refetch_trends_updates_saved_run(conn, fake, tmp_path, monkeypatch):
     monkeypatch.setattr(cfg, "RPM_TABLE_PATH", tmp_path / "rpm.csv")
     raw = json.loads(FIXTURE.read_text(encoding="utf-8"))
     raw = {**raw, "trends": {"series": {"3m": [["2026-10-01", 5]]}, "errors": {"5y": trends.THROTTLED}}}
-    rid = run_repo.insert(conn, raw=raw, result=run_svc._analyze(raw, "Lịch sử", []), category="Lịch sử", affiliates=[])
+    rid = run_repo.insert(conn, raw=raw, result=run_svc._analyze(raw, "History", []), category="History", affiliates=[])
     assert run_repo.get(conn, rid)["result"]["trends"]["class"] is None
 
-    fake.blocked = {"today 5-y"}  # vẫn bị chặn: giữ chuỗi 3 tháng cũ
+    fake.blocked = {"today 5-y"}  # still blocked: the old 3-month series is kept
     got = run_svc.refetch_trends(conn, rid)
     assert run_repo.get(conn, rid, with_raw=True)["raw"]["trends"]["series"] == {"3m": [["2026-10-01", 5]]}
     assert set(got["errors"]) == {"5y", "12m"}
@@ -138,7 +138,7 @@ def test_429_retries_with_fresh_cookie(monkeypatch):
             made.append(kw)
 
         def suggestions(self, q):
-            if len(made) == 1:  # phiên đầu (cookie hỏng) bị chặn, phiên mới qua
+            if len(made) == 1:  # first session (bad cookie) is blocked, the new one passes
                 raise TooManyRequestsError("Google returned a response with code 429")
             return [{"title": "Dog training", "type": "Topic"}]
 
@@ -147,11 +147,11 @@ def test_429_retries_with_fresh_cookie(monkeypatch):
     trends.stats["rescued"] = 0
     assert trends.entity_types("dog training") == [{"title": "Dog training", "type": "Topic"}]
     assert len(made) == 2 and trends.stats["rescued"] == 1
-    # cùng một User-Agent trình duyệt cho lấy cookie lẫn gọi dữ liệu
+    # the same browser User-Agent for the cookie fetch and the data calls
     assert not made[0]["rotate_user_agent"] and made[0]["requests_args"]["headers"]["User-Agent"] == trends.USER_AGENT
 
     made.clear()
     monkeypatch.setattr(Client, "suggestions", lambda self, q: (_ for _ in ()).throw(TooManyRequestsError("429")))
     with pytest.raises(trends.Throttled):
         trends.entity_types("dog training")
-    assert len(made) == 3  # 1 lần + 2 lần thử lại, mỗi lần một phiên mới
+    assert len(made) == 3  # 1 call + 2 retries, a new session each time

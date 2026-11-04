@@ -1,4 +1,4 @@
-"""Kế hoạch 10 video thử gắn với một bảng chấm (cho ngách chính đã chốt)."""
+"""10-test-video plan attached to a scorecard (for the locked-in main niche)."""
 
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ TEXT_FIELDS = ("pillar", "title", "hook", "thumbnail", "note")
 DATE_FIELDS = ("planned_date", "published_at")
 INT_FIELDS = ("impressions", "views", "avd_seconds", "new_subs")
 FLOAT_FIELDS = ("ctr", "retention")
+# Substring of the core.test_plan.plan_issues message about the number of pillars (the only issue checked on create / rename).
+_PILLAR_ISSUE = "content pillar"
 
 
 class PlanError(ValueError):
@@ -22,11 +24,11 @@ class PlanError(ValueError):
 def _none_if_blank(value):
     if value is None:
         return None
-    if isinstance(value, float) and value != value:  # NaN từ pandas
+    if isinstance(value, float) and value != value:  # NaN from pandas
         return None
     if isinstance(value, str) and not value.strip():
         return None
-    if str(value) in ("NaT", "nan"):  # ô trống từ bảng sửa của Streamlit
+    if str(value) in ("NaT", "nan"):  # empty cell from the Streamlit data editor
         return None
     return value
 
@@ -49,13 +51,13 @@ def create(conn: sqlite3.Connection, scorecard_id: int, pillars: list[str], star
     board = scorecards.load(conn, scorecard_id)
     main = (board["decision"] or {}).get("main")
     if not main:
-        raise PlanError("Bảng chấm chưa có ngách chính. Chấm xong trước khi lập kế hoạch.")
+        raise PlanError("The scorecard has no main niche yet. Finish scoring before planning.")
     pillars = [p.strip() for p in pillars]
-    issues = [i for i in tp.plan_issues(pillars, []) if "trụ nội dung" in i]
+    issues = [i for i in tp.plan_issues(pillars, []) if _PILLAR_ISSUE in i]
     if issues:
         raise PlanError(issues[0])
     if not 1 <= per_week <= 7:
-        raise PlanError("Số video mỗi tuần phải từ 1 đến 7")
+        raise PlanError("Videos per week must be between 1 and 7")
 
     conn.execute(
         "INSERT INTO test_plan (scorecard_id, run_id, pillars_json, start_date, per_week, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -78,7 +80,7 @@ def create(conn: sqlite3.Connection, scorecard_id: int, pillars: list[str], star
 def rename_pillars(conn: sqlite3.Connection, scorecard_id: int, pillars: list[str]) -> None:
     plan = get(conn, scorecard_id)
     pillars = [p.strip() for p in pillars]
-    issues = [i for i in tp.plan_issues(pillars, []) if "trụ nội dung" in i]
+    issues = [i for i in tp.plan_issues(pillars, []) if _PILLAR_ISSUE in i]
     if issues:
         raise PlanError(issues[0])
     for old, new in zip(plan["pillars"], pillars):
@@ -89,7 +91,7 @@ def rename_pillars(conn: sqlite3.Connection, scorecard_id: int, pillars: list[st
 
 
 def save_videos(conn: sqlite3.Connection, scorecard_id: int, rows: list[dict]) -> None:
-    """Lưu cột kế hoạch (trụ, tiêu đề, hook, ảnh bìa, ngày) và số đo, theo idx."""
+    """Save the plan columns (pillar, title, hook, thumbnail, dates) and the measurements, by idx."""
     for row in rows:
         values = {}
         for f in TEXT_FIELDS:
@@ -124,7 +126,7 @@ def set_flags(
 ) -> None:
     unknown = set(drop_flags) - set(tp.DROP_SIGNALS)
     if unknown:
-        raise PlanError(f"Tín hiệu lạ: {', '.join(unknown)}")
+        raise PlanError(f"Unknown signal: {', '.join(unknown)}")
     conn.execute(
         "UPDATE test_plan SET fixes_applied = ?, out_of_ideas = ?, drop_flags = ? WHERE scorecard_id = ?",
         (int(fixes_applied), int(out_of_ideas), json.dumps(sorted(drop_flags)), scorecard_id),
@@ -136,7 +138,7 @@ def delete(conn: sqlite3.Connection, scorecard_id: int) -> None:
 
 
 def keyword_ideas(conn: sqlite3.Connection, run: dict) -> list[dict]:
-    """Từ khoá dài đã chấm của ngách chính, đạt ≥ 55 và không "ít dữ liệu"; từ đã tick "Chọn đào" lên trước."""
+    """Scored long-tail keywords of the main niche with score ≥ 55 and not "low data"; keywords ticked "Pick to dig" first."""
     from yt_niche import config as cfg
     from yt_niche.services import keywords as kw_svc
 
@@ -149,7 +151,7 @@ def keyword_ideas(conn: sqlite3.Connection, run: dict) -> list[dict]:
 
 
 def fill_titles(conn: sqlite3.Connection, scorecard_id: int, titles: list[str]) -> int:
-    """Điền tiêu đề nháp (từ khoá chính ở đầu) vào các video chưa có tiêu đề, theo thứ tự. Trả về số video đã điền."""
+    """Fill draft titles (main keyword first) into the videos without a title, in order. Returns how many were filled."""
     titles = [t.strip() for t in titles if t and t.strip()]
     empty = [
         r["idx"]

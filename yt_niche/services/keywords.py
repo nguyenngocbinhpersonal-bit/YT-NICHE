@@ -1,4 +1,4 @@
-"""Nghiên cứu từ khoá (bài 2.3): lấy gợi ý → chấm điểm bằng kết quả YouTube thật → chọn → đào."""
+"""Keyword research (lesson 2.3): fetch suggestions → score them with real YouTube results → pick → dig."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from yt_niche.services.fetch import _normalize_video, published_after
 from yt_niche.sources.suggest import suggestions
 from yt_niche.sources.youtube import YouTubeClient
 
-# Mỗi từ khoá: 1 trang search (100) + videos (1) + channels (1–2).
+# Per keyword: 1 search page (100) + videos (1) + channels (1–2).
 UNITS_PER_KEYWORD = 102
-MAX_SCORE_BATCH = 10  # bài 2.3: chấm 10 từ đầu, hoặc tick rồi chấm
-MAX_DIG_PICKED = 5  # tick 3–5 từ tốt nhất rồi đào
+MAX_SCORE_BATCH = 10  # lesson 2.3: score the first 10, or tick and score
+MAX_DIG_PICKED = 5  # tick the 3–5 best and dig
 
 
 class KeywordError(ValueError):
@@ -36,10 +36,10 @@ def _row(r: sqlite3.Row) -> dict:
 
 
 def fetch_suggestions(conn: sqlite3.Connection, seed: str, region: str, *, az: bool = False) -> list[dict]:
-    """Lấy gợi ý tìm kiếm YouTube (miễn phí) và lưu vào bảng keyword; không ghi đè điểm đã chấm."""
+    """Fetch YouTube search suggestions (free) and store them in the keyword table; never overwrites existing scores."""
     seed = " ".join(seed.lower().split())
     if not seed:
-        raise KeywordError("Nhập ngách con trước đã")
+        raise KeywordError("Enter a sub-niche first")
     language = cfg.MARKETS[region][0]
     items = asyncio.run(suggestions(conn, seed, region, language, az=az))
     for it in items:
@@ -54,7 +54,7 @@ def fetch_suggestions(conn: sqlite3.Connection, seed: str, region: str, *, az: b
 
 
 def _share_scores(conn: sqlite3.Connection, region: str) -> None:
-    """Từ khoá đã chấm dưới từ gốc khác thì mang điểm sang (không tốn quota chấm lại)."""
+    """A keyword already scored under another seed carries its score over (no quota spent on re-scoring)."""
     conn.execute(
         """UPDATE keyword AS k SET scored_at = s.scored_at, score = s.score, demand = s.demand,
                competition = s.competition, n = s.n, low_data = s.low_data, metrics_json = s.metrics_json,
@@ -134,11 +134,11 @@ async def _score_many(conn: sqlite3.Connection, region: str, keywords: list[str]
 
 
 def score(conn: sqlite3.Connection, region: str, keywords: list[str], *, fresh: bool = False) -> int:
-    """Chấm điểm các từ khoá (tối đa 10 mỗi lần). Trả về số unit quota đã tiêu."""
+    """Score keywords (at most 10 per call). Returns the quota units spent."""
     if not keywords:
-        raise KeywordError("Chưa chọn từ khoá nào")
+        raise KeywordError("No keyword selected")
     if len(keywords) > MAX_SCORE_BATCH:
-        raise KeywordError(f"Mỗi lần chấm tối đa {MAX_SCORE_BATCH} từ (≈ {MAX_SCORE_BATCH * UNITS_PER_KEYWORD} unit)")
+        raise KeywordError(f"At most {MAX_SCORE_BATCH} keywords per scoring run (≈ {MAX_SCORE_BATCH * UNITS_PER_KEYWORD} units)")
     scored, units = asyncio.run(_score_many(conn, region, keywords, fresh))
     for s in scored:
         metrics = {k: s[k] for k in ("median_views", "big_share", "exact_share", "label")}
@@ -156,5 +156,5 @@ def link_run(conn: sqlite3.Connection, region: str, keyword: str, run_id: int) -
 
 
 def scored_for(conn: sqlite3.Connection, topic: str, region: str) -> list[dict]:
-    """Từ khoá đã chấm, lấy gợi ý từ chủ đề này (dùng gợi ý ô "Từ khoá dài" của bảng chấm)."""
+    """Scored keywords suggested from this topic (feeds the "Long-tail keywords" cell of the scorecard)."""
     return [k for k in list_keywords(conn, topic, region) if k["score"] is not None]

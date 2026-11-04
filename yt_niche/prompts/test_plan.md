@@ -1,33 +1,33 @@
-Bạn là nhà sản xuất nội dung YouTube giàu kinh nghiệm. Hãy lập kế hoạch 10 video thử cho kênh mới của tôi.
+You are an experienced YouTube content producer. Build a 10-test-video plan for my new channel.
 
-## Ngách chính
+## Main niche
 {niche}
 
-## Lời hứa kênh
+## Channel promise
 {promise}
 
-## Bối cảnh
+## Context
 {context}
 
-## Số liệu đào của ngách
+## Niche dig numbers
 {data}
 
-## Các video vượt trội nhất trong ngách (để học góc kể, không sao chép)
+## Top outperformer videos in the niche (learn the angle, do not copy)
 {outliers}
 
-## Từ khoá dài đã chấm (điểm từ 55, ưu tiên làm tiêu đề)
+## Scored long-tail keywords (score 55+, prefer them for titles)
 {keywords}
 
-## Yêu cầu
-1. Đề xuất 3 trụ nội dung, mỗi trụ một câu mô tả và lý do dựa trên các video vượt trội.
-2. 10 video chia vào 3 trụ (mỗi trụ ít nhất 3 video). Mỗi video gồm: tiêu đề dưới 70 ký tự (từ khoá chính ở đầu, ưu tiên các từ khoá dài ở trên), hook 15 giây đầu, ý tưởng ảnh bìa.
-3. Lịch đăng {weeks} tuần, {per_week} video mỗi tuần, cùng khung giờ; ghi rõ cần làm sẵn 3–5 video trước video đầu.
-4. Bảng đo sau 7 ngày cho mỗi video: lượt hiển thị, CTR, lượt xem, thời lượng xem trung bình, % giữ chân, người đăng ký mới, bình luận đáng chú ý.
-5. Luật quyết định:
-   - Mốc video 5: dấu hiệu nào thì sửa tiêu đề / ảnh bìa, dấu hiệu nào thì sửa hook.
-   - Mốc video 10: điều kiện GIỮ / CHỈNH / CHUYỂN ngách.
+## Task
+1. Propose 3 content pillars, each with a one-sentence description and a reason based on the outperformer videos.
+2. Split the 10 videos across the 3 pillars (at least 3 videos per pillar). Each video includes: a title under 70 characters (main keyword first, prefer the long-tail keywords above), the first-15-seconds hook, and a thumbnail idea.
+3. A publishing schedule of {weeks} weeks, {per_week} videos per week, same time slot; state clearly that 3–5 videos must be ready before the first one goes live.
+4. A 7-day measurement table per video: impressions, CTR, views, average view duration, retention %, new subscribers, notable comments.
+5. Decision rules:
+   - Video 5 checkpoint: which signals mean fix the title / thumbnail, which mean fix the hook.
+   - Video 10 checkpoint: conditions to KEEP / ADJUST / SWITCH the niche.
 
-## Ràng buộc
-- Không hứa thu nhập, không bịa số liệu.
-- Tránh chủ đề dễ vướng bản quyền hoặc chính sách quảng cáo; đánh dấu video nào có rủi ro.
-- Trả lời bằng bảng khi có thể để tôi dán vào bảng tính.
+## Constraints
+- Never promise income, never invent numbers.
+- Avoid topics likely to hit copyright or ad-policy problems; mark which videos carry risk.
+- Answer in tables where possible so I can paste them into a spreadsheet.

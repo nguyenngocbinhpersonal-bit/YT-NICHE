@@ -1,16 +1,17 @@
-"""Video & kênh tương tự: đọc URL, bộ đọc innertube, chấm điểm, và cả luồng với API giả."""
+"""Similar videos & channels: URL parsing, innertube readers, scoring, and the whole flow with a fake API."""
 
 import json
 
 import httpx
 import pytest
 
+from yt_niche.core.outlier import LEVEL_OUTPERFORM
 from yt_niche.core.similar import Corpus, rank_channels, rank_videos
 from yt_niche.services import similar
 from yt_niche.sources import innertube as itb
 
 # ---------------------------------------------------------------------------
-# Đọc đầu vào
+# Input parsing
 # ---------------------------------------------------------------------------
 
 
@@ -49,7 +50,7 @@ def test_channel_tags_keeps_quoted_phrases():
 
 
 # ---------------------------------------------------------------------------
-# Dữ liệu giả cho innertube
+# Fake innertube data
 # ---------------------------------------------------------------------------
 
 
@@ -109,13 +110,13 @@ def test_watch_info_and_search_parsers():
     assert (w["title"], w["channel"], w["channel_id"], w["description"]) == ("Src title", "Src", "UCS", "desc")
     assert [v["video_id"] for v in w["related"]] == ["V1"]
 
-    s = {"contents": [video_renderer("V2", "T", "C2", "UC2"), channel_renderer("UC3", "Kênh 3")]}
+    s = {"contents": [video_renderer("V2", "T", "C2", "UC2"), channel_renderer("UC3", "Channel 3")]}
     assert itb.search_videos(s)[0] == {"video_id": "V2", "title": "T", "channel": "C2", "channel_id": "UC2", "views": 1000}
-    assert itb.search_channels(s) == [{"channel_id": "UC3", "channel": "Kênh 3", "description": ""}]
+    assert itb.search_channels(s) == [{"channel_id": "UC3", "channel": "Channel 3", "description": ""}]
 
 
 # ---------------------------------------------------------------------------
-# Chấm điểm
+# Scoring
 # ---------------------------------------------------------------------------
 
 
@@ -131,9 +132,9 @@ def test_rank_channels_filters_off_topic_and_matches_any_language_version():
         {"channel_id": "en", "text": "what if you could fly | what if you were strong", "signals": {"search": 3}},
         {"channel_id": "game", "text": "minecraft hardcore survival", "signals": {"related": 8}},
     ]
-    # Nguồn có bản gốc tiếng Bồ Đào Nha và bản YouTube dịch sang tiếng Anh.
+    # The source has the Portuguese original and YouTube's English translation.
     out = rank_channels(["e se você fosse 10 vezes mais forte", "what if you were 10 times stronger"], cands)
-    assert {r["channel_id"] for r in out} == {"pt", "en"}  # kênh game nhiều tín hiệu nhưng lạc đề
+    assert {r["channel_id"] for r in out} == {"pt", "en"}  # the gaming channel has many signals but is off-topic
     assert all("text" not in r for r in out)
     assert out[0]["score"] >= out[1]["score"]
 
@@ -149,7 +150,7 @@ def test_rank_videos_rewards_signals():
 
 
 # ---------------------------------------------------------------------------
-# Cả luồng với YouTube giả (innertube + Data API + autocomplete)
+# Whole flow with a fake YouTube (innertube + Data API + autocomplete)
 # ---------------------------------------------------------------------------
 
 SRC, C1, C2, C3, TOPIC = "UCsrc", "UCwhatif1", "UCgamer", "UCwhatif3", "UCtopic"
@@ -160,7 +161,7 @@ CHANNELS = {
     C2: ("Block Gamer", "US", "minecraft gaming", ["Minecraft hardcore day 100", "Minecraft speedrun world record"]),
     C3: ("Whatology", "US", "what if hypothetical", ["What if you were invisible for a day", "What if you could fly"]),
 }
-# Mỗi kênh 6 video dài 1.000 view → trung vị 1.000 để tính outlier.
+# Each channel has 6 long videos at 1,000 views → median 1,000 for the outlier multiple.
 UPLOADS = {cid: [f"{cid}_{i}" for i in range(6)] for cid in CHANNELS}
 
 
@@ -261,19 +262,19 @@ def test_find_similar_from_video_url(conn):
     res = run["result"]
 
     assert run["kind"] == "video" and run["label"] == "What if you were 10 times stronger"
-    assert res["locales"] == ["US", "BR"]  # thêm nước của kênh gốc
+    assert res["locales"] == ["US", "BR"]  # the source channel's market is added
     assert {gl for ep, gl in calls if ep == "next"} == {"US", "BR"}
 
     channels = {c["channel_id"]: c for c in res["channels"]}
-    assert set(channels) == {C1, C3}  # bỏ kênh gốc, kênh game lạc đề, kênh nhạc "- Topic"
-    assert channels[C1]["signals"]["related"] == 2  # Up next ở 2 thị trường
+    assert set(channels) == {C1, C3}  # drops the source channel, the off-topic gaming channel, the "- Topic" music channel
+    assert channels[C1]["signals"]["related"] == 2  # Up next in 2 markets
     assert channels[C1]["subs"] == 5000
 
     videos = {v["video_id"]: v for v in res["videos"]}
     assert set(videos) == {"V1aaaaaaaaa", "V5aaaaaaaaa"}
-    assert videos["V1aaaaaaaaa"]["outlier"] == 5.0 and videos["V1aaaaaaaaa"]["level"] == "Vượt trội"
+    assert videos["V1aaaaaaaaa"]["outlier"] == 5.0 and videos["V1aaaaaaaaa"]["level"] == LEVEL_OUTPERFORM
     assert videos["V1aaaaaaaaa"]["fmt"] == "long"
-    assert res["videos"][0]["video_id"] == "V1aaaaaaaaa"  # vừa ở Up next vừa ở search
+    assert res["videos"][0]["video_id"] == "V1aaaaaaaaa"  # both in Up next and in search
 
     assert similar.list_runs(conn)[0]["n_channels"] == 2
 
@@ -282,16 +283,16 @@ def test_find_similar_from_handle_uses_top_videos_and_cache(conn):
     run, hits, calls = _find(conn, "https://www.youtube.com/@whatiflab", with_source_market=False)
     assert run["kind"] == "channel"
     assert run["result"]["locales"] == ["US"]
-    assert len(run["result"]["seeds"]) == 4  # 4 video nhiều view nhất trong 15 video gần nhất
+    assert len(run["result"]["seeds"]) == 4  # the 4 most-viewed of the 15 latest videos
     assert run["result"]["channels"]
 
     _, _, calls2 = _find(conn, "https://www.youtube.com/@whatiflab", with_source_market=False)
-    assert calls2 == []  # lần 2: innertube lấy hết từ cache
+    assert calls2 == []  # second time: innertube served entirely from cache
 
 
 def test_find_similar_unknown_handle(conn):
     with pytest.raises(similar.SimilarError):
-        _find(conn, "https://www.youtube.com/@khongco")
+        _find(conn, "https://www.youtube.com/@doesnotexist")
 
 
 def test_delete_run(conn):

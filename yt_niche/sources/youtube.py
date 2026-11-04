@@ -1,4 +1,4 @@
-"""Client async cho YouTube Data API v3: gọi song song, cache SQLite, ghi quota."""
+"""Async client for YouTube Data API v3: parallel calls, SQLite cache, quota logging."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ from yt_niche.db import cache, quota
 
 BASE_URL = "https://www.googleapis.com/youtube/v3"
 MAX_IDS_PER_CALL = 50
-# Số video gần nhất của kênh dùng để tính trung vị (1 trang playlistItems).
+# Number of the channel's most recent videos used for the median (1 playlistItems page).
 CHANNEL_SAMPLE_SIZE = 50
 
 
@@ -43,7 +43,7 @@ class QuotaExceeded(YouTubeError):
 
 @dataclass
 class QuotaMeter:
-    """Đếm unit đã tiêu và số lần đọc cache trong một phiên."""
+    """Counts units spent and cache hits within one session."""
 
     units: Counter = field(default_factory=Counter)
     calls: Counter = field(default_factory=Counter)
@@ -60,7 +60,7 @@ def _chunks(items: list[str], size: int) -> Iterator[list[str]]:
 
 
 class YouTubeClient:
-    """Dùng với `async with YouTubeClient(conn) as yt:`."""
+    """Use as `async with YouTubeClient(conn) as yt:`."""
 
     def __init__(
         self,
@@ -70,10 +70,10 @@ class YouTubeClient:
         transport: httpx.AsyncBaseTransport | None = None,
         fresh: bool = False,
     ):
-        """fresh=True: bỏ qua cache khi đọc (vẫn ghi cache), dùng cho "Đào lại"."""
+        """fresh=True: skip the cache when reading (still writes it), used for "Re-dig"."""
         api_key = api_key or config.api_key()
         if not api_key:
-            raise YouTubeError("Thiếu YouTube API key (YOUTUBE_API_KEY hoặc YT_API_KEY trong .env / youtube.env)")
+            raise YouTubeError("Missing YouTube API key (YOUTUBE_API_KEY or YT_API_KEY in .env / youtube.env)")
         self.conn = conn
         self.api_key = api_key
         self.meter = QuotaMeter()
@@ -94,7 +94,7 @@ class YouTubeClient:
             return hit
 
         async with self._sem:
-            # YouTube tính quota cả khi request lỗi, nên ghi trước khi gọi.
+            # YouTube charges quota even for failed requests, so record before calling.
             cost = YOUTUBE_UNIT_COST[endpoint]
             self.meter.units[endpoint] += cost
             self.meter.calls[endpoint] += 1
@@ -110,7 +110,7 @@ class YouTubeClient:
             except Exception:
                 pass
             exc_type = QuotaExceeded if reason in ("quotaExceeded", "dailyLimitExceeded") else YouTubeError
-            raise exc_type(f"{endpoint} lỗi {resp.status_code} {reason}: {message}", reason)
+            raise exc_type(f"{endpoint} error {resp.status_code} {reason}: {message}", reason)
 
         data = resp.json()
         if ttl:
@@ -128,7 +128,7 @@ class YouTubeClient:
         order: str = "relevance",
         pages: int = 1,
     ) -> list[str]:
-        """Trả về video id theo thứ tự kết quả (tối đa 50/trang, 100 unit/trang)."""
+        """Video ids in result order (at most 50/page, 100 units/page)."""
         ids: list[str] = []
         page_token = None
         for _ in range(pages):
@@ -168,7 +168,7 @@ class YouTubeClient:
         return await self._batched("channels", "snippet,statistics,contentDetails", channel_ids, ttl)
 
     async def channels_branding(self, channel_ids: list[str], ttl: float = TTL_CHANNELS) -> list[dict]:
-        """Như channels() nhưng kèm brandingSettings (tag kênh). Vẫn 1 unit / 50 kênh."""
+        """Like channels() but with brandingSettings (channel tags). Still 1 unit / 50 channels."""
         return await self._batched("channels", "snippet,statistics,contentDetails,brandingSettings", channel_ids, ttl)
 
     async def channel_by_handle(self, handle: str) -> str | None:
@@ -178,7 +178,7 @@ class YouTubeClient:
         return items[0]["id"] if items else None
 
     async def recent_uploads(self, uploads_playlist_id: str, n: int = 15, ttl: float = TTL_CHANNELS) -> list[dict]:
-        """[{video_id, title}] của n video mới nhất (1 unit, có cache). Kênh không có video công khai → []."""
+        """[{video_id, title}] of the n newest videos (1 unit, cached). A channel without public videos → []."""
         try:
             data = await self._get(
                 "playlistItems", {"part": "snippet", "playlistId": uploads_playlist_id, "maxResults": n}, ttl
@@ -194,7 +194,7 @@ class YouTubeClient:
         ]
 
     async def comment_threads(self, video_id: str, max_results: int = 50) -> list[dict]:
-        """Bình luận gốc phổ biến nhất của một video (1 unit). Trả về [] nếu video tắt bình luận."""
+        """Most relevant top-level comments of a video (1 unit). Returns [] when comments are off."""
         try:
             data = await self._get(
                 "commentThreads",
@@ -221,7 +221,7 @@ class YouTubeClient:
         return out
 
     async def i18n(self, kind: str, hl: str = "vi") -> list[dict]:
-        """Danh sách chính thức của YouTube: kind="regions" → [{code, name}] (gl), "languages" → [{code, name}] (hl)."""
+        """YouTube's official lists: kind="regions" → [{code, name}] (gl), "languages" → [{code, name}] (hl)."""
         endpoint = {"regions": "i18nRegions", "languages": "i18nLanguages"}[kind]
         data = await self._get(endpoint, {"part": "snippet", "hl": hl}, ttl=30 * 86400)
         field = "gl" if kind == "regions" else "hl"
@@ -236,12 +236,12 @@ class YouTubeClient:
         )
         return [item["contentDetails"]["videoId"] for item in data.get("items", [])]
 
-    # ---- Trung vị view của kênh, tách theo định dạng ----
+    # ---- Channel median views, split by format ----
 
     async def channel_medians(self, channel_items: list[dict], max_age: float = TTL_CHANNEL_MEDIAN) -> dict[str, dict]:
-        """Lưu thông tin kênh vào bảng `channel` và trả về {channel_id: row}.
+        """Save channel info into the `channel` table and return {channel_id: row}.
 
-        Chỉ gọi API cho kênh chưa có trung vị hoặc trung vị đã cũ hơn `max_age`.
+        Calls the API only for channels without a median or with a median older than `max_age`.
         """
         for ch in channel_items:
             _upsert_channel_info(self.conn, ch)
@@ -268,7 +268,7 @@ class YouTubeClient:
             except QuotaExceeded:
                 raise
             except YouTubeError:
-                recent = []  # vd. playlistNotFound: kênh không có video công khai
+                recent = []  # e.g. playlistNotFound: the channel has no public videos
             for v in recent:
                 views = v.get("statistics", {}).get("viewCount")
                 duration = v.get("contentDetails", {}).get("duration")

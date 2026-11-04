@@ -1,6 +1,6 @@
-"""Một lượt Radar từ khoá, chạy bởi Windows Task Scheduler (2 phút/lần; tự bỏ qua khi chưa đến lượt).
+"""One Keyword radar tick, run by Windows Task Scheduler (every 2 minutes; skips itself when it is not time yet).
 
-Chạy tay: .venv/Scripts/python scripts/radar_tick.py [--force]
+Run by hand: .venv/Scripts/python scripts/radar_tick.py [--force]
 """
 
 import sys

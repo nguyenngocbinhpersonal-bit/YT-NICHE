@@ -1,6 +1,7 @@
-"""Trang Radar từ khoá: quét danh mục Google Trends rải đều trong ngày, lọc từ khoá tiềm năng."""
+"""Keyword radar page: Google Trends categories scanned on a schedule, keywords filtered down to the ones worth a dig."""
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from yt_niche import config as cfg
@@ -10,18 +11,22 @@ from yt_niche.services.fetch import DigParams
 from yt_niche.services.runs import dig
 from yt_niche.sources import dataforseo as dfs
 from yt_niche.sources import trends
+from yt_niche.ui import theme
 from yt_niche.ui.common import get_conn, handle_youtube_errors, market_label
 
-st.title("📡 Radar từ khoá")
-st.caption(
-    "Hạt giống lấy từ cây danh mục chính thức của Google Trends (truy vấn hàng đầu và đang tăng của từng danh mục, "
-    "từng thị trường), bỏ các danh mục tin tức, người nổi tiếng, sự kiện. Mỗi từ khoá mới qua 3 lớp lọc: loại thực thể "
-    "của Google và AI (người, bài hát, show, đội bóng, sự kiện → loại), lượng tìm Google Trends 30 ngày gần nhất trên "
-    "YouTube Search và Google Search (gần như không ai tìm ở một trong hai → loại), rồi điểm từ khoá YouTube. "
-    "Các lượt rải đều trong 24 giờ để Google không chặn (429)."
-)
+C = theme.COLORS
+
 conn = get_conn()
-# Cột AI hiện khi đã có từ khoá được AI phân loại (bật ở Cài đặt → AI).
+theme.inject_css()
+theme.page_header("", "Keyword radar", "Google Trends categories scanned on a schedule; keywords that pass are worth a dig.")
+with st.expander("How the radar works"):
+    st.markdown(
+        "Seeds come from Google Trends' official category tree (top and rising queries per category and market), minus news, "
+        "celebrity and event categories. Every new keyword passes three filters: Google's entity type plus AI (person, song, "
+        "show, team, event → excluded), 30-day search volume on YouTube Search and Google Search (almost nobody searching on "
+        "either → excluded), then the YouTube keyword score. Scans are spread over 24 hours so Google does not block (429)."
+    )
+# AI columns appear once at least one keyword was classified by AI (turn it on in Settings → AI).
 show_ai = conn.execute("SELECT 1 FROM radar_keyword WHERE ai_type IS NOT NULL LIMIT 1").fetchone() is not None
 
 try:
@@ -29,80 +34,99 @@ try:
     cat_names = {c["id"]: c["name"] for c in rd.flatten(tree)}
 except trends.Throttled:
     tree, cat_names = None, {}
+except Exception as e:  # no network, proxy refused, Google changed the endpoint: keep the rest of the page usable
+    tree, cat_names = None, {}
+    st.warning(
+        f"Could not load the Google Trends category list ({type(e).__name__}). Keyword tables still work; "
+        "category names and the Scope tab come back once Google Trends is reachable."
+    )
 
 # ---------------------------------------------------------------------------
-# Trạng thái chạy nền
+# KPIs + background scanning
 # ---------------------------------------------------------------------------
 
 stats = radar.stats(conn)
-c1, c2, c3, c4 = st.columns(4)
-c1.metric(
-    "Lượt Trends hôm nay", f"{stats['jobs_today']}/{stats['jobs_per_day']}",
-    help=f"Nhịp hiện tại: {stats['interval_s']} giây/lượt. App tự nhanh thêm {cfg.RADAR_SPEEDUP_PCT}% sau mỗi {cfg.RADAR_SPEEDUP_EVERY} lượt "
-         f"liền không bị chặn (nhanh nhất {cfg.RADAR_MIN_INTERVAL_S} giây), bị Google chặn thì chậm gấp đôi.",
-)
-c2.metric("Lượt kế tiếp", f"{stats['next_due'].astimezone():%H:%M}" if stats["next_due"] else "ngay")
-c3.metric(
-    "Một vòng quét đủ phạm vi", f"≈ {stats['cycle_days']:g} ngày" if stats["cycle_days"] is not None else "—",
-    help=(
-        f"{stats['pairs'] or 0} cặp thị trường × danh mục, mỗi cặp ≈ {stats['per_pair']:g} lượt (quét + kiểm tra từ khoá mới), "
-        f"{stats['jobs_per_day']} lượt/ngày. {stats['slow_pairs']} cặp đang quét thưa (không có dữ liệu: "
-        f"{cfg.RADAR_EMPTY_RESCAN_DAYS} ngày/lần; chưa ra từ khoá đạt sau 3 lần: {cfg.RADAR_BARREN_RESCAN_DAYS} ngày/lần). "
-        f"Đã quét trong 24 giờ qua: {stats['fresh_pairs']}."
-    ),
-)
-c4.metric("Quota YouTube Radar hôm nay", f"{stats['yt_units_today']}/{cfg.RADAR_YT_UNITS_PER_DAY}")
-if stats["cycle_days_at_max"] is not None:
-    if stats["hours_to_max"] > 0:
-        st.info(
-            f"⚡ Ở nhịp nhanh nhất ({cfg.RADAR_MIN_INTERVAL_S} giây/lượt, {stats['max_jobs_per_day']} lượt/ngày) một vòng quét "
-            f"chỉ còn **≈ {stats['cycle_days_at_max']:g} ngày**. Nếu Google không chặn lần nào, Radar đạt nhịp này sau "
-            f"**≈ {stats['hours_to_max']:g} giờ** (đang {stats['interval_s']} giây/lượt). Bị chặn thì chậm lại gấp đôi rồi tăng tốc lại."
-        )
-    else:
-        st.success(f"⚡ Radar đang chạy ở nhịp nhanh nhất: {cfg.RADAR_MIN_INTERVAL_S} giây/lượt.")
-if until := trends.cooldown_until(conn):
-    if why := dfs.unavailable_reason(conn, "radar"):
-        st.warning(f"Google Trends đang tạm chặn: Radar nghỉ đến {until:%H:%M} rồi tự chạy tiếp, chậm lại gấp đôi ({why}).")
-    else:
-        du = dfs.usage_today(conn)
-        st.info(f"Google Trends đang tạm chặn đến {until:%H:%M}: Radar tạm lấy dữ liệu qua DataForSEO "
-                f"(hôm nay {du['tasks']} lượt, ${du['cost']:.3f}).")
-if stats["unscanned"]:
-    st.caption(
-        f"Còn {stats['unscanned']} cặp chưa quét lần nào (≈ {stats['first_sweep_days']:g} ngày ở nhịp hiện tại). Vòng quét "
-        "tự ngắn lại theo thời gian: nhịp nhanh dần khi Google không chặn, cặp không có dữ liệu hoặc không ra từ khoá đạt "
-        "được quét thưa, loại thực thể dùng chung giữa các nước. Muốn nhanh hơn nữa: bớt thị trường / danh mục ở tab Phạm vi quét."
-    )
+counts = stats["counts"]
+cooldown = trends.cooldown_until(conn)
+theme.kpi_row([
+    ("To check", counts.get(rd.PENDING, 0), "new keywords"),
+    ("Passed", counts.get(rd.PASSED, 0), f"{counts.get(rd.EXCLUDED, 0)} excluded"),
+    ("Watching", counts.get(rd.WATCHING, 0), f"{counts.get(rd.IGNORED, 0)} ignored"),
+    ("Next scan", f"{stats['next_due'].astimezone():%H:%M}" if stats["next_due"] else "now", f"every {stats['interval_s']} s"),
+    ("Trends cooldown", f"until {cooldown:%H:%M}" if cooldown else "none", "Google blocked (429)" if cooldown else "Google is answering",
+     "inverse" if cooldown else "off"),
+])
 
-task = radar.task_status()
-b1, b2, _ = st.columns([2, 1, 2])
-if task is not None:
-    if task:
-        b1.success("Chạy nền bằng Windows Task Scheduler: **đang bật** (chạy cả khi app tắt, máy phải bật).")
-        if b2.button("Tắt chạy nền"):
+with st.container(border=True):
+    theme.section(
+        "Background scanning",
+        f"Today {stats['jobs_today']}/{stats['jobs_per_day']} Trends scans · one full sweep "
+        f"≈ {stats['cycle_days']:g} days · YouTube quota {stats['yt_units_today']}/{cfg.RADAR_YT_UNITS_PER_DAY} units"
+        if stats["cycle_days"] is not None else
+        f"Today {stats['jobs_today']}/{stats['jobs_per_day']} Trends scans · YouTube quota {stats['yt_units_today']}/{cfg.RADAR_YT_UNITS_PER_DAY} units",
+    )
+    task = radar.task_status()
+    b1, b2, b3 = st.columns([2.4, 1, 1])
+    if task is None:
+        b1.caption("Scans run only while the app is open. On Windows you can add a scheduled task so they run with the app closed.")
+    elif task:
+        b1.success("Windows Task Scheduler: **on** — scans run even when the app is closed (the PC must be on).")
+        if b2.button("Turn off scheduled task", width="stretch"):
             st.toast(radar.disable_task())
             st.rerun()
     else:
-        b1.info("Chạy nền: chỉ khi app đang mở. Bật Task Scheduler để quét cả khi app tắt.")
-        if b2.button("Bật chạy nền", type="primary"):
+        b1.info("Scans run only while the app is open. Turn on the scheduled task to scan with the app closed.")
+        if b2.button("Turn on scheduled task", type="primary", width="stretch"):
             st.toast(radar.enable_task())
             st.rerun()
-if st.button("▶️ Chạy 1 lượt ngay", help="Bỏ qua giờ hẹn; vẫn tôn trọng thời gian nghỉ khi Google chặn"):
-    with st.spinner("Đang chạy một lượt…"):
-        result = radar.tick(conn, force=True)
-    st.toast(f"{result['action']}: {result['detail']}")
-    st.rerun()
+    if b3.button("Run one scan now", help="Skips the schedule; still respects the cooldown when Google blocks", width="stretch"):
+        with st.spinner("Running one scan…"):
+            result = radar.tick(conn, force=True)
+        st.toast(f"{result['action']}: {result['detail']}")
+        st.rerun()
+
+    if cooldown:
+        if why := dfs.unavailable_reason(conn, "radar"):
+            st.warning(f"Google Trends is blocking: the radar pauses until {cooldown:%H:%M}, then continues at half speed ({why}).")
+        else:
+            du = dfs.usage_today(conn)
+            st.info(f"Google Trends is blocking until {cooldown:%H:%M}: the radar is using DataForSEO meanwhile "
+                    f"(today {du['tasks']} tasks, ${du['cost']:.3f}).")
+    with st.expander("Scan pace and how it adapts"):
+        st.markdown(
+            f"- Current pace: one scan every **{stats['interval_s']} s** ({stats['jobs_per_day']} per day). The app speeds up by "
+            f"{cfg.RADAR_SPEEDUP_PCT}% after every {cfg.RADAR_SPEEDUP_EVERY} unblocked scans (fastest {cfg.RADAR_MIN_INTERVAL_S} s) "
+            "and halves its speed when Google blocks.\n"
+            + (
+                f"- Scope: {stats['pairs'] or 0} market × category pairs, ≈ {stats['per_pair']:g} scans per pair (scan + checks of new "
+                f"keywords). {stats['slow_pairs']} pairs are scanned sparsely (no data: every {cfg.RADAR_EMPTY_RESCAN_DAYS} days; "
+                f"no passing keyword after 3 scans: every {cfg.RADAR_BARREN_RESCAN_DAYS} days). Scanned in the last 24 h: "
+                f"{stats['fresh_pairs']}.\n"
+            )
+            + (
+                f"- At the fastest pace ({cfg.RADAR_MIN_INTERVAL_S} s, {stats['max_jobs_per_day']} per day) one sweep takes "
+                f"≈ **{stats['cycle_days_at_max']:g} days**; the radar reaches it after ≈ {stats['hours_to_max']:g} h without a block.\n"
+                if stats["cycle_days_at_max"] is not None and stats["hours_to_max"] > 0 else
+                f"- The radar is already at its fastest pace ({cfg.RADAR_MIN_INTERVAL_S} s per scan).\n"
+                if stats["cycle_days_at_max"] is not None else ""
+            )
+            + (
+                f"- {stats['unscanned']} pairs have never been scanned (≈ {stats['first_sweep_days']:g} days at the current pace). "
+                "To go faster, remove markets or categories in the Scope tab.\n"
+                if stats["unscanned"] else ""
+            )
+        )
 
 # ---------------------------------------------------------------------------
-# Bảng từ khoá
+# Keyword tables
 # ---------------------------------------------------------------------------
 
-KIND = {"rising": "đang tăng", "top": "hàng đầu"}
-# Link xem Google Trends 12 tháng (YouTube Search) của từ khoá, đúng thị trường.
+KIND = {"rising": "rising", "top": "top"}
+# Link to the keyword's 12-month Google Trends chart (YouTube Search) for its market.
 LINKS = {
-    "Trends YouTube": st.column_config.LinkColumn(display_text="▶️ Xem", help="Google Trends 12 tháng, YouTube Search, đúng thị trường"),
+    "Trends YouTube": st.column_config.LinkColumn(display_text="Open", help="Google Trends, 12 months, YouTube Search, same market"),
 }
+POTENTIAL_COL = {"Potential": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f")}
 
 
 def _table(rows: list[dict], extra: bool = False) -> pd.DataFrame:
@@ -111,71 +135,74 @@ def _table(rows: list[dict], extra: bool = False) -> pd.DataFrame:
         yt = r.get("yt") or {}
         out.append(
             {
-                "⭐": "⭐" if (r["potential"] or 0) >= cfg.RADAR_GOOD_MIN else "",
-                "Từ khoá": r["keyword"],
+                "Top": "Yes" if (r["potential"] or 0) >= cfg.RADAR_GOOD_MIN else "",
+                "Keyword": r["keyword"],
                 "Trends YouTube": trends.explore_url(r["keyword"], r["region"], "youtube", trends.TIMEFRAMES["12m"]),
-                **({"Nghĩa (AI)": r.get("ai_vi") or "", "Loại (AI)": ai.KEYWORD_TYPES.get(r.get("ai_type"), ("",))[0]} if show_ai else {}),
-                "Thị trường": market_label(r["region"]),
-                "Danh mục": cat_names.get(r["category_id"], r["category_id"]),
-                "Nguồn": f"{KIND[r['kind']]} +{r['value']:,}%" if r["kind"] == "rising" else f"{KIND[r['kind']]} ({r['value']})",
-                "Số ngày gặp": r["seen_days"],
-                "YouTube": f"{yt['score']:.0f} · {yt['label']}" + (" · ít dữ liệu" if yt.get("low_data") else "") if yt else "",
-                "Tiềm năng": r["potential"],
-                "Trạng thái": rd.STATUS_LABEL[r["status"]],
-                "Thấy lần đầu": r["first_seen"][:10],
-                **({"Lý do": r["reason"], "Loại thực thể": r["entity_type"] or ""} if extra else {}),
+                **({"Meaning (AI)": r.get("ai_vi") or "", "Type (AI)": ai.KEYWORD_TYPES.get(r.get("ai_type"), ("",))[0]} if show_ai else {}),
+                "Market": market_label(r["region"]),
+                "Category": cat_names.get(r["category_id"], r["category_id"]),
+                "Source": f"{KIND[r['kind']]} +{r['value']:,}%" if r["kind"] == "rising" else f"{KIND[r['kind']]} ({r['value']})",
+                "Days seen": r["seen_days"],
+                "YouTube": f"{yt['score']:.0f} · {yt['label']}" + (" · low data" if yt.get("low_data") else "") if yt else "",
+                "Potential": r["potential"],
+                "Status": rd.STATUS_LABEL[r["status"]],
+                "First seen": r["first_seen"][:10],
+                **({"Reason": r["reason"], "Entity type": r["entity_type"] or ""} if extra else {}),
             }
         )
     return pd.DataFrame(out)
 
 
-# Một bộ lọc cho mọi bảng kết quả, chỉ gồm thị trường đang bật ở Cài đặt → Thị trường.
+# One market filter for every result table; only markets enabled in Settings → Markets.
 picked = st.multiselect(
-    "Thị trường", cfg.ENABLED_MARKETS, format_func=market_label,
-    placeholder=f"Tất cả {len(cfg.ENABLED_MARKETS)} thị trường đang bật",
-    help="Danh sách lấy từ Cài đặt → Thị trường; thị trường đã tắt không hiện ở đây và Radar không quét nữa.",
+    "Markets", cfg.ENABLED_MARKETS, format_func=market_label,
+    placeholder=f"All {len(cfg.ENABLED_MARKETS)} enabled markets",
+    help="From Settings → Markets; disabled markets are hidden here and the radar stops scanning them.",
 )
 regions = picked or list(cfg.ENABLED_MARKETS)
 
 tab_good, tab_pending, tab_out, tab_scope, tab_log = st.tabs(
-    ["⭐ Từ khoá tiềm năng", "⏳ Chờ kiểm tra", "🚫 Đã loại", "⚙️ Phạm vi quét", "📜 Nhật ký"]
+    ["Passed", "To check", "Excluded", "Scope", "Log"]
 )
 
 with tab_good:
-    min_score = st.slider("Tiềm năng từ", 0, 100, 0)
+    min_score = st.slider("Potential at least", 0, 100, 0)
     rows = [r for r in radar.keywords(conn, [rd.PASSED, rd.WATCHING], regions) if (r["potential"] or 0) >= min_score]
     if not rows:
-        st.info("Chưa có từ khoá nào qua lọc. Radar cần vài giờ chạy nền để có kết quả đầu tiên.")
+        theme.empty_state("No keyword has passed the filters yet.", "The radar needs a few hours of background scanning for its first results.")
     else:
-        st.caption(
-            f"Điểm tiềm năng = đà tăng × {cfg.RADAR_WEIGHTS['momentum']:.0%} + độ đều 30 ngày × {cfg.RADAR_WEIGHTS['durability']:.0%} "
-            f"+ YouTube × {cfg.RADAR_WEIGHTS['youtube']:.0%} + số ngày lặp lại × {cfg.RADAR_WEIGHTS['persistence']:.0%} "
-            "(chưa chấm YouTube thì chia lại cho 3 phần kia). Radar tự chấm YouTube cho từ khoá cao điểm nhất trong ngân "
-            "sách quota mỗi ngày. Chọn dòng để theo dõi, bỏ qua, chấm YouTube hoặc đào ngách."
-        )
+        st.caption("Select rows to watch, ignore, score on YouTube or dig.")
+        with st.expander("How potential is computed"):
+            st.markdown(
+                f"Potential = momentum × {cfg.RADAR_WEIGHTS['momentum']:.0%} + 30-day steadiness × {cfg.RADAR_WEIGHTS['durability']:.0%} "
+                f"+ YouTube × {cfg.RADAR_WEIGHTS['youtube']:.0%} + days repeated × {cfg.RADAR_WEIGHTS['persistence']:.0%}. "
+                "Without a YouTube score the weight is spread over the other three. The radar scores the highest-potential "
+                f"keywords on YouTube by itself within the daily quota budget. The Top column marks potential ≥ {cfg.RADAR_GOOD_MIN:g}."
+            )
         event = st.dataframe(
             _table(rows), hide_index=True, width="stretch", on_select="rerun", selection_mode="multi-row", key="radar_good",
-            column_config={"Tiềm năng": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f"), **LINKS},
+            column_config={**POTENTIAL_COL, **LINKS},
         )
         chosen = [rows[i] for i in event.selection.rows]
         items = [(r["region"], r["keyword"]) for r in chosen]
-        a1, a2, a3, a4 = st.columns(4)
-        if a1.button("👁️ Theo dõi", disabled=not chosen):
+        a1, a2, a3, a4 = st.columns([0.8, 1.2, 1.4, 1])
+        if a1.button("Watch", disabled=not chosen, width="stretch"):
             radar.set_status(conn, items, rd.WATCHING)
             st.rerun()
-        if a2.button("🙈 Bỏ qua (không hiện lại)", disabled=not chosen):
+        if a2.button("Ignore (hide for good)", disabled=not chosen, width="stretch"):
             radar.set_status(conn, items, rd.IGNORED)
             st.rerun()
-        if a3.button(f"🔎 Chấm YouTube (≈{102 * len(chosen)} unit)", disabled=not chosen or len(chosen) > 5 or not cfg.api_key()):
-            with st.spinner("Đang chấm…"):
+        if a3.button(f"Score on YouTube (≈{102 * len(chosen)} units)", disabled=not chosen or len(chosen) > 5 or not cfg.api_key(),
+                     width="stretch"):
+            with st.spinner("Scoring…"):
                 for region, kw in items:
                     if handle_youtube_errors(radar.score_youtube, conn, region, kw) is None:
                         break
             st.rerun()
-        if a4.button("⛏️ Đào ngách (≈320 unit)", disabled=len(chosen) != 1 or not cfg.api_key()):
+        if a4.button("Dig (≈320 units)", disabled=len(chosen) != 1 or not cfg.api_key(), type="primary", width="stretch"):
             r = chosen[0]
             params = DigParams(topic=r["keyword"], region=r["region"], language=cfg.MARKETS[r["region"]][0])
-            with st.spinner(f"Đang đào \"{r['keyword']}\"…"):
+            with st.spinner(f"Digging \"{r['keyword']}\"…"):
                 run_id = handle_youtube_errors(dig, conn, params, category=None)
             if run_id:
                 st.session_state["current_run"] = run_id
@@ -183,107 +210,129 @@ with tab_good:
 
 with tab_pending:
     rows = radar.keywords(conn, [rd.PENDING], regions)
-    st.caption(f"{len(rows)} từ khoá mới đang chờ kiểm tra loại thực thể và hình dạng Trends (mỗi lượt kiểm tra 1 từ).")
+    st.caption(f"{len(rows)} new keywords waiting for the entity-type and Trends-shape check (one keyword per scan).")
     if rows:
-        st.dataframe(_table(rows), hide_index=True, width="stretch", column_config=LINKS)
+        st.dataframe(_table(rows), hide_index=True, width="stretch", column_config={**POTENTIAL_COL, **LINKS})
+    else:
+        theme.empty_state("Nothing waiting to be checked.")
 
 with tab_out:
     rows = radar.keywords(conn, [rd.EXCLUDED, rd.IGNORED], regions)
-    st.caption("Từ khoá đã loại kèm lý do, để bạn kiểm tra bộ lọc có loại nhầm không. Từ khoá đã loại không quét lại.")
+    st.caption("Excluded keywords with the reason, so you can check the filters are not too strict. They are not scanned again.")
     if rows:
         event = st.dataframe(
             _table(rows, extra=True), hide_index=True, width="stretch", on_select="rerun", selection_mode="multi-row",
-            key="radar_out", column_config=LINKS,
+            key="radar_out", column_config={**POTENTIAL_COL, **LINKS},
         )
         picked = [(rows[i]["region"], rows[i]["keyword"]) for i in event.selection.rows]
-        if st.button("↩️ Đưa lại vào hàng chờ kiểm tra", disabled=not picked):
+        if st.button("Send back to the check queue", disabled=not picked):
             radar.set_status(conn, picked, rd.PENDING)
             st.rerun()
+    else:
+        theme.empty_state("No keyword has been excluded yet.")
 
 with tab_scope:
     if tree is None:
-        st.warning("Chưa tải được cây danh mục Google Trends (Google đang tạm chặn). Thử lại sau.")
+        st.warning("Could not load the Google Trends category tree (Google is blocking). Try again later.")
     else:
         scope = radar.get_scope(conn)
-        all_markets = st.checkbox(
-            "Quét mọi thị trường đang bật ở Cài đặt → Thị trường (tự theo khi bạn bật / tắt thị trường)",
-            value=scope["all_markets"],
-        )
-        markets = st.multiselect(
-            "Thị trường", cfg.ENABLED_MARKETS, default=[m for m in scope["markets"] if m in cfg.ENABLED_MARKETS],
-            format_func=market_label, disabled=all_markets,
-        )
-        options = rd.selectable_categories(tree)
-        labels = {c["id"]: ("· " * (c["depth"] - 1)) + c["name"] for c in options}
-        cats = st.multiselect(
-            "Danh mục Google Trends (nhóm gốc và danh mục con)", [c["id"] for c in options],
-            default=[c for c in scope["categories"] if c in labels], format_func=lambda i: labels[i],
-        )
-        st.caption(
-            "Luôn bỏ: " + ", ".join(rd.EXCLUDED_CATEGORIES.values()) + ". Chọn nhóm gốc thì gồm cả danh mục con của nó; "
-            "Nghệ thuật & Giải trí mặc định quét theo danh mục con để tránh tin người nổi tiếng."
-        )
-        block = st.text_area("Từ chặn (mỗi dòng một từ; truy vấn chứa từ này bị bỏ)", "\n".join(scope["blocklist"]))
-        n_markets = len(cfg.ENABLED_MARKETS) if all_markets else len(markets)
-        st.caption(f"{n_markets} thị trường × {len(cats)} danh mục = **{n_markets * len(cats)} cặp** cần quét mỗi vòng.")
-        s1, s2 = st.columns(2)
-        if s1.button("Lưu phạm vi", type="primary"):
-            radar.save_scope(conn, markets, cats, block.splitlines(), all_markets)
-            st.success("Đã lưu.")
-            st.rerun()
-        if s2.button("Về mặc định"):
-            conn.execute("DELETE FROM radar_meta WHERE key = 'scope'")
-            st.rerun()
+        with st.container(border=True):
+            theme.section("Scan scope", "Which markets and categories the radar sweeps. Fewer pairs means a shorter sweep.")
+            all_markets = st.checkbox(
+                "Scan every market enabled in Settings → Markets (follows that list when you enable or disable one)",
+                value=scope["all_markets"],
+            )
+            markets = st.multiselect(
+                "Markets", cfg.ENABLED_MARKETS, default=[m for m in scope["markets"] if m in cfg.ENABLED_MARKETS],
+                format_func=market_label, disabled=all_markets,
+            )
+            options = rd.selectable_categories(tree)
+            labels = {c["id"]: ("· " * (c["depth"] - 1)) + c["name"] for c in options}
+            cats = st.multiselect(
+                "Google Trends categories (root groups and sub-categories)", [c["id"] for c in options],
+                default=[c for c in scope["categories"] if c in labels], format_func=lambda i: labels[i],
+            )
+            st.caption(
+                "Always skipped: " + ", ".join(rd.EXCLUDED_CATEGORIES.values()) + ". A root group includes its sub-categories; "
+                "Arts & Entertainment is scanned by sub-category by default to avoid celebrity news."
+            )
+            block = st.text_area("Blocklist (one word per line; queries containing it are skipped)", "\n".join(scope["blocklist"]))
+            n_markets = len(cfg.ENABLED_MARKETS) if all_markets else len(markets)
+            st.caption(f"{n_markets} markets × {len(cats)} categories = **{n_markets * len(cats)} pairs** per sweep.")
+            s1, s2, _ = st.columns([1, 1, 3])
+            if s1.button("Save scope", type="primary", width="stretch"):
+                radar.save_scope(conn, markets, cats, block.splitlines(), all_markets)
+                st.success("Saved.")
+                st.rerun()
+            if s2.button("Reset to defaults", width="stretch"):
+                conn.execute("DELETE FROM radar_meta WHERE key = 'scope'")
+                st.rerun()
 
 with tab_log:
-    st.subheader("📈 Nhịp quét (để hiệu chỉnh)")
-    days = st.segmented_control("Khoảng", [1, 3, 7, 30, 180], default=7, format_func=lambda d: f"{d} ngày", key="pace_days") or 7
+    theme.section("Scan pace", "Use this to tune the fastest safe pace.")
+    days = st.segmented_control("Window", [1, 3, 7, 30, 180], default=7, format_func=lambda d: f"{d} days", key="pace_days") or 7
     rep = radar.pace_report(conn, days)
     if not rep["rows"]:
-        st.caption("Chưa có lượt nào gọi Google trong khoảng này.")
+        theme.empty_state("No scan called Google in this window.")
     else:
-        p1, p2, p3, p4 = st.columns(4)
-        p1.metric("Lượt có gọi Google", f"{rep['ticks']:,}", help=f"{rep['requests']:,} yêu cầu, trung bình {rep['req_per_tick']:g}/lượt")
-        p2.metric("Bị chặn (429)", rep["blocks"],
-                  help=f"Lượt phải nghỉ vì thử lại vẫn bị chặn. Thêm {rep['rescued']} lần 429 được cứu nhờ lấy cookie mới.")
-        p3.metric("Khoảng cách thật (trung vị)", f"{rep['median_gap_s']} giây" if rep["median_gap_s"] else "—",
-                  help="Giây thật giữa hai lượt có gọi Google. Lớn hơn nhịp đặt ra vì Task Scheduler gọi 2 phút/lần và nhịp có ±20% ngẫu nhiên.")
-        p4.metric("Yêu cầu/giờ cao nhất chưa bị chặn", rep["max_ok_req_1h"])
+        theme.kpi_row([
+            ("Scans that called Google", f"{rep['ticks']:,}", f"{rep['requests']:,} requests · {rep['req_per_tick']:g} per scan"),
+            ("Blocked (429)", rep["blocks"], f"{rep['rescued']} rescued with a fresh cookie", "inverse" if rep["blocks"] else "off"),
+            ("Real gap (median)", f"{rep['median_gap_s']} s" if rep["median_gap_s"] else "—", "between two scans"),
+            ("Max requests/hour unblocked", rep["max_ok_req_1h"], None),
+        ])
         if rep["blocks"]:
             st.warning(
-                f"Google chặn sớm nhất khi đã gửi **{rep['min_block_req_1h']} yêu cầu trong 60 phút**. Giữ dưới 80% mức đó với "
-                f"{rep['req_per_tick']:g} yêu cầu/lượt thì nhịp nhanh nhất nên ≈ **{rep['suggested_min_interval']} giây** "
-                f"(đang đặt {cfg.RADAR_MIN_INTERVAL_S} giây, sửa ở Cài đặt → Ngưỡng tính điểm → Radar từ khoá)."
+                f"Google blocked earliest after **{rep['min_block_req_1h']} requests in 60 minutes**. Staying under 80% of that with "
+                f"{rep['req_per_tick']:g} requests per scan, the fastest pace should be ≈ **{rep['suggested_min_interval']} s** "
+                f"(currently {cfg.RADAR_MIN_INTERVAL_S} s; change it in Settings → Thresholds → Radar)."
             )
         elif rep["fastest_ok_interval"] is not None:
             st.success(
-                f"Chưa bị chặn lần nào trong {days} ngày; nhịp nhanh nhất đã chạy là {rep['fastest_ok_interval']:g} giây/lượt, "
-                f"tối đa {rep['max_ok_req_1h']} yêu cầu/giờ. Có thể thử hạ \"Radar: nhanh nhất\" dần (vd. −10 giây mỗi lần) và theo dõi tại đây."
+                f"No block in {days} days; the fastest pace run so far is {rep['fastest_ok_interval']:g} s per scan, "
+                f"at most {rep['max_ok_req_1h']} requests per hour. You can lower \"Radar: fastest pace\" step by step "
+                "(e.g. −10 s at a time) and watch here."
             )
         df = pd.DataFrame(rep["rows"])
         df["at"] = pd.to_datetime(df["at"]).dt.tz_convert(None) + (pd.Timestamp.now() - pd.Timestamp.now("UTC").tz_localize(None))
-        chart = df.set_index("at")[["interval_after", "gap_s"]].rename(
-            columns={"interval_after": "Nhịp đặt (giây/lượt)", "gap_s": "Khoảng cách thật (giây)"})
-        st.line_chart(chart, height=260)
-        st.bar_chart(df.set_index("at")[["req_1h"]].rename(columns={"req_1h": "Yêu cầu trong 60 phút"}), height=200)
+        base_layout = dict(
+            margin=dict(t=10, r=10, l=0, b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(family=theme.FONT, size=theme.CHART_FONT_SIZE),
+            xaxis=dict(showgrid=False), legend=dict(orientation="h", y=1.12),
+        )
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df["at"], y=df["interval_after"], name="Set pace (s per scan)", mode="lines",
+                                 line=dict(color=C["categorical"][0], width=2)))
+        fig.add_trace(go.Scatter(x=df["at"], y=df["gap_s"], name="Real gap (s)", mode="lines",
+                                 line=dict(color=C["categorical"][1], width=2)))
+        blocked = df[df["throttled"] == 1]
+        if not blocked.empty:
+            fig.add_trace(go.Scatter(x=blocked["at"], y=blocked["gap_s"], name="Blocked (429)", mode="markers",
+                                     marker=dict(color=C["critical"], size=9, symbol="x")))
+        fig.update_layout(height=260, yaxis=dict(title="seconds", gridcolor=C["line"], zeroline=False), **base_layout)
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+        fig2 = go.Figure(go.Bar(x=df["at"], y=df["req_1h"], name="Requests in the last 60 min", marker_color=C["blue"][6]))
+        fig2.update_layout(height=200, yaxis=dict(title="requests / 60 min", gridcolor=C["line"], zeroline=False),
+                           showlegend=False, **base_layout)
+        st.plotly_chart(fig2, width="stretch", config={"displayModeBar": False})
         if rep["blocks"]:
-            st.markdown("**Các lần bị chặn**")
+            st.markdown("**Blocks**")
             st.dataframe(
                 df[df["throttled"] == 1][["at", "interval_before", "gap_s", "req_1h", "streak"]].rename(columns={
-                    "at": "Lúc", "interval_before": "Nhịp lúc đó (giây)", "gap_s": "Cách lượt trước (giây)",
-                    "req_1h": "Yêu cầu trong 60 phút", "streak": "Lượt liền không bị chặn"}),
+                    "at": "When", "interval_before": "Pace at the time (s)", "gap_s": "Gap to previous scan (s)",
+                    "req_1h": "Requests in 60 min", "streak": "Unblocked scans in a row"}),
                 hide_index=True, width="stretch",
             )
         st.download_button(
-            "⬇️ Tải nhật ký nhịp (CSV)", df.to_csv(index=False).encode("utf-8-sig"),
+            "Download pace log (CSV)", df.to_csv(index=False).encode("utf-8-sig"),
             file_name=f"radar_pace_{days}d.csv", mime="text/csv",
         )
-    st.subheader("📜 50 lượt gần nhất")
+    theme.section("Last 50 scans")
     if stats["log"]:
         st.dataframe(
-            pd.DataFrame([{"Lúc": e["at"][:19].replace("T", " ") + " UTC", "Việc": e["action"], "Chi tiết": e["detail"]} for e in stats["log"]]),
+            pd.DataFrame([{"When": e["at"][:19].replace("T", " ") + " UTC", "Action": e["action"], "Detail": e["detail"]} for e in stats["log"]]),
             hide_index=True, width="stretch",
         )
     else:
-        st.caption("Chưa có lượt nào.")
-    st.caption(f"Lỗi của lượt chạy nền (nếu có) ghi ở {cfg.DATA_DIR / 'radar_errors.log'}.")
+        st.caption("No scans yet.")
+    st.caption(f"Errors from background scans (if any) are written to {cfg.DATA_DIR / 'radar_errors.log'}.")

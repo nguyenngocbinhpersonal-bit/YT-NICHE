@@ -1,4 +1,4 @@
-"""Trang Ngách con & từ khoá dài (bài 2.3): đi hẹp từng tầng, kiểm tra "đủ sống", chấm từ khoá dài."""
+"""Sub-niches & keywords page (lesson 2.3): go one layer down, check the sub-niche is still alive, score long-tail keywords."""
 
 import asyncio
 
@@ -17,156 +17,199 @@ from yt_niche.services.fetch import DigParams
 from yt_niche.services.runs import dig
 from yt_niche.sources.trends import compare_trends as compare_trends_source
 from yt_niche.sources.trends import describe_errors as describe_trends_errors
-from yt_niche.ui.common import EST_UNITS_PER_DIG, get_conn, handle_youtube_errors, market_label, run_label, prompt_box
+from yt_niche.ui import theme
+from yt_niche.ui.common import EST_UNITS_PER_DIG, get_conn, handle_youtube_errors, market_label, prompt_box, run_label
 
-st.title("🌿 Ngách con & từ khoá dài")
-st.caption(
-    "Đi hẹp từng tầng, mỗi tầng chỉ thêm một bộ lọc rồi đào lại. Hẹp nhưng vẫn phải còn người xem. "
-    "10 video đầu nhắm từ khoá dài điểm từ 55."
-)
 conn = get_conn()
+theme.inject_css()
+
+# Layer status (core.subniche.layer_status): icon + word, never color alone.
+STATUS_TONE = {"alive": "green", "weak": "amber", "too_narrow": "red", "video": ""}
+STATUS_WORD = {"alive": "Alive", "weak": "Weak", "too_narrow": "Too narrow", "video": "Video topic"}
+FILTER_KEY = {v: k for k, v in sn.FILTERS.items()}  # filter label shown in the editor → key stored on the run
+
+
+def _status_text(status: dict) -> str:
+    return STATUS_WORD[status["status"]]
+
+
+# ---------------------------------------------------------------------------
+# Header, niche picker, KPIs
+# ---------------------------------------------------------------------------
+
+theme.page_header("", "Sub-niches & keywords", "Go one layer down: repeated phrases, search suggestions, keyword scores.")
 
 all_runs = run_repo.list_all(conn)
 if not all_runs:
-    st.info("Chưa có lần đào nào. Vào trang Đào ngách, đào ngách mẹ trước.")
+    theme.empty_state("No dig yet.", "Open the Dig page and dig the parent niche first.")
     st.stop()
 
 by_id = {r["id"]: r for r in all_runs}
 ids = list(by_id)
 current = st.session_state.get("sub_run") or st.session_state.get("current_run")
 run_id = st.selectbox(
-    "Ngách đang xét (ngách mẹ khi đào sâu)",
+    "Niche to work on (the parent when digging deeper)",
     ids,
     index=ids.index(current) if current in ids else 0,
-    format_func=lambda i: f"{'· ' * ((by_id[i].get('layer') or 1) - 1)}Tầng {by_id[i].get('layer') or 1} · {run_label(by_id[i])}",
+    format_func=lambda i: f"{'· ' * ((by_id[i].get('layer') or 1) - 1)}Layer {by_id[i].get('layer') or 1} · {run_label(by_id[i])}",
 )
 st.session_state["sub_run"] = run_id
 run = run_repo.get(conn, run_id)
 r = run["result"]
 language = run["language"]
+layer = run.get("layer") or 1
 status = sn.layer_status(run)
-FILTER_KEY = {v: k for k, v in sn.FILTERS.items()}
-STATUS_ICON = {"alive": "🟢", "weak": "🟡", "too_narrow": "🔴", "video": "🎬"}
-st.markdown(f"{STATUS_ICON[status['status']]} **Tầng {run.get('layer') or 1}**: {status['text']}")
+scored_here = kw_svc.scored_for(conn, run["topic"], run["region"])
+good_here = [k for k in scored_here if k["score"] >= cfg.KEYWORD_GOOD and not k["low_data"]]
 
-tab_sub, tab_tree, tab_kw, tab_prompt = st.tabs(
-    ["1. Ngách con", "2. Cây ngách & kiểm tra đủ sống", "3. Từ khoá dài", "4. Prompt"]
-)
+theme.kpi_row([
+    ("Layer", layer, f"niche up to layer {cfg.SUBNICHE_MAX_LAYER}"),
+    ("Layer status", _status_text(status), None),
+    ("Outperformers", r["outlier_counts"]["total"], None),
+    ("Small booming channels", len(r["small_boom_channels"]), None),
+    (f"Keywords ≥ {cfg.KEYWORD_GOOD}", f"{len(good_here)}/10", "long-tail, scored"),
+])
+st.caption(status["text"])
+
+tab_sub, tab_tree, tab_kw, tab_prompt = st.tabs(["1. Sub-niches", "2. Tree & viability", "3. Keywords", "4. Prompts"])
 
 # ---------------------------------------------------------------------------
-# 1. Ngách con: cụm lặp lại ở video thắng + gợi ý tìm kiếm → đào sâu
+# 1. Sub-niches: repeated phrases in winning titles + search suggestions → dig deeper
 # ---------------------------------------------------------------------------
 
 with tab_sub:
     phrases = sn.repeated_phrases(r["outliers"], run["topic"])
-    st.markdown("**Cụm lặp lại trong tiêu đề video vượt trội** (bằng chứng người xem thích chủ đề đó)")
+    theme.section(
+        "Repeated phrases in outperformer titles",
+        "Evidence that viewers like a sub-topic: the phrase shows up in winning titles from several different channels.",
+    )
     if phrases:
         st.dataframe(
-            pd.DataFrame([{"Cụm": p["phrase"], "Số video thắng": p["videos"], "Số kênh": p["channels"]} for p in phrases]),
+            pd.DataFrame([{"Phrase": p["phrase"], "Outperformers": p["videos"], "Channels": p["channels"]} for p in phrases]),
             hide_index=True,
             width="stretch",
         )
     else:
-        st.caption(f"Chưa có cụm nào lặp lại ở từ {cfg.SUBNICHE_MIN_CHANNELS} kênh trở lên.")
+        st.caption(f"No phrase repeats across {cfg.SUBNICHE_MIN_CHANNELS} or more channels yet.")
 
-    c1, c2 = st.columns([1, 2])
-    az = c2.checkbox("Mở rộng A–Z (thêm biến thể, khoảng 25 lượt gọi gợi ý)", key="sub_az")
-    if c1.button("🔎 Lấy gợi ý tìm kiếm YouTube", help="Miễn phí, không tốn quota API"):
-        with st.spinner("Đang lấy gợi ý…"):
-            try:
-                got = kw_svc.fetch_suggestions(conn, run["topic"], run["region"], az=az)
-                st.success(f"Lấy được {len(got)} gợi ý.")
-            except Exception as e:  # mạng lỗi, Google chặn tạm thời…
-                st.error(f"Không lấy được gợi ý: {e}")
+    theme.section(
+        "Search suggestions",
+        "Free, no API quota. Suggestions are sorted into sub-niche candidates, long-tail keywords and short keywords.",
+    )
+    with st.container(border=True):
+        c1, c2 = st.columns([1, 2])
+        az = c2.checkbox("Expand A–Z (more variants, about 25 suggestion calls)", key="sub_az")
+        if c1.button("Fetch YouTube suggestions", help="Free, no API quota", width="stretch"):
+            with st.spinner("Fetching suggestions…"):
+                try:
+                    got = kw_svc.fetch_suggestions(conn, run["topic"], run["region"], az=az)
+                    st.success(f"Fetched {len(got)} suggestions.")
+                except Exception as e:  # network error, temporary block by Google…
+                    st.error(f"Could not fetch suggestions: {e}")
 
     saved = kw_svc.list_keywords(conn, run["topic"], run["region"])
     cols = sn.columns(saved, run["topic"], language, r["outliers"])
     if saved:
-        st.caption(f"{len(saved)} gợi ý cho \"{run['topic']}\" ở {market_label(run['region'])}.")
+        st.caption(f"{len(saved)} suggestions for \"{run['topic']}\" in {market_label(run['region'])}.")
         col_sub, col_long, col_short = st.columns(3)
         for col, kind in ((col_sub, sn.SUBNICHE), (col_long, sn.LONG), (col_short, sn.SHORT)):
-            col.markdown(f"**{kind}** ({len(cols[kind])})")
+            col.markdown(f"**{kind}** {theme.pill(str(len(cols[kind])))}", unsafe_allow_html=True)
             rows = [
-                {"Từ khoá": x["keyword"], "Video thắng": x["videos"]} if kind == sn.SUBNICHE else {"Từ khoá": x["keyword"]}
+                {"Keyword": x["keyword"], "Outperformers": x["videos"]} if kind == sn.SUBNICHE else {"Keyword": x["keyword"]}
                 for x in cols[kind]
             ]
             if rows:
                 col.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", height=300)
-        st.caption(
-            "Từ khoá ngắn: lượng tìm lớn, cạnh tranh cao, dùng làm từ khoá phụ trong mô tả. "
-            "Từ khoá dài: chấm ở tab 3. Cột Ngách con: ứng viên tầng tiếp theo, ưu tiên cụm có video thắng."
-        )
+            else:
+                col.caption("—")
+        with st.expander("How to read the three columns"):
+            st.markdown(
+                f"- **{sn.SUBNICHE}**: candidates for the next layer; prefer phrases that already have outperformers.\n"
+                f"- **{sn.LONG}**: score them in tab 3; the first 10 videos target long-tail keywords scoring {cfg.KEYWORD_GOOD} or more.\n"
+                f"- **{sn.SHORT}**: high search volume, high competition; use as secondary keywords in descriptions."
+            )
 
-    st.markdown("**Đào sâu: tối đa 3 ngách con**")
-    if (run.get("layer") or 1) >= cfg.SUBNICHE_MAX_LAYER:
-        st.warning(
-            f"Ngách đang xét đã ở tầng {run.get('layer') or 1}. Tầng {cfg.SUBNICHE_MAX_LAYER + 1} trở xuống thường là chủ đề video, "
-            "không phải ngách: dùng để lập danh sách video, đừng dựng cả kênh trên đó."
+    theme.section(
+        "Dig deeper: up to 3 sub-niches",
+        "Add exactly one filter per layer, then dig again. Narrow, but there must still be viewers.",
+    )
+    with st.expander("The four filters, one per layer"):
+        st.dataframe(
+            pd.DataFrame([{"Filter": sn.FILTERS[k], "Example": sn.FILTER_EXAMPLES[k]} for k in sn.FILTERS]),
+            hide_index=True,
+            width="stretch",
         )
-    if status["status"] == "too_narrow":
-        st.error("Ngách đang xét đã quá hẹp. Đừng xuống tầng nữa; hãy chọn ngách mẹ của nó và thử bộ lọc khác.")
-    candidates = [x["keyword"] for x in cols[sn.SUBNICHE][:3]]
-    editor = st.data_editor(
-        pd.DataFrame(
-            {
-                "Đào": [True] * len(candidates) + [False] * (3 - len(candidates)),
-                "Ngách con": candidates + [""] * (3 - len(candidates)),
-                "Bộ lọc thêm": [sn.FILTERS["problem"]] * 3,
-            }
-        ),
-        hide_index=True,
-        width="stretch",
-        num_rows="fixed",
-        column_config={
-            "Bộ lọc thêm": st.column_config.SelectboxColumn(
-                options=list(sn.FILTERS.values()), required=True,
-                help="Mỗi tầng chỉ thêm MỘT bộ lọc: " + "; ".join(f"{sn.FILTERS[k]}: {v}" for k, v in sn.FILTER_EXAMPLES.items()),
+    with st.container(border=True):
+        if layer >= cfg.SUBNICHE_MAX_LAYER:
+            st.warning(
+                f"This niche is already at layer {layer}. Layer {cfg.SUBNICHE_MAX_LAYER + 1} and below is usually a video topic, "
+                "not a niche: use it to plan videos, do not build a whole channel on it."
+            )
+        if status["status"] == "too_narrow":
+            st.error("This niche is already too narrow. Do not go one layer down; pick its parent and try a different filter.")
+        candidates = [x["keyword"] for x in cols[sn.SUBNICHE][:3]]
+        editor = st.data_editor(
+            pd.DataFrame(
+                {
+                    "Dig": [True] * len(candidates) + [False] * (3 - len(candidates)),
+                    "Sub-niche": candidates + [""] * (3 - len(candidates)),
+                    "Filter to add": [sn.FILTERS["problem"]] * 3,
+                }
             ),
-        },
-        key=f"deep_{run_id}",
-    )
-    todo = [row for _, row in editor.iterrows() if row["Đào"] and str(row["Ngách con"]).strip()]
-    st.caption(
-        f"Cùng thị trường, khoảng thời gian, định dạng với ngách đang xét. "
-        f"Mỗi ngách tối đa khoảng {EST_UNITS_PER_DIG} unit → {len(todo) * EST_UNITS_PER_DIG} unit."
-    )
-    if st.button(f"⛏️ Đào sâu {len(todo)} ngách con", type="primary", disabled=not todo or not cfg.api_key()):
-        params = r["params"]
-        for row in todo:
-            topic = " ".join(str(row["Ngách con"]).split())
-            with st.spinner(f"Đang đào \"{topic}\"…"):
-                new_id = handle_youtube_errors(
-                    dig,
-                    conn,
-                    DigParams(**{**params, "topic": topic}),
-                    category=run["category"],
-                    affiliates=run["affiliates"],
-                    parent_id=run_id,
-                    filter_type=FILTER_KEY[row["Bộ lọc thêm"]],
-                )
-            if new_id is None:
-                break
-        st.rerun()
+            hide_index=True,
+            width="stretch",
+            num_rows="fixed",
+            column_config={
+                "Filter to add": st.column_config.SelectboxColumn(
+                    options=list(sn.FILTERS.values()), required=True,
+                    help="One filter per layer: " + "; ".join(f"{sn.FILTERS[k]}: {v}" for k, v in sn.FILTER_EXAMPLES.items()),
+                ),
+            },
+            key=f"deep_{run_id}",
+        )
+        todo = [row for _, row in editor.iterrows() if row["Dig"] and str(row["Sub-niche"]).strip()]
+        st.caption(
+            "Same market, time window and format as the niche above. "
+            f"About {EST_UNITS_PER_DIG} units per sub-niche → {len(todo) * EST_UNITS_PER_DIG} units."
+        )
+        if st.button(f"Dig {len(todo)} sub-niches", type="primary", disabled=not todo or not cfg.api_key()):
+            params = r["params"]
+            for row in todo:
+                topic = " ".join(str(row["Sub-niche"]).split())
+                with st.spinner(f"Digging \"{topic}\"…"):
+                    new_id = handle_youtube_errors(
+                        dig,
+                        conn,
+                        DigParams(**{**params, "topic": topic}),
+                        category=run["category"],
+                        affiliates=run["affiliates"],
+                        parent_id=run_id,
+                        filter_type=FILTER_KEY[row["Filter to add"]],
+                    )
+                if new_id is None:
+                    break
+            st.rerun()
 
 # ---------------------------------------------------------------------------
-# 2. Cây ngách và phiếu "đủ sống"
+# 2. Niche tree and the viability checklist
 # ---------------------------------------------------------------------------
 
 with tab_tree:
     root = sub_svc.root_of(conn, run_id)
     nodes = sub_svc.tree(conn, root)
+    theme.section("Niche tree", "The parent niche and every sub-niche dug from it. Status says whether a layer is still alive.")
     st.dataframe(
         pd.DataFrame(
             [
                 {
-                    "Ngách": "　" * n["depth"] + ("└ " if n["depth"] else "") + n["run"]["topic"],
-                    "Tầng": n["run"].get("layer") or 1,
-                    "Bộ lọc": sn.FILTERS.get(n["run"].get("filter_type"), ""),
-                    "Điểm": round(n["run"]["score"]),
-                    "Tin cậy": n["run"]["confidence"],
-                    "Vượt trội": n["run"]["result"]["outlier_counts"]["total"],
-                    "Kênh nhỏ nổ": len(n["run"]["result"]["small_boom_channels"]),
-                    "Trạng thái": f"{STATUS_ICON[n['status']['status']]} {n['status']['text']}",
+                    "Niche": "　" * n["depth"] + ("└ " if n["depth"] else "") + n["run"]["topic"],
+                    "Layer": n["run"].get("layer") or 1,
+                    "Filter": sn.FILTERS.get(n["run"].get("filter_type"), ""),
+                    "Score": round(n["run"]["score"]),
+                    "Confidence": n["run"]["confidence"],
+                    "Outperformers": n["run"]["result"]["outlier_counts"]["total"],
+                    "Small booming": len(n["run"]["result"]["small_boom_channels"]),
+                    "Status": _status_text(n["status"]),
                     "#": n["run"]["id"],
                 }
                 for n in nodes
@@ -174,17 +217,17 @@ with tab_tree:
         ),
         hide_index=True,
         width="stretch",
-        column_config={"Điểm": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d")},
+        column_config={"Score": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d")},
     )
     if len(nodes) == 1:
-        st.caption("Chưa có ngách con nào. Đào sâu ở tab 1.")
+        st.caption("No sub-niche yet. Dig deeper in tab 1.")
     else:
-        with st.expander("📈 So Google Trends ngách mẹ với tối đa 4 ngách con (cùng một thang)"):
+        with st.expander("Compare Google Trends: parent vs up to 4 sub-niches (same scale)"):
             root_run = nodes[0]["run"]
             kids = list(dict.fromkeys(n["run"]["topic"] for n in nodes[1:] if n["run"]["topic"] != root_run["topic"]))
-            chosen = st.multiselect("Ngách con", kids, default=kids[:4], max_selections=4, key=f"trcmp_{root}")
-            if st.button("So Trends", disabled=not chosen, key=f"trcmp_btn_{root}"):
-                with st.spinner("Đang lấy Google Trends…"):
+            chosen = st.multiselect("Sub-niches", kids, default=kids[:4], max_selections=4, key=f"trcmp_{root}")
+            if st.button("Compare Trends", disabled=not chosen, key=f"trcmp_btn_{root}"):
+                with st.spinner("Fetching Google Trends…"):
                     got = asyncio.run(
                         compare_trends_source(conn, [root_run["topic"], *chosen], root_run["region"])
                     )
@@ -199,11 +242,11 @@ with tab_tree:
                         pd.DataFrame(
                             [
                                 {
-                                    "Chủ đề": ("🌳 " if x["is_parent"] else "") + x["topic"],
-                                    "12 tháng": x["direction_12m"],
-                                    "5 năm": x["direction_5y"],
-                                    "Mức 13 tuần gần nhất": x["level"],
-                                    "Ứng viên tốt": "⭐" if x["good_candidate"] else "",
+                                    "Topic": x["topic"] + (" (parent)" if x["is_parent"] else ""),
+                                    "12 months": x["direction_12m"],
+                                    "5 years": x["direction_5y"],
+                                    "Level, last 13 weeks": x["level"],
+                                    "Good candidate": "Yes" if x["good_candidate"] else "",
                                 }
                                 for x in rows
                             ]
@@ -215,17 +258,17 @@ with tab_tree:
                     if any(points.values()):
                         frames = {t: pd.Series({d: v for d, v in pts}) for t, pts in points.items() if pts}
                         st.line_chart(pd.DataFrame(frames), height=240)
-                    st.caption("Ngách con đi lên trong khi ngách mẹ đi ngang hoặc giảm là ứng viên tốt (⭐).")
+                    st.caption("A sub-niche that rises while the parent is flat or falling is a good candidate.")
 
-    st.markdown(f"**Phiếu kiểm tra \"đủ sống\": {run['topic']}**")
+    theme.section(f"Viability check: {run['topic']}", "Five checks. The sub-niche is viable when all five pass.")
     check = sub_svc.check(conn, run_id)
     if ai.enabled(conn, "prompts"):
         if st.button(
-            "🤖 AI điền lời hứa và 30 ý tưởng", key=f"ai_fill_{run_id}",
-            help="Dựa trên kết quả đào, từ khoá dài đã chấm và video vượt trội. Lời hứa đã viết thì giữ nguyên; "
-                 "ô ý tưởng được thay bằng kết quả AI. Tốn 1 lượt AI.",
+            "Let AI write the promise and 30 ideas", key=f"ai_fill_{run_id}",
+            help="Based on the dig result, scored long-tail keywords and outperformer videos. A promise you already wrote is kept; "
+                 "the ideas box is replaced by the AI result. Costs one AI call.",
         ):
-            with st.spinner("AI đang viết lời hứa và ý tưởng…"):
+            with st.spinner("AI is writing the promise and ideas…"):
                 try:
                     prompt = report.build_ideas_prompt(
                         run, check["promise"], kw_svc.scored_for(conn, run["topic"], run["region"]),
@@ -238,80 +281,88 @@ with tab_tree:
                     sub_svc.save_check(conn, run_id, ideas="\n".join(got["ideas"]), promise=got["promise"])
                     st.rerun()
     else:
-        st.caption("Bật AI (Cài đặt → AI, tính năng prompt) để AI tự điền lời hứa kênh và 30 ý tưởng.")
+        st.caption("Turn on AI (Settings → AI, prompts feature) to have the channel promise and 30 ideas written for you.")
     with st.form(f"check_{run_id}"):
         promise = st.text_input(
-            "Lời hứa kênh một câu",
+            "Channel promise (one sentence)",
             value=check["promise"],
-            placeholder="Kênh giúp [ai] hiểu / làm được [điều gì]",
+            placeholder="This channel helps [who] understand / do [what]",
         )
         ideas = st.text_area(
-            f"{cfg.SUBNICHE_MIN_IDEAS} ý tưởng video (mỗi dòng một ý; có thể dán kết quả prompt \"Kiểm tra 30 ý tưởng\")",
+            f"{cfg.SUBNICHE_MIN_IDEAS} video ideas (one per line; you can paste the output of the \"Check 30 ideas\" prompt)",
             value=check["ideas"],
             height=220,
         )
-        if st.form_submit_button("Lưu và kiểm tra"):
+        if st.form_submit_button("Save and check", type="primary"):
             sub_svc.save_check(conn, run_id, ideas=ideas, promise=promise)
             st.rerun()
 
     for c in check["checks"]:
-        icon = "✅" if c["ok"] else "⬜" if c["ok"] is None else "❌"
-        st.markdown(f"{icon} **{c['label']}**: {c['detail']}")
+        word, tone = ("Pass", "green") if c["ok"] else ("Open", "") if c["ok"] is None else ("Fail", "red")
+        st.markdown(f"{theme.status_pill(word, tone)} <b>{c['label']}</b> <span class='yt-detail'>{c['detail']}</span>", unsafe_allow_html=True)
     dups = sn.duplicate_ideas(sn.parse_ideas(check["ideas"]))
     if dups:
         ideas_list = sn.parse_ideas(check["ideas"])
-        with st.expander(f"{len(dups)} cặp ý trùng / gần trùng nên gộp"):
+        with st.expander(f"{len(dups)} duplicate or near-duplicate idea pairs to merge"):
             for i, j in dups[:30]:
                 st.markdown(f"- {ideas_list[i]} ↔ {ideas_list[j]}")
     if check["passed"]:
-        st.success("Ngách con đủ sống. Đi tiếp: so với các ngách khác (trang So sánh) rồi chấm trọng số (Bảng chấm).")
+        st.success("Viable. Next: compare it with other niches (Compare page), then weigh it on the Scorecard.")
     elif check["checks"][2]["ok"] is False:
-        st.warning("Chưa đủ 30 ý không trùng: ngách có thể quá hẹp, thử nới một bộ lọc.")
+        st.warning(f"Fewer than {cfg.SUBNICHE_MIN_IDEAS} distinct ideas: the niche may be too narrow. Try loosening one filter.")
 
 # ---------------------------------------------------------------------------
-# 3. Từ khoá dài
+# 3. Keywords: suggestions → score → pick → dig
 # ---------------------------------------------------------------------------
 
 with tab_kw:
-    k1, k2 = st.columns([2, 1])
-    seed = k1.text_input("Ngách con tầng 2 để lấy gợi ý", value=run["topic"], key=f"seed_{run_id}")
-    regions = list(dict.fromkeys([run["region"], *cfg.ENABLED_MARKETS]))  # giữ thị trường của lần đào dù đã tắt
-    region = k2.selectbox("Thị trường", regions, index=0, format_func=market_label, key=f"kwr_{run_id}")
-    seed_norm = " ".join(seed.lower().split())
+    theme.section(
+        "Keyword research",
+        "Fetch suggestions for a layer-2 sub-niche, score the long-tail ones, pick the 3–5 best and dig them.",
+    )
+    with st.container(border=True):
+        k1, k2 = st.columns([2, 1])
+        seed = k1.text_input("Seed (layer-2 sub-niche)", value=run["topic"], key=f"seed_{run_id}")
+        regions = list(dict.fromkeys([run["region"], *cfg.ENABLED_MARKETS]))  # keep the dig's market even if disabled
+        region = k2.selectbox("Market", regions, index=0, format_func=market_label, key=f"kwr_{run_id}")
+        seed_norm = " ".join(seed.lower().split())
 
-    b1, b2 = st.columns([1, 2])
-    az_kw = b2.checkbox("Mở rộng A–Z", key=f"kwaz_{run_id}")
-    if b1.button("🔎 Lấy gợi ý", key=f"kwget_{run_id}"):
-        try:
-            kw_svc.fetch_suggestions(conn, seed_norm, region, az=az_kw)
-        except Exception as e:
-            st.error(f"Không lấy được gợi ý: {e}")
-    with st.expander("Thêm từ khoá thủ công"):
-        manual = st.text_area("Mỗi dòng một từ khoá", key=f"kwman_{run_id}")
-        if st.button("Thêm", key=f"kwadd_{run_id}"):
-            kw_svc.add_manual(conn, seed_norm, region, manual.splitlines())
-            st.rerun()
+        b1, b2 = st.columns([1, 2])
+        az_kw = b2.checkbox("Expand A–Z", key=f"kwaz_{run_id}")
+        if b1.button("Fetch suggestions", key=f"kwget_{run_id}", width="stretch"):
+            try:
+                kw_svc.fetch_suggestions(conn, seed_norm, region, az=az_kw)
+            except Exception as e:
+                st.error(f"Could not fetch suggestions: {e}")
+        with st.expander("Add keywords by hand"):
+            manual = st.text_area("One keyword per line", key=f"kwman_{run_id}")
+            if st.button("Add", key=f"kwadd_{run_id}"):
+                kw_svc.add_manual(conn, seed_norm, region, manual.splitlines())
+                st.rerun()
 
     kws = kw_svc.list_keywords(conn, seed_norm, region)
     if not kws:
-        st.info("Chưa có từ khoá cho ngách này. Bấm \"Lấy gợi ý\".")
+        theme.empty_state("No keywords for this seed yet.", "Click \"Fetch suggestions\" or add keywords by hand.")
     else:
         lang = cfg.MARKETS[region][0]
         good = [k for k in kws if k["score"] is not None and k["score"] >= cfg.KEYWORD_GOOD and not k["low_data"]]
-        st.progress(min(1.0, len(good) / 10), text=f"Từ khoá dài đạt ≥ {cfg.KEYWORD_GOOD}, không \"ít dữ liệu\": **{len(good)}/10**")
+        st.progress(
+            min(1.0, len(good) / 10),
+            text=f"Long-tail keywords scoring ≥ {cfg.KEYWORD_GOOD} without \"{ks.LOW_DATA}\": **{len(good)}/10**",
+        )
         df = pd.DataFrame(
             [
                 {
-                    "Chấm": False,
-                    "Từ khoá": k["keyword"],
-                    "Loại": sn.keyword_kind(k["keyword"], seed_norm, lang),
-                    "Điểm": k["score"],
-                    "Nhãn": (ks.label(k["score"]) or "") + (f" · {ks.LOW_DATA}" if k["low_data"] else ""),
-                    "Nhu cầu": k["demand"],
-                    "Cạnh tranh": k["competition"],
-                    "Số kết quả": k["n"],
-                    "Chọn đào": k["picked"],
-                    "Đã đào": f"#{k['run_id']}" if k["run_id"] else "",
+                    "Score it": False,
+                    "Keyword": k["keyword"],
+                    "Type": sn.keyword_kind(k["keyword"], seed_norm, lang),
+                    "Score": k["score"],
+                    "Label": (ks.label(k["score"]) or "") + (f" · {ks.LOW_DATA}" if k["low_data"] else ""),
+                    "Demand": k["demand"],
+                    "Competition": k["competition"],
+                    "Results": k["n"],
+                    "Pick to dig": k["picked"],
+                    "Dig #": f"#{k['run_id']}" if k["run_id"] else "",
                 }
                 for k in kws
             ]
@@ -320,46 +371,51 @@ with tab_kw:
             df,
             hide_index=True,
             width="stretch",
-            disabled=["Từ khoá", "Loại", "Điểm", "Nhãn", "Nhu cầu", "Cạnh tranh", "Số kết quả", "Đã đào"],
+            disabled=["Keyword", "Type", "Score", "Label", "Demand", "Competition", "Results", "Dig #"],
             column_config={
-                "Điểm": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f"),
-                "Chấm": st.column_config.CheckboxColumn(help=f"Tick rồi bấm Chấm (tối đa {kw_svc.MAX_SCORE_BATCH})"),
-                "Chọn đào": st.column_config.CheckboxColumn(help="Tick 3–5 từ tốt nhất để đào video vượt trội"),
+                "Score": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f"),
+                "Demand": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f"),
+                "Competition": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f"),
+                "Score it": st.column_config.CheckboxColumn(help=f"Tick, then click Score (up to {kw_svc.MAX_SCORE_BATCH} at a time)"),
+                "Pick to dig": st.column_config.CheckboxColumn(help="Tick the 3–5 best keywords, save picks, then dig them"),
             },
             key=f"kwed_{run_id}_{region}_{seed_norm}",
         )
-        to_score = list(edited.loc[edited["Chấm"], "Từ khoá"])
-        if not to_score:  # chưa tick: chấm 10 từ khoá dài chưa chấm đầu tiên
+        to_score = list(edited.loc[edited["Score it"], "Keyword"])
+        if not to_score:  # nothing ticked: score the first unscored long-tail keywords
             to_score = [
                 k["keyword"] for k in kws if k["score"] is None and sn.keyword_kind(k["keyword"], seed_norm, lang) == sn.LONG
             ][: kw_svc.MAX_SCORE_BATCH]
-        picked = list(edited.loc[edited["Chọn đào"], "Từ khoá"])
+        picked = list(edited.loc[edited["Pick to dig"], "Keyword"])
 
         a1, a2, a3 = st.columns(3)
         if a1.button(
-            f"📊 Chấm {len(to_score)} từ (≈ {len(to_score) * kw_svc.UNITS_PER_KEYWORD} unit)",
+            f"Score {len(to_score)} keywords (≈ {len(to_score) * kw_svc.UNITS_PER_KEYWORD} units)",
+            type="primary",
             disabled=not to_score or not cfg.api_key(),
             key=f"kwscore_{run_id}",
+            width="stretch",
         ):
             if len(to_score) > kw_svc.MAX_SCORE_BATCH:
-                st.error(f"Mỗi lần chấm tối đa {kw_svc.MAX_SCORE_BATCH} từ.")
+                st.error(f"Score at most {kw_svc.MAX_SCORE_BATCH} keywords at a time.")
             else:
-                with st.spinner("Đang chấm từ khoá trên kết quả YouTube thật…"):
+                with st.spinner("Scoring keywords on real YouTube results…"):
                     if handle_youtube_errors(kw_svc.score, conn, region, to_score) is not None:
                         st.rerun()
-        if a2.button("💾 Lưu cột Chọn đào", key=f"kwpick_{run_id}"):
+        if a2.button("Save picks", key=f"kwpick_{run_id}", width="stretch"):
             kw_svc.set_picked(conn, region, [k["keyword"] for k in kws], False)
             kw_svc.set_picked(conn, region, picked, True)
             st.rerun()
         dig_list = [k for k in kws if k["picked"] and not k["run_id"]]
         if a3.button(
-            f"⛏️ Đào {len(dig_list)} từ đã chọn (≈ {len(dig_list) * EST_UNITS_PER_DIG} unit)",
+            f"Dig {len(dig_list)} picked (≈ {len(dig_list) * EST_UNITS_PER_DIG} units)",
             disabled=not dig_list or len(dig_list) > kw_svc.MAX_DIG_PICKED or not cfg.api_key(),
-            help=f"Lưu cột Chọn đào trước; tối đa {kw_svc.MAX_DIG_PICKED} từ",
+            help=f"Save picks first; at most {kw_svc.MAX_DIG_PICKED} keywords",
             key=f"kwdig_{run_id}",
+            width="stretch",
         ):
             for k in dig_list:
-                with st.spinner(f"Đang đào \"{k['keyword']}\"…"):
+                with st.spinner(f"Digging \"{k['keyword']}\"…"):
                     params = DigParams(**{**r["params"], "topic": k["keyword"], "region": region, "language": cfg.MARKETS[region][0]})
                     new_id = handle_youtube_errors(dig, conn, params, category=run["category"])
                 if new_id is None:
@@ -367,22 +423,25 @@ with tab_kw:
                 kw_svc.link_run(conn, region, k["keyword"], new_id)
             st.rerun()
         if any(k["low_data"] for k in kws if k["score"] is not None):
-            st.caption(f"Từ mang nhãn \"{ks.LOW_DATA}\": chấm lại hoặc kiểm tra bằng Đào ngách trước khi dùng.")
-        st.caption(
-            "Điểm từ khoá (giả định của app): 50% Nhu cầu (trung vị lượt xem kết quả, 100 → 0 điểm, 100K → 100 điểm) "
-            f"+ 50% (100 − Cạnh tranh). Cạnh tranh = % kết quả từ kênh ≥ {cfg.KEYWORD_BIG_CHANNEL_SUBS:,} sub và % tiêu đề "
-            f"nhắm đúng từ khoá. Ngưỡng: ≥ {cfg.KEYWORD_VERY_GOOD} Rất tốt · {cfg.KEYWORD_GOOD}–{cfg.KEYWORD_VERY_GOOD - 1} Tốt · "
-            f"{cfg.KEYWORD_AVERAGE}–{cfg.KEYWORD_GOOD - 1} Trung bình.".replace(",", ".")
-        )
+            st.caption(f"Keywords marked \"{ks.LOW_DATA}\": score them again or verify with a Dig before relying on them.")
+        with st.expander("How the keyword score is computed"):
+            st.markdown(
+                "The score is the app's own assumption: 50% Demand (median views of the search results, 100 views → 0, "
+                "100K views → 100) + 50% (100 − Competition). Competition = share of results from channels with "
+                f"≥ {cfg.KEYWORD_BIG_CHANNEL_SUBS:,} subs and share of titles that target the exact keyword. "
+                f"Thresholds: ≥ {cfg.KEYWORD_VERY_GOOD} very good · {cfg.KEYWORD_GOOD}–{cfg.KEYWORD_VERY_GOOD - 1} good · "
+                f"{cfg.KEYWORD_AVERAGE}–{cfg.KEYWORD_GOOD - 1} average."
+            )
 
 # ---------------------------------------------------------------------------
-# 4. Prompt
+# 4. Prompts
 # ---------------------------------------------------------------------------
 
 with tab_prompt:
-    style = st.text_input("Kiểu kênh dự định", placeholder="vd. không lộ mặt, giọng AI", key=f"sub_style_{run_id}")
-    st.markdown("**Bung ngách con theo 4 bộ lọc**")
+    theme.section("Prompts for Claude / ChatGPT", "Copy a prompt, or run it in the app when AI is on in Settings.")
+    style = st.text_input("Intended channel style", placeholder="e.g. faceless, AI voice", key=f"sub_style_{run_id}")
+    st.markdown("**Expand sub-niches with the four filters**")
     prompt_box(report.build_subniche_prompt(run, cols, phrases, style))
-    st.markdown("**Kiểm tra 30 ý tưởng cho một ngách con**")
+    st.markdown("**Check 30 ideas for one sub-niche**")
     check = sub_svc.get_check(conn, run_id)
     prompt_box(report.build_ideas_prompt(run, check["promise"], kw_svc.scored_for(conn, run["topic"], run["region"]), style))

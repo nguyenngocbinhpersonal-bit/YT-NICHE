@@ -1,6 +1,6 @@
-"""Bảng RPM ước tính (USD / 1.000 view) theo thị trường × nhóm chủ đề, lưu ở data/rpm_table.csv.
+"""Estimated RPM table (USD per 1,000 views) by market × topic category, stored in data/rpm_table.csv.
 
-Số khởi đầu là ƯỚC TÍNH THÔ để xếp hạng ngách, không phải số liệu thật. Hãy sửa dần theo số của bạn.
+The starting numbers are ROUGH ESTIMATES for ranking niches, not real figures. Adjust them over time with your own numbers.
 """
 
 from __future__ import annotations
@@ -11,24 +11,41 @@ from yt_niche import config as cfg
 
 COLUMNS = ["market", "category", "rpm_low", "rpm_high"]
 
-# RPM khởi đầu cho thị trường VN theo nhóm chủ đề (thấp, cao).
+# Starting RPM for the VN market by topic category (low, high).
 _VN_BASE = {
-    "Giải trí / kể chuyện": (0.3, 0.6),
-    "Lịch sử": (0.4, 0.8),
-    "Giáo dục": (0.5, 1.0),
-    "Tài chính / kinh doanh": (1.0, 2.0),
-    "Công nghệ": (0.6, 1.2),
-    "Sức khỏe": (0.5, 1.0),
-    "Tâm lý / phát triển bản thân": (0.5, 1.0),
-    "Tâm linh / tôn giáo": (0.3, 0.7),
-    "Nấu ăn": (0.4, 0.8),
-    "Du lịch": (0.4, 0.8),
-    "Game": (0.2, 0.5),
-    "Thiếu nhi": (0.2, 0.4),
-    "Âm nhạc / thư giãn": (0.2, 0.5),
+    "Entertainment / storytelling": (0.3, 0.6),
+    "History": (0.4, 0.8),
+    "Education": (0.5, 1.0),
+    "Finance / business": (1.0, 2.0),
+    "Technology": (0.6, 1.2),
+    "Health": (0.5, 1.0),
+    "Psychology / self-improvement": (0.5, 1.0),
+    "Spirituality / religion": (0.3, 0.7),
+    "Cooking": (0.4, 0.8),
+    "Travel": (0.4, 0.8),
+    "Gaming": (0.2, 0.5),
+    "Kids": (0.2, 0.4),
+    "Music / relaxation": (0.2, 0.5),
 }
 
-# Hệ số so với VN (bài 2.1: khán giả Mỹ trả khoảng 4 lần VN).
+# Legacy (Vietnamese) category names → current names, so a user-edited CSV from before the migration keeps working.
+LEGACY_CATEGORIES = {
+    "Giải trí / kể chuyện": "Entertainment / storytelling",
+    "Lịch sử": "History",
+    "Giáo dục": "Education",
+    "Tài chính / kinh doanh": "Finance / business",
+    "Công nghệ": "Technology",
+    "Du lịch": "Travel",
+    "Game": "Gaming",
+    "Nấu ăn": "Cooking",
+    "Sức khỏe": "Health",
+    "Thiếu nhi": "Kids",
+    "Tâm linh / tôn giáo": "Spirituality / religion",
+    "Tâm lý / phát triển bản thân": "Psychology / self-improvement",
+    "Âm nhạc / thư giãn": "Music / relaxation",
+}
+
+# Multiplier relative to VN (lesson 2.1: US audiences pay about 4× VN).
 _MARKET_FACTOR = {
     "VN": 1.0, "US": 4.0, "GB": 3.5, "CA": 3.5, "AU": 3.5, "DE": 3.5, "FR": 2.5,
     "JP": 2.5, "KR": 2.0, "TW": 1.5,
@@ -50,11 +67,19 @@ def load_table() -> pd.DataFrame:
     if not cfg.RPM_TABLE_PATH.exists():
         save_table(default_table())
     df = pd.read_csv(cfg.RPM_TABLE_PATH, encoding="utf-8")
-    # Bảng cũ thiếu thị trường mới thêm: bổ sung số mặc định, giữ nguyên các dòng đã sửa.
+    changed = False
+    # Legacy Vietnamese category names: rename on read, keep the user's numbers.
+    if df["category"].isin(LEGACY_CATEGORIES).any():
+        df["category"] = df["category"].replace(LEGACY_CATEGORIES)
+        df = df.drop_duplicates(subset=["market", "category"], keep="first").reset_index(drop=True)
+        changed = True
+    # An old table missing newly added markets: add the default numbers, keep the edited rows.
     missing = sorted(set(_MARKET_FACTOR) - set(df["market"]))
     if missing:
         default = default_table()
         df = pd.concat([df, default[default["market"].isin(missing)]], ignore_index=True)
+        changed = True
+    if changed:
         save_table(df)
     return df
 

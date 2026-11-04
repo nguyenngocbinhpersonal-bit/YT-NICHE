@@ -1,12 +1,12 @@
-"""Radar từ khoá: mỗi lượt làm MỘT việc nhỏ với Google Trends, các lượt rải đều trong 24 giờ để tránh lỗi 429.
+"""Keyword radar: each tick does ONE small job against Google Trends, with ticks spread over 24 hours to avoid 429s.
 
-Việc của một lượt (còn từ khoá chờ thì kiểm tra trước, để hàng chờ không phình ra):
-- kiểm tra một từ khoá mới (1–3 yêu cầu): loại thực thể ngắn hạn, rồi hình dạng 5 năm;
-- quét một cặp thị trường × danh mục (2 yêu cầu): lấy truy vấn hàng đầu / đang tăng, thêm tối đa RADAR_PER_SOURCE từ mới.
-Sau đó, nếu còn ngân sách quota YouTube trong ngày, chấm YouTube một từ khoá đạt có điểm cao nhất.
+A tick's job (keywords waiting to be checked go first, so the queue does not grow):
+- check one new keyword (1–3 requests): short-lived entity filter, then the 5-year shape;
+- scan one market × category pair (2 requests): fetch top / rising queries, add at most RADAR_PER_SOURCE new keywords.
+Then, if the day's YouTube quota budget allows, YouTube-score the highest-scoring passed keyword.
 
-Gọi tick() từ Windows Task Scheduler (scripts/radar_tick.py) hoặc từ thread nền khi app đang mở; khoá trong DB
-và mốc "lượt kế tiếp" bảo đảm hai nơi gọi cùng lúc không làm gấp đôi số yêu cầu.
+tick() is called from Windows Task Scheduler (scripts/radar_tick.py) or from a background thread while the app is open;
+a lock in the DB and the "next due" timestamp make sure two callers never double the number of requests.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from yt_niche.sources.youtube import QuotaExceeded
 
 ENTITY_TTL = 90 * 86400
 TASK_NAME = "YT-NICHE Radar"
-TASK_EVERY_MINUTES = 2  # Task Scheduler gọi 2 phút/lần; tick tự bỏ qua khi chưa đến lượt
+TASK_EVERY_MINUTES = 2  # Task Scheduler calls every 2 minutes; tick skips itself when it is not due yet
 LOCK_SECONDS = 600
 
 
@@ -43,7 +43,7 @@ def _iso(dt: datetime) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Trạng thái (bảng radar_meta)
+# State (radar_meta table)
 # ---------------------------------------------------------------------------
 
 
@@ -57,7 +57,7 @@ def meta_set(conn: sqlite3.Connection, key: str, value) -> None:
 
 
 def get_scope(conn: sqlite3.Connection) -> dict:
-    """Phạm vi quét: thị trường, danh mục, từ chặn. Mặc định: mọi thị trường, danh mục bền của Google."""
+    """Scan scope: markets, categories, blocklist. Default: every market, Google's evergreen categories."""
     scope = meta_get(conn, "scope") or {}
     markets = [m for m in scope.get("markets", cfg.ENABLED_MARKETS) if m in cfg.ENABLED_MARKETS]
     categories = scope.get("categories")
@@ -72,7 +72,7 @@ def get_scope(conn: sqlite3.Connection) -> dict:
 
 
 def save_scope(conn: sqlite3.Connection, markets: list[str], categories: list[int], blocklist: list[str], all_markets: bool) -> None:
-    """all_markets=True: tự quét cả thị trường thêm sau này."""
+    """all_markets=True: markets added later are scanned automatically too."""
     meta_set(conn, "scope", {
         "markets": list(cfg.ENABLED_MARKETS) if all_markets else markets,
         "all_markets": all_markets,
@@ -86,7 +86,7 @@ def _markets(conn: sqlite3.Connection, scope: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Một lượt
+# One tick
 # ---------------------------------------------------------------------------
 
 
@@ -109,21 +109,21 @@ def next_due(conn: sqlite3.Connection) -> datetime | None:
 
 
 def tick(conn: sqlite3.Connection, now: datetime | None = None, force: bool = False) -> dict:
-    """Chạy một lượt nếu đã đến giờ. Trả về {"action", "detail"}; action="skip" khi chưa đến lượt / đang có lượt khác."""
+    """Run one tick if it is due. Returns {"action", "detail"}; action="skip" when not due yet / another tick is running."""
     now = now or _now()
     apply_markets(conn)
     due = next_due(conn)
     if not force and due and now < due:
-        return {"action": "skip", "detail": f"lượt kế tiếp lúc {due.astimezone():%H:%M}"}
+        return {"action": "skip", "detail": f"next tick at {due.astimezone():%H:%M}"}
     if not _acquire(conn, now):
-        return {"action": "skip", "detail": "đang có lượt khác chạy"}
+        return {"action": "skip", "detail": "another tick is running"}
     try:
         meta_set(conn, "next_due_at", _iso(now + timedelta(seconds=current_interval(conn) * random.uniform(0.8, 1.2))))
         result = {"action": "idle", "detail": "", "requests": 0}
         details = []
-        ai_note = _ai_step(conn, now)  # trước Trends: từ khoá ngắn hạn bị loại sớm, không tốn lượt Google
+        ai_note = _ai_step(conn, now)  # before Trends: short-lived keywords are dropped early, no Google requests spent
         trends.stats["rescued"] = 0
-        for _ in range(MAX_FREE_JOBS):  # việc không gọi Google (đã có trong cache) thì làm tiếp ngay trong lượt này
+        for _ in range(MAX_FREE_JOBS):  # jobs that do not call Google (already cached) continue right away in this tick
             result = _run_trends_job(conn, now)
             details.append(result["detail"])
             if result.get("requests") or result.get("paid") or result["action"] not in ("discover", "check"):
@@ -131,7 +131,7 @@ def tick(conn: sqlite3.Connection, now: datetime | None = None, force: bool = Fa
         result["detail"] = " · ".join(([ai_note] if ai_note else []) + details)
         if rescued := trends.stats["rescued"]:
             result["rescued"] = rescued
-            result["detail"] += f" · Google chặn {rescued} lần, lấy cookie mới thì qua"
+            result["detail"] += f" · Google blocked {rescued} request(s); a fresh cookie got through"
         interval_before = current_interval(conn)
         _adapt_interval(conn, result)
         _log_pace(conn, now, result, interval_before, force)
@@ -154,8 +154,8 @@ MAX_FREE_JOBS = 10
 
 
 def _ai_step(conn: sqlite3.Connection, now: datetime, keys: list[tuple[str, str]] | None = None) -> str | None:
-    """Phân loại AI cho `keys` (region, từ khoá) vừa tìm thấy, hoặc khi không truyền: tối đa ai.RADAR_BATCH từ khoá còn
-    sót chưa phân loại (ưu tiên hàng chờ). Lỗi AI không chặn Radar."""
+    """AI classification for `keys` (region, keyword) just found, or when not given: up to ai.RADAR_BATCH leftover
+    unclassified keywords (queue first). An AI error never blocks the Radar."""
     if not ai.enabled(conn, "radar"):
         return None
     if keys is not None:
@@ -175,8 +175,8 @@ def _ai_step(conn: sqlite3.Connection, now: datetime, keys: list[tuple[str, str]
         return None
     try:
         got = ai.classify_keywords(conn, [r["keyword"] for r in rows])
-    except Exception as e:  # AI lỗi gì cũng không chặn Radar
-        return f"AI lỗi: {str(e)[:80] or type(e).__name__}"
+    except Exception as e:  # whatever the AI error, the Radar goes on
+        return f"AI error: {str(e)[:80] or type(e).__name__}"
     dropped = 0
     for r in rows:
         res = got.get(r["keyword"])
@@ -187,14 +187,14 @@ def _ai_step(conn: sqlite3.Connection, now: datetime, keys: list[tuple[str, str]
             (res["type"], res["vi"], r["region"], r["keyword"]),
         )
         if res["short"] and r["status"] == rd.PENDING:
-            reason = f"AI: {res['label']}" + (f" ({res['why']})" if res["why"] else "") + " – xu hướng ngắn hạn"
+            reason = f"AI: {res['label']}" + (f" ({res['why']})" if res["why"] else "") + " – short-lived trend"
             _set_checked(conn, r["region"], r["keyword"], now, rd.EXCLUDED, reason, None, None)
             dropped += 1
-    return f"AI phân loại {len(got)} từ khoá, loại {dropped} ngắn hạn"
+    return f"AI classified {len(got)} keywords, dropped {dropped} short-lived"
 
 
 def current_interval(conn: sqlite3.Connection) -> float:
-    """Khoảng cách hiện tại giữa các lượt (giây). Đổi RADAR_INTERVAL_S ở Cài đặt thì bắt đầu lại từ giá trị đó."""
+    """Current gap between ticks (seconds). Changing RADAR_INTERVAL_S in Settings restarts from that value."""
     state = meta_get(conn, "pace") or {}
     if state.get("base") != cfg.RADAR_INTERVAL_S:
         return float(cfg.RADAR_INTERVAL_S)
@@ -206,7 +206,7 @@ def _speedup_factor() -> float:
 
 
 def time_to_max_pace(conn: sqlite3.Connection) -> float:
-    """Số giờ đến khi đạt nhịp nhanh nhất nếu Google không chặn lần nào (0 nếu đã đạt)."""
+    """Hours until the fastest pace is reached if Google never blocks (0 if already there)."""
     interval = current_interval(conn)
     state = meta_get(conn, "pace") or {}
     left = cfg.RADAR_SPEEDUP_EVERY - (state.get("streak", 0) if state.get("base") == cfg.RADAR_INTERVAL_S else 0)
@@ -218,7 +218,7 @@ def time_to_max_pace(conn: sqlite3.Connection) -> float:
 
 
 def _adapt_interval(conn: sqlite3.Connection, result: dict) -> None:
-    """Nhanh dần khi Google không chặn, chậm gấp đôi khi bị chặn."""
+    """Speed up gradually while Google does not block, slow down twofold when it does."""
     state = meta_get(conn, "pace") or {}
     interval = current_interval(conn)
     streak = state.get("streak", 0) if state.get("base") == cfg.RADAR_INTERVAL_S else 0
@@ -239,7 +239,7 @@ PACE_LOG_DAYS = 180
 
 
 def _log_pace(conn: sqlite3.Connection, now: datetime, result: dict, interval_before: float, forced: bool) -> None:
-    """Ghi một dòng nhịp quét (lượt nhàn rỗi không gọi Google thì bỏ qua)."""
+    """Write one pace-log row (idle ticks that did not call Google are skipped)."""
     if not result.get("requests") and not result.get("throttled") and not result.get("rescued"):
         return
     ts = _iso(now)
@@ -265,7 +265,7 @@ def pace_log(conn: sqlite3.Connection, days: float, now: datetime | None = None)
 
 
 def pace_report(conn: sqlite3.Connection, days: float = 7, now: datetime | None = None) -> dict:
-    """Tóm tắt để hiệu chỉnh nhịp: Google chặn ở mức bao nhiêu yêu cầu/giờ, nhịp nào đã chạy an toàn, gợi ý nhịp nhanh nhất."""
+    """Summary for tuning the pace: at how many requests/hour Google blocks, which pace ran safely, suggested fastest pace."""
     rows = pace_log(conn, days, now)
     blocks = [r for r in rows if r["throttled"]]
     ok = [r for r in rows if not r["throttled"] and r["requests"]]
@@ -285,7 +285,7 @@ def pace_report(conn: sqlite3.Connection, days: float = 7, now: datetime | None 
         "suggested_min_interval": None,
     }
     if blocks:
-        # Giữ dưới 80% mức yêu cầu/giờ thấp nhất từng bị chặn.
+        # Stay below 80% of the lowest requests/hour that ever got blocked.
         safe_per_hour = max(1.0, 0.8 * out["min_block_req_1h"])
         out["suggested_min_interval"] = max(30, round(3600 * req_per_tick / safe_per_hour))
     return out
@@ -295,31 +295,31 @@ GOOGLE, BACKUP = "google", "dataforseo"
 
 
 def _run_trends_job(conn: sqlite3.Connection, now: datetime) -> dict:
-    """Một việc Trends. Google đang chặn mà đã bật DataForSEO cho Radar thì làm qua DataForSEO (trả phí, có giới hạn/ngày)."""
+    """One Trends job. While Google blocks, if DataForSEO is enabled for the Radar, run it through DataForSEO (paid, daily cap)."""
     via = GOOGLE
     if until := trends.cooldown_until(conn):
         if dfs.unavailable_reason(conn, "radar"):
-            return {"action": "cooldown", "detail": f"Google đang tạm chặn, nghỉ đến {until:%H:%M}"}
+            return {"action": "cooldown", "detail": f"Google is blocking for now, resting until {until:%H:%M}"}
         via = BACKUP
     try:
         scope = get_scope(conn)
     except trends.Throttled:
         trends.start_cooldown(conn)
-        return {"action": "cooldown", "detail": "Google tạm chặn khi lấy cây danh mục", "throttled": True}
+        return {"action": "cooldown", "detail": "Google blocked while fetching the category tree", "throttled": True}
     try:
         return _job(conn, scope, now, via)
     except trends.Throttled:
         trends.start_cooldown(conn)
-        note = f"{trends.THROTTLED}: nghỉ {trends.COOLDOWN_SECONDS // 60} phút, chậm lại gấp đôi"
+        note = f"{trends.THROTTLED}: resting {trends.COOLDOWN_SECONDS // 60} min, slowing down twofold"
         if dfs.unavailable_reason(conn, "radar"):
             return {"action": "cooldown", "throttled": True, "detail": note}
         try:
             res = _job(conn, scope, now, BACKUP)
         except dfs.BackupError as e:
-            return {"action": "cooldown", "throttled": True, "detail": f"{note}; DataForSEO lỗi: {e}"}
+            return {"action": "cooldown", "throttled": True, "detail": f"{note}; DataForSEO error: {e}"}
         return {**res, "throttled": True, "detail": f"{note} → {res['detail']}"}
     except dfs.BackupError as e:
-        return {"action": "cooldown", "detail": f"Google đang tạm chặn; DataForSEO lỗi: {e}"}
+        return {"action": "cooldown", "detail": f"Google is blocking for now; DataForSEO error: {e}"}
 
 
 def _job(conn: sqlite3.Connection, scope: dict, now: datetime, via: str) -> dict:
@@ -327,11 +327,11 @@ def _job(conn: sqlite3.Connection, scope: dict, now: datetime, via: str) -> dict
         return check_keyword(conn, pending, now, via)
     if source := _next_source(conn, scope, now):
         return discover(conn, *source, scope["blocklist"], now, via)
-    return {"action": "idle", "detail": "mọi cặp trong phạm vi đều chưa đến hạn quét lại"}
+    return {"action": "idle", "detail": "no pair in scope is due for a rescan yet"}
 
 
 def _cost(via: str, calls: int = 1) -> dict:
-    """Mỗi lần gọi Google: 2 yêu cầu (explore + dữ liệu) tính vào nhịp quét. DataForSEO: 1 lượt trả phí, không tính vào nhịp Google."""
+    """Each Google call: 2 requests (explore + data) counted against the pace. DataForSEO: 1 paid call, not counted against Google's pace."""
     return {"requests": 2 * calls} if via == GOOGLE else {"requests": 0, "paid": calls}
 
 
@@ -340,7 +340,7 @@ def _via_note(via: str) -> str:
 
 
 def _rescan_hours(src: dict | None, passes: int) -> float:
-    """Chưa quét: ngay. Không có dữ liệu: 7 ngày. Quét từ 3 lần chưa ra từ khoá đạt: 3 ngày. Còn lại: 24 giờ."""
+    """Never scanned: now. No data: 7 days. Scanned 3+ times without a passed keyword: 3 days. Otherwise: 24 hours."""
     if src is None:
         return 0
     if src["error"] or not src["n_found"]:
@@ -360,7 +360,7 @@ def _pair_state(conn: sqlite3.Connection, scope: dict) -> list[dict]:
                WHERE status IN ('passed', 'watching') GROUP BY region, category_id"""
         )
     }
-    # Xen kẽ thị trường: danh mục 1 của mọi nước, rồi danh mục 2...
+    # Interleave markets: category 1 of every market, then category 2...
     return [
         {"pair": (m, c), "scanned_at": (sources.get((m, c)) or {}).get("scanned_at"),
          "hours": _rescan_hours(sources.get((m, c)), passes.get((m, c), 0))}
@@ -369,7 +369,7 @@ def _pair_state(conn: sqlite3.Connection, scope: dict) -> list[dict]:
 
 
 def _next_source(conn: sqlite3.Connection, scope: dict, now: datetime) -> tuple[str, int] | None:
-    """Cặp đến hạn quét lâu nhất (chưa quét bao giờ thì trước)."""
+    """The pair that has been due the longest (never scanned goes first)."""
     due = [
         p for p in _pair_state(conn, scope)
         if p["scanned_at"] is None or datetime.fromisoformat(p["scanned_at"]) <= now - timedelta(hours=p["hours"])
@@ -378,7 +378,7 @@ def _next_source(conn: sqlite3.Connection, scope: dict, now: datetime) -> tuple[
 
 
 def _next_pending(conn: sqlite3.Connection) -> dict | None:
-    """Từ khoá chờ kiểm tra của thị trường đang bật (thị trường đã tắt thì bỏ qua, không tốn yêu cầu)."""
+    """Keyword waiting to be checked in an enabled market (disabled markets are skipped, no requests spent)."""
     markets = cfg.ENABLED_MARKETS
     row = conn.execute(
         f"""SELECT * FROM radar_keyword WHERE status = 'pending' AND region IN ({','.join('?' * len(markets))})
@@ -391,7 +391,7 @@ def _next_pending(conn: sqlite3.Connection) -> dict | None:
 def discover(
     conn: sqlite3.Connection, region: str, category_id: int, blocklist: list[str], now: datetime, via: str = GOOGLE
 ) -> dict:
-    """Quét một danh mục ở một thị trường: cập nhật từ khoá đã biết, thêm tối đa RADAR_PER_SOURCE từ khoá mới."""
+    """Scan one category in one market: update known keywords, add at most RADAR_PER_SOURCE new ones."""
     try:
         if via == BACKUP:
             found = dfs.category_queries(conn, "radar", region, category_id)
@@ -399,10 +399,10 @@ def discover(
             found = trends.category_queries(region, category_id)
     except (trends.Throttled, dfs.BackupError):
         raise
-    except Exception as e:  # lỗi khác (danh mục không có dữ liệu ở nước này...): ghi lại rồi bỏ qua
+    except Exception as e:  # other errors (category has no data in this market...): record and move on
         _save_source(conn, region, category_id, now, 0, f"{type(e).__name__}: {str(e)[:150]}")
         return {"action": "discover", **_cost(via),
-                "detail": f"{region} · danh mục {category_id}: lỗi {type(e).__name__}{_via_note(via)}"}
+                "detail": f"{region} · category {category_id}: error {type(e).__name__}{_via_note(via)}"}
 
     day, ts = now.astimezone().date().isoformat(), _iso(now)
     known = {rd.fold(r["keyword"]): dict(r) for r in conn.execute("SELECT * FROM radar_keyword WHERE region = ?", (region,))}
@@ -413,14 +413,14 @@ def discover(
         for q, v in found.get(kind, []):
             key = rd.fold(q)
             if (row := known.get(key)) is None or key in seen_again:
-                continue  # có ở cả hai danh sách: chỉ tính một lần
+                continue  # present in both lists: count it once
             seen_again.add(key)
             new_day = datetime.fromisoformat(row["last_seen"]).astimezone().date().isoformat() != day
             status = row["status"]
             if status == rd.PASSED and (row["checked_at"] or "") < recheck_before:
-                status = rd.PENDING  # đạt từ lâu: kiểm lại hình dạng
+                status = rd.PENDING  # passed long ago: re-check the shape
             elif status == rd.EXCLUDED and '"retry": true' in (row["trend_json"] or "") and (row["checked_at"] or "") < spike_before:
-                status = rd.PENDING  # vừa tăng vọt lần trước mà vẫn còn xuất hiện: xem đã thành xu hướng bền chưa
+                status = rd.PENDING  # spiked last time but still showing up: see whether it became a lasting trend
             conn.execute(
                 """UPDATE radar_keyword SET last_seen = ?, seen_days = seen_days + ?, value = MAX(value, ?),
                        status = ? WHERE region = ? AND keyword = ?""",
@@ -436,8 +436,8 @@ def discover(
         )
     n = len(found.get("rising", [])) + len(found.get("top", []))
     _save_source(conn, region, category_id, now, n, "")
-    detail = f"{region} · danh mục {category_id}: {n} truy vấn, {len(new)} mới, {len(seen_again)} gặp lại{_via_note(via)}"
-    # Phân loại AI ngay khi có từ khoá mới (nghĩa, loại; ngắn hạn thì loại luôn, khỏi tốn lượt Google kiểm tra).
+    detail = f"{region} · category {category_id}: {n} queries, {len(new)} new, {len(seen_again)} seen again{_via_note(via)}"
+    # Classify with AI as soon as there are new keywords (meaning, type; short-lived ones are dropped right away, no Google requests).
     if new and (ai_note := _ai_step(conn, now, [(region, k["keyword"]) for k in new])):
         detail += f" · {ai_note}"
     return {"action": "discover", **_cost(via), "detail": detail}
@@ -453,10 +453,10 @@ def _save_source(conn: sqlite3.Connection, region: str, category_id: int, now: d
 
 
 def check_keyword(conn: sqlite3.Connection, row: dict, now: datetime, via: str = GOOGLE) -> dict:
-    """Loại thực thể ngắn hạn, rồi xét lượng tìm 30 ngày trên YouTube Search và Google Search. Ghi đạt / đã loại."""
+    """Drop short-lived entities, then judge the 30-day search volume on YouTube Search and Google Search. Record passed / excluded."""
     region, kw = row["region"], row["keyword"]
-    # Loại thực thể là của Google toàn cầu, không theo nước: kiểm một lần, các nước khác dùng lại.
-    # Gợi ý thực thể (autocomplete) không bị Google giới hạn như dữ liệu Trends: không tính vào nhịp quét.
+    # Entity types are global to Google, not per market: check once, other markets reuse it.
+    # Entity suggestions (autocomplete) are not rate-limited like Trends data: not counted against the pace.
     key = cache.make_key("radar_entity", {"q": rd.fold(kw)})
     if (entities := cache.get(conn, key)) is None:
         try:
@@ -465,16 +465,16 @@ def check_keyword(conn: sqlite3.Connection, row: dict, now: datetime, via: str =
         except trends.Throttled:
             if via == GOOGLE:
                 raise
-            entities = []  # đang dùng DataForSEO: bỏ qua bước này, xét lượng tìm như thường
+            entities = []  # on DataForSEO: skip this step, judge the volume as usual
         except Exception:
             entities = []
     hit = rd.short_term_entity(kw, entities)
     entity_type = hit["type"] if hit else (entities[0]["type"] if entities else None)
     if hit:
-        _set_checked(conn, region, kw, now, rd.EXCLUDED, f"{hit['title']} là {hit['type']} (xu hướng ngắn hạn)", entity_type, None)
-        return {"action": "check", "requests": 0, "detail": f"{region} · \"{kw}\": loại ({hit['type']})"}
+        _set_checked(conn, region, kw, now, rd.EXCLUDED, f"{hit['title']} is a {hit['type']} (short-lived trend)", entity_type, None)
+        return {"action": "check", "requests": 0, "detail": f"{region} · \"{kw}\": excluded ({hit['type']})"}
     volume = {}
-    for source in ("youtube", "web"):  # YouTube trước: thưa hơn, thiếu thì loại luôn, khỏi gọi Google Search
+    for source in ("youtube", "web"):  # YouTube first: sparser, so if it is missing exclude right away and skip Google Search
         try:
             if via == BACKUP:
                 points = dfs.series(conn, "radar", [kw], region, source, "1m")[kw]
@@ -483,10 +483,10 @@ def check_keyword(conn: sqlite3.Connection, row: dict, now: datetime, via: str =
         except (trends.Throttled, dfs.BackupError):
             raise
         except Exception as e:
-            reason = f"Google Trends lỗi khi lấy 30 ngày ({rd.SOURCE_LABEL[source]}): {type(e).__name__} {str(e)[:120]}"
+            reason = f"Google Trends error while fetching 30 days ({rd.SOURCE_LABEL[source]}): {type(e).__name__} {str(e)[:120]}"
             _set_checked(conn, region, kw, now, rd.EXCLUDED, reason, entity_type, None)
             return {"action": "check", **_cost(via, len(volume) + 1),
-                    "detail": f"{region} · \"{kw}\": loại ({reason[:60]}){_via_note(via)}"}
+                    "detail": f"{region} · \"{kw}\": excluded ({reason[:60]}){_via_note(via)}"}
         volume[source] = rd.volume_30d(points)
         if not volume[source]["ok"]:
             break
@@ -516,7 +516,7 @@ def _refresh_potential(conn: sqlite3.Connection, region: str, kw: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Chấm YouTube (tốn quota, giới hạn mỗi ngày)
+# YouTube scoring (spends quota, daily cap)
 # ---------------------------------------------------------------------------
 
 
@@ -525,7 +525,7 @@ def yt_units_today(conn: sqlite3.Connection, now: datetime | None = None) -> int
 
 
 def score_youtube(conn: sqlite3.Connection, region: str, keyword: str, now: datetime | None = None) -> int:
-    """Chấm một từ khoá bằng điểm từ khoá YouTube (≈102 unit). Trả về số unit đã dùng."""
+    """Score one keyword with the YouTube keyword score (≈102 units). Returns the units spent."""
     from yt_niche.services.keywords import _score_many
 
     now = now or _now()
@@ -555,14 +555,14 @@ def _score_youtube(conn: sqlite3.Connection, now: datetime) -> str | None:
         units = score_youtube(conn, row["region"], row["keyword"], now)
     except QuotaExceeded:
         meta_set(conn, f"yt_units:{now.astimezone().date().isoformat()}", cfg.RADAR_YT_UNITS_PER_DAY)
-        return "hết quota YouTube hôm nay"
+        return "YouTube quota exhausted for today"
     except Exception as e:
-        return f"chấm YouTube lỗi: {type(e).__name__}"
-    return f"chấm YouTube \"{row['keyword']}\" ({units} unit)"
+        return f"YouTube scoring error: {type(e).__name__}"
+    return f"YouTube-scored \"{row['keyword']}\" ({units} units)"
 
 
 # ---------------------------------------------------------------------------
-# Đọc / thao tác cho giao diện
+# Reading / actions for the UI
 # ---------------------------------------------------------------------------
 
 
@@ -604,14 +604,14 @@ def stats(conn: sqlite3.Connection, now: datetime | None = None) -> dict:
     counts = {r["status"]: r["n"] for r in conn.execute("SELECT status, COUNT(*) AS n FROM radar_keyword GROUP BY status")}
     try:
         state = _pair_state(conn, get_scope(conn))
-    except trends.Throttled:
+    except Exception:  # 429, no network, proxy refused: stats are display-only, show what the DB has
         state = []
     interval = current_interval(conn)
     jobs_per_day = 86400 / interval
-    # Số lượt cho mỗi cặp = 1 lượt quét + số lượt kiểm tra kéo theo, đo từ số liệu thật (chưa đủ thì ước tính xấu nhất).
+    # Ticks per pair = 1 scan + the checks it triggers, measured from real data (worst-case estimate until there is enough).
     jc = meta_get(conn, "job_counts") or {}
     per_pair = (jc.get("discover", 0) + jc.get("check", 0)) / jc["discover"] if jc.get("discover", 0) >= 5 else 1 + cfg.RADAR_PER_SOURCE
-    # Cặp quét thưa (7 ngày, 3 ngày) chỉ chiếm một phần lượt mỗi ngày.
+    # Pairs scanned rarely (7 days, 3 days) take only a fraction of the ticks per day.
     daily_pairs = sum(1 if not p["hours"] else min(1.0, 24 / p["hours"]) for p in state)
     unscanned = sum(p["scanned_at"] is None for p in state)
     cutoff = _iso(now - timedelta(hours=cfg.RADAR_RESCAN_HOURS))
@@ -626,7 +626,7 @@ def stats(conn: sqlite3.Connection, now: datetime | None = None) -> dict:
         "interval_s": round(interval),
         "cycle_days": round(daily_pairs * per_pair / jobs_per_day, 1) if state else None,
         "first_sweep_days": round(unscanned * per_pair / jobs_per_day, 1),
-        # Ở nhịp nhanh nhất (nếu Google không chặn): RADAR_MIN_INTERVAL_S giây/lượt.
+        # At the fastest pace (if Google never blocks): RADAR_MIN_INTERVAL_S seconds per tick.
         "max_jobs_per_day": round(86400 / cfg.RADAR_MIN_INTERVAL_S),
         "cycle_days_at_max": round(daily_pairs * per_pair / (86400 / cfg.RADAR_MIN_INTERVAL_S), 1) if state else None,
         "hours_to_max": round(time_to_max_pace(conn), 1),
@@ -639,7 +639,7 @@ def stats(conn: sqlite3.Connection, now: datetime | None = None) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Lịch chạy nền của Windows (Task Scheduler)
+# Windows background schedule (Task Scheduler)
 # ---------------------------------------------------------------------------
 
 
@@ -650,7 +650,7 @@ def _task_command() -> str:
 
 
 def task_status() -> bool | None:
-    """True: đã bật; False: chưa; None: không phải Windows."""
+    """True: enabled; False: not yet; None: not Windows."""
     if sys.platform != "win32":
         return None
     r = subprocess.run(["schtasks", "/Query", "/TN", TASK_NAME], capture_output=True, text=True)

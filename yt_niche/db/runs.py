@@ -1,4 +1,4 @@
-"""Lưu và đọc các lần đào ngách (bảng dig_run)."""
+"""Save and read dig runs (the dig_run table)."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def set_checked_channels(conn: sqlite3.Connection, run_id: int, channel_ids: lis
 
 
 def set_channel_note(conn: sqlite3.Connection, run_id: int, channel_id: str, *, note: str, reup: bool) -> None:
-    """Nhận xét một kênh nhỏ nổ: điểm lặp lại (góc kể, thời lượng, ảnh bìa) và có phải kênh re-up không."""
+    """Note on one small booming channel: what it repeats (angle, length, thumbnail) and whether it is a re-upload channel."""
     row = conn.execute("SELECT channel_notes FROM dig_run WHERE id = ?", (run_id,)).fetchone()
     notes = json.loads(row["channel_notes"] or "{}")
     note = " ".join(note.split())
@@ -78,7 +78,7 @@ def set_channel_note(conn: sqlite3.Connection, run_id: int, channel_id: str, *, 
 
 
 def format_variants(conn: sqlite3.Connection, run: dict) -> list[dict]:
-    """Các lần đào cùng chủ đề, thị trường, khoảng thời gian nhưng mọi định dạng (để so Mọi độ dài với định dạng thắng)."""
+    """Digs with the same topic, market and time window in any format (to compare Any length with the winning format)."""
     rows = conn.execute(
         f"""SELECT {SUMMARY_COLUMNS} FROM dig_run
             WHERE topic = ? AND region = ? AND language = ? AND window_days = ?
@@ -109,7 +109,7 @@ def list_all(conn: sqlite3.Connection) -> list[dict]:
 
 
 def same_setup(conn: sqlite3.Connection, run: dict) -> list[dict]:
-    """Các lần đào cùng chủ đề, thị trường, khoảng thời gian và định dạng; mới nhất trước."""
+    """Digs with the same topic, market, time window and format; newest first."""
     rows = conn.execute(
         f"""SELECT {SUMMARY_COLUMNS} FROM dig_run
             WHERE topic = ? AND region = ? AND language = ? AND window_days = ? AND fmt = ?

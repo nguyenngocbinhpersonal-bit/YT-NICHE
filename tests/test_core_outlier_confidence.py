@@ -23,7 +23,7 @@ def test_outlier_level(ratio, level):
 def test_channel_median_uses_matching_format_and_min_sample():
     ch = channel(median_long=1000, n_long=20, median_short=200, n_short=3)
     assert channel_median_for(ch, "long") == 1000
-    assert channel_median_for(ch, "shorts") is None  # chỉ 3 Shorts, chưa đủ 5
+    assert channel_median_for(ch, "shorts") is None  # only 3 Shorts, fewer than 5
     assert channel_median_for(ch, "mid") is None
 
 
@@ -31,8 +31,8 @@ def test_enrich_marks_estimated():
     chans = {"A": channel("A", median_long=500), "H": channel("H", subs=None)}
     out = enrich_videos([video("1", "A", views=5000), video("2", "H", views=10), video("3", "X", views=10)], chans)
     assert out[0]["outlier"] == 10 and out[0]["level"] == LEVEL_VIRAL and not out[0]["estimated"]
-    assert out[1]["estimated"]  # ẩn sub
-    assert out[2]["estimated"] and out[2]["outlier"] is None  # thiếu kênh
+    assert out[1]["estimated"]  # hidden subs
+    assert out[2]["estimated"] and out[2]["outlier"] is None  # channel missing
 
 
 @pytest.mark.parametrize(

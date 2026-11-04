@@ -1,14 +1,14 @@
-"""Thu nhập ước tính mỗi video và bậc RPM (tầng Tiền, bài 2.1)."""
+"""Estimated income per video and RPM tier (Money tier, lesson 2.1)."""
 
 from __future__ import annotations
 
 from yt_niche import config as cfg
 
-RPM_LOW, RPM_MEDIUM, RPM_HIGH = "thấp", "vừa", "cao"
+RPM_LOW, RPM_MEDIUM, RPM_HIGH = "low", "medium", "high"
 
 
 def income_per_video(median_views: float | None, rpm_low: float, rpm_high: float) -> tuple[float, float] | None:
-    """≈ trung vị view × RPM ÷ 1000, dạng khoảng. Chỉ dùng để so ngách, không phải thu nhập thật."""
+    """≈ median views × RPM ÷ 1000, as a range. Only for comparing niches, not real income."""
     if not median_views:
         return None
     return round(median_views * rpm_low / 1000, 1), round(median_views * rpm_high / 1000, 1)

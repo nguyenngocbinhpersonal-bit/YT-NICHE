@@ -1,4 +1,4 @@
-"""Thời lượng video và phân loại định dạng Dài / Shorts."""
+"""Video duration and Long-form / Shorts classification."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ _DURATION_RE = re.compile(
 
 
 def parse_duration(iso: str) -> int:
-    """Đổi thời lượng ISO 8601 (vd. PT1H2M3S) ra số giây; 0 nếu không đọc được."""
+    """ISO 8601 duration (e.g. PT1H2M3S) to seconds; 0 when it cannot be parsed."""
     match = _DURATION_RE.fullmatch(iso or "")
     if not match:
         return 0
@@ -23,7 +23,7 @@ def parse_duration(iso: str) -> int:
 
 
 def classify(seconds: int) -> str:
-    """Shorts ≤ 180s, video dài ≥ 240s, khoảng giữa là 'mid' (không đưa vào phép so)."""
+    """Shorts ≤ 180s, long-form ≥ 240s, in between is 'mid' (left out of comparisons)."""
     if seconds <= cfg.SHORTS_MAX_SECONDS:
         return SHORTS
     if seconds >= cfg.LONG_MIN_SECONDS:

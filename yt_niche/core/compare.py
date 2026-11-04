@@ -1,4 +1,4 @@
-"""So 2–5 ngách bằng bảng 7 cột (bài 2.4)."""
+"""Compare 2–5 niches in a 7-column table (lesson 2.4)."""
 
 from __future__ import annotations
 
@@ -11,30 +11,35 @@ from yt_niche.core.reading import seven_cells
 from yt_niche.core.scorecard import setup_warnings
 from yt_niche.core.trends_classify import FAD, FALLING, SEASONAL, STABLE
 
-# Khi điểm gần nhau, ngách bền thắng ngách trào lưu hoặc đang giảm.
+# When scores are close, an evergreen niche beats a fad or a declining one.
 TREND_RANK = {STABLE: 4, SEASONAL: 3, FAD: 1, FALLING: 0, None: 2}
-ABILITY = {"long": "Video dài", "shorts": "Shorts", "both": "Cả hai"}
+ABILITY = {"long": "Long-form", "shorts": "Shorts", "both": "Both"}
 
 COLUMNS = {
-    "score": "Điểm ngách",
-    "confidence": "Độ tin cậy",
-    "median_views": "Lượt xem trung vị",
-    "doors": "Vượt trội / kênh nhỏ nổ",
-    "trends": "Trends 1 năm / 5 năm",
-    "income": "Thu nhập/video (≈)",
-    "format": "Định dạng thắng",
+    "score": "Niche score",
+    "confidence": "Confidence",
+    "median_views": "Median views",
+    "doors": "Outperformers / small booming",
+    "trends": "Trends 1y / 5y",
+    "income": "Income per video (≈)",
+    "format": "Winning format",
 }
+
+GAP_CLEAR = "clear gap"
+GAP_MODERATE = "moderate gap, check the other columns"
+GAP_NOISE = "noise, treat as a tie"
+GAP_TIE = "treat as a tie, decide by the other columns"
 
 
 def gap_verdict(gap: float) -> str:
     gap = abs(gap)
     if gap >= cfg.COMPARE_CLEAR_GAP:
-        return "khác biệt rõ"
+        return GAP_CLEAR
     if gap >= cfg.COMPARE_TIE_GAP:
-        return "chênh vừa, xem thêm các cột khác"
+        return GAP_MODERATE
     if gap <= cfg.COMPARE_NOISE_GAP:
-        return "nhiễu, coi như ngang"
-    return "coi như ngang, quyết bằng cột khác"
+        return GAP_NOISE
+    return GAP_TIE
 
 
 def _format_fit(run: dict, ability: str | None) -> tuple[str | None, bool]:
@@ -69,7 +74,7 @@ def _row(run: dict, ability: str | None) -> dict:
 
 
 def _best(rows: list[dict]) -> dict[str, set[int]]:
-    """Ô tốt nhất mỗi cột (để tô xanh), chỉ tính trong các ngách được xếp hạng."""
+    """Best cell of each column (to highlight), among ranked niches only."""
 
     def top(key) -> set[int]:
         vals = [(key(r), r["id"]) for r in rows if key(r) is not None]
@@ -91,28 +96,28 @@ def _best(rows: list[dict]) -> dict[str, set[int]]:
 
 
 def _tie_key(r: dict) -> tuple:
-    # Bài 2.4: ngang điểm thì quyết bằng Trends, kênh nhỏ nổ, nguồn thu ngoài quảng cáo (sản xuất: chấm tay ở bài 2.5).
+    # Lesson 2.4: on a tie decide by Trends, small booming channels, money beyond ads (production is scored by hand in 2.5).
     return (TREND_RANK.get(r["trend_class"], 2), r["small_channels"], r["affiliates"], r["score"])
 
 
 def _risk(r: dict) -> str:
     if r["trend_class"] == FALLING:
-        return "Trends đang rơi: cần góc mới và ngách dự phòng"
+        return "Trends are declining: needs a fresh angle and a backup niche"
     if r["trend_class"] == FAD:
-        return "Trends là trào lưu: khó xây cả kênh"
+        return "Trends say fad: hard to build a whole channel"
     if r["small_channels"] < cfg.SUPPLY_WEAK_SMALL_CHANNELS:
-        return f"chỉ {r['small_channels']} kênh nhỏ nổ: có thể là ngách của kênh lớn"
+        return f"only {r['small_channels']} small booming channels: may be a big-channel niche"
     if r["confidence"] != HIGH:
-        return f"độ tin cậy {r['confidence']} ({r['n']} video): nên đào lại cho đủ mẫu"
+        return f"confidence {r['confidence']} ({r['n']} videos): re-dig for a bigger sample"
     if not r["income"]:
-        return "chưa có RPM nên chưa biết tầng Tiền"
+        return "no RPM yet, so the Money tier is unknown"
     if r["trend_class"] is None:
-        return "chưa có Google Trends để kiểm tra cầu bền"
-    return "thu nhập ước tính chỉ để so tương đối, không phải số để tính lương"
+        return "no Google Trends yet to check for evergreen demand"
+    return "estimated income is only for relative comparison, not a salary figure"
 
 
 def compare(runs: list[dict], ability: str | None = None) -> dict:
-    """runs: lần đào (dict từ db.runs). ability: long | shorts | both — định dạng bạn làm được."""
+    """runs: dig runs (dicts from db.runs). ability: long | shorts | both — the format you can produce."""
     all_rows = [_row(r, ability) for r in runs]
     excluded = [r for r in all_rows if r["confidence"] == LOW]
     rows = sorted((r for r in all_rows if r["confidence"] != LOW), key=lambda r: -r["score"])
@@ -121,10 +126,10 @@ def compare(runs: list[dict], ability: str | None = None) -> dict:
     for run in runs:
         sheet = seven_cells(run)
         if not sheet["complete"]:
-            warnings.append(f"{run['topic']}: phiếu 7 ô chưa đủ (thiếu {', '.join(sheet['missing'])})")
+            warnings.append(f"{run['topic']}: 7-cell sheet incomplete (missing {', '.join(sheet['missing'])})")
     ns = [r["n"] for r in rows if r["n"]]
     if ns and max(ns) / min(ns) >= cfg.COMPARE_SAMPLE_RATIO:
-        warnings.append(f"Cỡ mẫu chênh nhiều ({min(ns)} và {max(ns)} video): không so số tuyệt đối ngang nhau được")
+        warnings.append(f"Sample sizes differ a lot ({min(ns)} and {max(ns)} videos): absolute numbers are not comparable")
 
     medians = [r["median_views"] for r in rows if r["median_views"]]
     view_ratio = round(max(medians) / min(medians), 1) if len(medians) >= 2 else None
@@ -141,22 +146,22 @@ def compare(runs: list[dict], ability: str | None = None) -> dict:
         if len(close) == 1:
             leader = top
             second = rows[1] if len(rows) > 1 else None
-            why = f"điểm cao nhất ({top['score']:.0f})" + (
-                f", hơn {second['name']} {top['score'] - second['score']:.0f} điểm ({gap_verdict(top['score'] - second['score'])})"
+            why = f"highest score ({top['score']:.0f})" + (
+                f", {top['score'] - second['score']:.0f} points ahead of {second['name']} ({gap_verdict(top['score'] - second['score'])})"
                 if second
                 else ""
             )
         else:
             leader = max(close, key=_tie_key)
             names = ", ".join(f"{r['name']} {r['score']:.0f}" for r in close)
-            why = f"ngang điểm ({names}), quyết bằng Trends → kênh nhỏ nổ → affiliate"
+            why = f"tied ({names}), decided by Trends → small booming channels → affiliates"
 
     big_channel_niches = [
         r["name"] for r in rows if r["score"] >= cfg.LABEL_POTENTIAL_MIN and r["small_channels"] < cfg.SUPPLY_WEAK_SMALL_CHANNELS
     ]
-    # "Ngõ" của ngách thua: còn kênh nhỏ nổ thì đừng loại mà không mở khung kênh nổ.
+    # "Doors" of the losing niches: while small channels still boom, do not drop them without opening the boom cards.
     doors = [
-        f"{r['name']}: còn {r['small_channels']} kênh nhỏ nổ" + (f", hợp {ABILITY.get(r['format_fit'], r['format_fit'])}" if r["format_fit"] else "")
+        f"{r['name']}: still {r['small_channels']} small booming channels" + (f", fits {ABILITY.get(r['format_fit'], r['format_fit'])}" if r["format_fit"] else "")
         for r in rows
         if leader and r["id"] != leader["id"] and r["small_channels"] > 0
     ]
@@ -178,23 +183,23 @@ def compare(runs: list[dict], ability: str | None = None) -> dict:
 
 
 def _differentiator(leader: dict, rows: list[dict]) -> str:
-    """Cột tạo khác biệt lớn nhất cho ngách dẫn đầu (so với ngách đứng sau tốt nhất ở từng cột)."""
+    """The column where the leader gains most (against the best runner-up in each column)."""
     others = [r for r in rows if r["id"] != leader["id"]]
     if not others:
-        return "chỉ có một ngách đủ tin cậy để xếp hạng"
+        return "only one niche is confident enough to rank"
     gains = []
     best_other_median = max((r["median_views"] or 0) for r in others)
     if leader["median_views"] and best_other_median:
-        gains.append((leader["median_views"] / best_other_median, f"lượt xem trung vị gấp {leader['median_views'] / best_other_median:.1f} lần"))
+        gains.append((leader["median_views"] / best_other_median, f"median views {leader['median_views'] / best_other_median:.1f}× higher"))
     best_other_small = max(r["small_channels"] for r in others)
     if leader["small_channels"] > best_other_small:
-        gains.append(((leader["small_channels"] + 1) / (best_other_small + 1), f"{leader['small_channels']} kênh nhỏ nổ so với tối đa {best_other_small}"))
+        gains.append(((leader["small_channels"] + 1) / (best_other_small + 1), f"{leader['small_channels']} small booming channels vs at most {best_other_small}"))
     if TREND_RANK.get(leader["trend_class"], 2) > max(TREND_RANK.get(r["trend_class"], 2) for r in others):
-        gains.append((1.5, f"Trends {leader['trend_class']} tốt hơn các ngách còn lại"))
+        gains.append((1.5, f"Trends {leader['trend_class']} beats the other niches"))
     best_other_income = max((r["income"][1] for r in others if r["income"]), default=0)
     if leader["income"] and best_other_income:
-        gains.append((leader["income"][1] / best_other_income, f"thu nhập/video ≈ gấp {leader['income'][1] / best_other_income:.1f} lần"))
+        gains.append((leader["income"][1] / best_other_income, f"income per video ≈ {leader['income'][1] / best_other_income:.1f}× higher"))
     gains = [g for g in gains if g[0] > 1]
     if not gains:
-        return "không cột nào vượt rõ; dựa vào điểm tổng và các tiêu chí chấm tay ở bài 2.5"
+        return "no column stands out clearly; rely on the total score and the hand-scored criteria in lesson 2.5"
     return max(gains)[1]

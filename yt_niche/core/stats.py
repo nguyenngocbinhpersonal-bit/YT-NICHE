@@ -1,4 +1,4 @@
-"""Hàm thống kê nhỏ dùng chung."""
+"""Small shared statistics helpers."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def clamp(x: float, lo: float = 0.0, hi: float = 100.0) -> float:
 
 
 def log_scale(value: float | None, lo_exp: float, hi_exp: float) -> float:
-    """Đổi value sang 0–100 theo log10: 10**lo_exp → 0, 10**hi_exp → 100."""
+    """Map value to 0–100 on log10: 10**lo_exp → 0, 10**hi_exp → 100."""
     if not value or value <= 0:
         return 0.0
     return clamp((math.log10(value) - lo_exp) / (hi_exp - lo_exp) * 100)
@@ -33,7 +33,7 @@ def months_between(start: datetime, end: datetime) -> int:
 
 
 def slope(values: list[float]) -> float:
-    """Hệ số góc hồi quy tuyến tính theo thứ tự phần tử (0 nếu < 2 điểm)."""
+    """Linear-regression slope over element order (0 when fewer than 2 points)."""
     n = len(values)
     if n < 2:
         return 0.0

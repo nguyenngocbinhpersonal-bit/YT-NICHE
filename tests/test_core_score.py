@@ -26,7 +26,7 @@ def test_opportunity_is_share_of_outliers_from_small_channels():
     sample = [
         enriched(subs=5000, outlier=5, level="x"),
         enriched(subs=500_000, outlier=5, level="x"),
-        enriched(subs=5000),  # không vượt trội: không tính
+        enriched(subs=5000),  # not an outperformer: not counted
     ]
     assert opportunity_bar(sample) == 50
     assert opportunity_bar([enriched()]) == 0
@@ -43,7 +43,7 @@ def test_freshness_share_within_30_days_for_long_window():
 
 
 def test_freshness_views_per_hour_for_30_day_window():
-    # 1.000 giờ tuổi: 1.000 view = 1 view/giờ → 0 điểm; 1.000.000 view = 1.000 view/giờ → 100 điểm
+    # 1,000 hours old: 1,000 views = 1 view/hour → 0 points; 1,000,000 views = 1,000 views/hour → 100 points
     hours = 1000 / 24
     assert freshness_bar([enriched(views=1000, days_ago=hours)], 30, NOW) == pytest.approx(0, abs=0.1)
     assert freshness_bar([enriched(views=1_000_000, days_ago=hours)], 30, NOW) == pytest.approx(100, abs=0.1)
@@ -55,7 +55,7 @@ def test_label_thresholds(score, label):
 
 
 def test_niche_score_weights():
-    # Nhu cầu 100, Cơ hội 100, Độ mới 100 (đăng trong 30 ngày), Cạnh tranh 0 → 100
+    # Demand 100, Opportunity 100, Freshness 100 (published within 30 days), Competition 0 → 100
     sample = [enriched(views=1_000_000, subs=5000, outlier=5, level="x", days_ago=1)]
     s = niche_score(sample, 90, NOW)
     assert (s.demand, s.opportunity, s.freshness, s.competition, s.score) == (100, 100, 100, 0, 100)
@@ -84,9 +84,9 @@ def _many(n, views, fmt, outliers=0):
 def test_format_split_labels():
     assert format_split(_many(10, 3000, "long", 4) + _many(10, 1000, "shorts", 2))["fit"] == "long"
     assert format_split(_many(10, 1000, "long", 1) + _many(10, 5000, "shorts", 3))["fit"] == "shorts"
-    # Shorts thắng trung vị nhưng thua số vượt trội → không gắn nhãn
+    # Shorts win the median but lose on outperformers → no label
     assert format_split(_many(10, 1000, "long", 5) + _many(10, 5000, "shorts", 1))["fit"] is None
-    # Thiếu mẫu
+    # Not enough sample
     assert format_split(_many(10, 3000, "long", 4) + _many(4, 1000, "shorts"))["fit"] is None
 
 

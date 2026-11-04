@@ -1,27 +1,27 @@
-Bạn là chiến lược gia nội dung cho kênh YouTube {channel_style}. Hãy giúp tôi tách ngách mẹ thành ngách con còn chỗ cho kênh mới.
+You are a content strategist for a {channel_style} YouTube channel. Help me split the parent niche into sub-niches that still have room for a new channel.
 
-## Ngách mẹ
+## Parent niche
 {context}
 
-## Số liệu đào ngách mẹ
+## Parent niche dig numbers
 {data}
 
-## Cột "Ngách con" (gợi ý tìm kiếm YouTube có chứa ngách mẹ, kèm số video thắng có cụm này)
+## "Sub-niche" column (YouTube search suggestions containing the parent niche, with the number of winning videos that contain the phrase)
 {subniches}
 
-## Cụm lặp lại trong tiêu đề video vượt trội
+## Phrases repeated in outperformer video titles
 {phrases}
 
-## Cột "Từ khoá dài"
+## "Long-tail keyword" column
 {long_keywords}
 
-## Yêu cầu
-1. Với mỗi ngách con có bằng chứng ở trên, đề xuất 3 hướng xuống tầng 3. Mỗi hướng chỉ thêm MỘT bộ lọc (đối tượng, vấn đề, góc kể / định dạng, hoặc thị trường / ngôn ngữ) và ghi rõ bộ lọc nào.
-2. Thêm 6 ngách mới chia đều cho 4 bộ lọc.
-3. Mỗi hướng gồm: lời hứa kênh một câu ("Kênh giúp [ai] hiểu / làm được [điều gì]"), 3 từ khoá dài, 3 ý tưởng video.
-4. Đánh dấu hướng có nguy cơ quá hẹp (khó đủ 30 ý tưởng) và nguy cơ chính sách (y tế, tài chính, nội dung nhạy cảm).
-5. Trả lời bằng bảng để tôi dán vào bảng tính.
+## Task
+1. For each sub-niche with evidence above, propose 3 directions down to layer 3. Each direction adds exactly ONE filter (audience, problem, angle / format, or market / language) and names which filter it is.
+2. Add 6 new niches spread evenly across the 4 filters.
+3. Each direction includes: a one-sentence channel promise ("This channel helps [who] understand / do [what]"), 3 long-tail keywords, 3 video ideas.
+4. Flag directions at risk of being too narrow (hard to reach 30 ideas) and policy risks (medical, financial, sensitive content).
+5. Answer as a table so I can paste it into a spreadsheet.
 
-## Ràng buộc
-- Không bịa số liệu lượt tìm hay lượt xem; chỉ dùng số ở trên.
-- Không gợi ý dùng lại nội dung của người khác.
+## Constraints
+- Do not invent search or view numbers; use only the numbers above.
+- Do not suggest reusing other people's content.

@@ -1,7 +1,7 @@
-"""Thu thập dữ liệu thô cho một ngách và in tóm tắt quota / cache.
+"""Fetch raw data for one niche and print a quota / cache summary.
 
-Ví dụ:
-    .venv/Scripts/python scripts/fetch_niche.py "kể chuyện lịch sử"
+Examples:
+    .venv/Scripts/python scripts/fetch_niche.py "vietnamese history stories"
     .venv/Scripts/python scripts/fetch_niche.py "psychology" --region US --lang en --format long --no-trends
 """
 
@@ -56,35 +56,35 @@ def main() -> None:
 
     q = data["quota"]
     videos, channels, trends = data["videos"], data["channels"], data["trends"]
-    print(f"\n=== '{args.topic}' | {args.region}/{args.lang} | {args.days} ngày | {args.format} ===")
-    print(f"Thời gian: {data['elapsed_s']}s")
-    print(f"Quota lần này: {q['units']} unit  {q['by_endpoint']}")
-    print(f"Đọc từ cache: {q['cache_hits']}")
+    print(f"\n=== '{args.topic}' | {args.region}/{args.lang} | {args.days} days | {args.format} ===")
+    print(f"Elapsed: {data['elapsed_s']}s")
+    print(f"Quota this run: {q['units']} units  {q['by_endpoint']}")
+    print(f"Cache hits: {q['cache_hits']}")
     used = quota.used_on(conn)
-    print(f"Quota hôm nay (giờ PT): {used}/{YOUTUBE_DAILY_QUOTA} — còn {YOUTUBE_DAILY_QUOTA - used}")
+    print(f"Quota today (PT): {used}/{YOUTUBE_DAILY_QUOTA} — {YOUTUBE_DAILY_QUOTA - used} left")
 
     by_fmt = {f: sum(v["fmt"] == f for v in videos) for f in ("long", "mid", "shorts")}
-    print(f"\nVideo: {len(videos)} {by_fmt}")
+    print(f"\nVideos: {len(videos)} {by_fmt}")
     print(
-        f"Kênh: {len(channels)} | có trung vị dài: {sum(c['median_long'] is not None for c in channels)}"
-        f" | có trung vị Shorts: {sum(c['median_short'] is not None for c in channels)}"
-        f" | ẩn sub: {sum(c['subs_hidden'] for c in channels)}"
+        f"Channels: {len(channels)} | with long-form median: {sum(c['median_long'] is not None for c in channels)}"
+        f" | with Shorts median: {sum(c['median_short'] is not None for c in channels)}"
+        f" | hidden subs: {sum(c['subs_hidden'] for c in channels)}"
     )
     both = [c for c in channels if c["median_long"] and c["median_short"]]
     if both:
         ratio = statistics.median(c["median_long"] / c["median_short"] for c in both)
-        print(f"Kênh làm cả 2 định dạng: {len(both)} | trung vị (median dài / median Shorts): {ratio:.2f}×")
+        print(f"Channels doing both formats: {len(both)} | median (long-form median / Shorts median): {ratio:.2f}×")
 
     if trends:
-        status = "cache" if trends.get("cached") else "mới"
+        status = "cache" if trends.get("cached") else "fresh"
         lens = {k: len(v) for k, v in trends["series"].items()}
-        print(f"Trends ({trends['source']}, {status}): điểm dữ liệu {lens} | lỗi: {trends['errors'] or 'không'}")
+        print(f"Trends ({trends['source']}, {status}): data points {lens} | errors: {trends['errors'] or 'none'}")
 
     out_dir = DATA_DIR / "runs"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_file = out_dir / f"fetch_{datetime.now():%Y%m%d_%H%M%S}.json"
     out_file.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"\nĐã lưu: {out_file}")
+    print(f"\nSaved: {out_file}")
 
 
 if __name__ == "__main__":

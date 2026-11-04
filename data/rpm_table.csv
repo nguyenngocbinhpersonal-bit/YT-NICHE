@@ -1,222 +1,222 @@
 market,category,rpm_low,rpm_high
-VN,Giải trí / kể chuyện,0.3,0.6
-VN,Lịch sử,0.4,0.8
-VN,Giáo dục,0.5,1.0
-VN,Tài chính / kinh doanh,1.0,2.0
-VN,Công nghệ,0.6,1.2
-VN,Sức khỏe,0.5,1.0
-VN,Tâm lý / phát triển bản thân,0.5,1.0
-VN,Tâm linh / tôn giáo,0.3,0.7
-VN,Nấu ăn,0.4,0.8
-VN,Du lịch,0.4,0.8
-VN,Game,0.2,0.5
-VN,Thiếu nhi,0.2,0.4
-VN,Âm nhạc / thư giãn,0.2,0.5
-US,Giải trí / kể chuyện,1.2,2.4
-US,Lịch sử,1.6,3.2
-US,Giáo dục,2.0,4.0
-US,Tài chính / kinh doanh,4.0,8.0
-US,Công nghệ,2.4,4.8
-US,Sức khỏe,2.0,4.0
-US,Tâm lý / phát triển bản thân,2.0,4.0
-US,Tâm linh / tôn giáo,1.2,2.8
-US,Nấu ăn,1.6,3.2
-US,Du lịch,1.6,3.2
-US,Game,0.8,2.0
-US,Thiếu nhi,0.8,1.6
-US,Âm nhạc / thư giãn,0.8,2.0
-GB,Giải trí / kể chuyện,1.05,2.1
-GB,Lịch sử,1.4,2.8
-GB,Giáo dục,1.75,3.5
-GB,Tài chính / kinh doanh,3.5,7.0
-GB,Công nghệ,2.1,4.2
-GB,Sức khỏe,1.75,3.5
-GB,Tâm lý / phát triển bản thân,1.75,3.5
-GB,Tâm linh / tôn giáo,1.05,2.45
-GB,Nấu ăn,1.4,2.8
-GB,Du lịch,1.4,2.8
-GB,Game,0.7,1.75
-GB,Thiếu nhi,0.7,1.4
-GB,Âm nhạc / thư giãn,0.7,1.75
-DE,Giải trí / kể chuyện,1.05,2.1
-DE,Lịch sử,1.4,2.8
-DE,Giáo dục,1.75,3.5
-DE,Tài chính / kinh doanh,3.5,7.0
-DE,Công nghệ,2.1,4.2
-DE,Sức khỏe,1.75,3.5
-DE,Tâm lý / phát triển bản thân,1.75,3.5
-DE,Tâm linh / tôn giáo,1.05,2.45
-DE,Nấu ăn,1.4,2.8
-DE,Du lịch,1.4,2.8
-DE,Game,0.7,1.75
-DE,Thiếu nhi,0.7,1.4
-DE,Âm nhạc / thư giãn,0.7,1.75
-JP,Giải trí / kể chuyện,0.75,1.5
-JP,Lịch sử,1.0,2.0
-JP,Giáo dục,1.25,2.5
-JP,Tài chính / kinh doanh,2.5,5.0
-JP,Công nghệ,1.5,3.0
-JP,Sức khỏe,1.25,2.5
-JP,Tâm lý / phát triển bản thân,1.25,2.5
-JP,Tâm linh / tôn giáo,0.75,1.75
-JP,Nấu ăn,1.0,2.0
-JP,Du lịch,1.0,2.0
-JP,Game,0.5,1.25
-JP,Thiếu nhi,0.5,1.0
-JP,Âm nhạc / thư giãn,0.5,1.25
-KR,Giải trí / kể chuyện,0.6,1.2
-KR,Lịch sử,0.8,1.6
-KR,Giáo dục,1.0,2.0
-KR,Tài chính / kinh doanh,2.0,4.0
-KR,Công nghệ,1.2,2.4
-KR,Sức khỏe,1.0,2.0
-KR,Tâm lý / phát triển bản thân,1.0,2.0
-KR,Tâm linh / tôn giáo,0.6,1.4
-KR,Nấu ăn,0.8,1.6
-KR,Du lịch,0.8,1.6
-KR,Game,0.4,1.0
-KR,Thiếu nhi,0.4,0.8
-KR,Âm nhạc / thư giãn,0.4,1.0
-BR,Giải trí / kể chuyện,0.3,0.6
-BR,Lịch sử,0.4,0.8
-BR,Giáo dục,0.5,1.0
-BR,Tài chính / kinh doanh,1.0,2.0
-BR,Công nghệ,0.6,1.2
-BR,Sức khỏe,0.5,1.0
-BR,Tâm lý / phát triển bản thân,0.5,1.0
-BR,Tâm linh / tôn giáo,0.3,0.7
-BR,Nấu ăn,0.4,0.8
-BR,Du lịch,0.4,0.8
-BR,Game,0.2,0.5
-BR,Thiếu nhi,0.2,0.4
-BR,Âm nhạc / thư giãn,0.2,0.5
-IN,Giải trí / kể chuyện,0.15,0.3
-IN,Lịch sử,0.2,0.4
-IN,Giáo dục,0.25,0.5
-IN,Tài chính / kinh doanh,0.5,1.0
-IN,Công nghệ,0.3,0.6
-IN,Sức khỏe,0.25,0.5
-IN,Tâm lý / phát triển bản thân,0.25,0.5
-IN,Tâm linh / tôn giáo,0.15,0.35
-IN,Nấu ăn,0.2,0.4
-IN,Du lịch,0.2,0.4
-IN,Game,0.1,0.25
-IN,Thiếu nhi,0.1,0.2
-IN,Âm nhạc / thư giãn,0.1,0.25
-ID,Giải trí / kể chuyện,0.18,0.36
-ID,Lịch sử,0.24,0.48
-ID,Giáo dục,0.3,0.6
-ID,Tài chính / kinh doanh,0.6,1.2
-ID,Công nghệ,0.36,0.72
-ID,Sức khỏe,0.3,0.6
-ID,Tâm lý / phát triển bản thân,0.3,0.6
-ID,Tâm linh / tôn giáo,0.18,0.42
-ID,Nấu ăn,0.24,0.48
-ID,Du lịch,0.24,0.48
-ID,Game,0.12,0.3
-ID,Thiếu nhi,0.12,0.24
-ID,Âm nhạc / thư giãn,0.12,0.3
-TH,Giải trí / kể chuyện,0.24,0.48
-TH,Lịch sử,0.32,0.64
-TH,Giáo dục,0.4,0.8
-TH,Tài chính / kinh doanh,0.8,1.6
-TH,Công nghệ,0.48,0.96
-TH,Sức khỏe,0.4,0.8
-TH,Tâm lý / phát triển bản thân,0.4,0.8
-TH,Tâm linh / tôn giáo,0.24,0.56
-TH,Nấu ăn,0.32,0.64
-TH,Du lịch,0.32,0.64
-TH,Game,0.16,0.4
-TH,Thiếu nhi,0.16,0.32
-TH,Âm nhạc / thư giãn,0.16,0.4
-PH,Giải trí / kể chuyện,0.18,0.36
-PH,Lịch sử,0.24,0.48
-PH,Giáo dục,0.3,0.6
-PH,Tài chính / kinh doanh,0.6,1.2
-PH,Công nghệ,0.36,0.72
-PH,Sức khỏe,0.3,0.6
-PH,Tâm lý / phát triển bản thân,0.3,0.6
-PH,Tâm linh / tôn giáo,0.18,0.42
-PH,Nấu ăn,0.24,0.48
-PH,Du lịch,0.24,0.48
-PH,Game,0.12,0.3
-PH,Thiếu nhi,0.12,0.24
-PH,Âm nhạc / thư giãn,0.12,0.3
-CA,Giải trí / kể chuyện,1.05,2.1
-CA,Lịch sử,1.4,2.8
-CA,Giáo dục,1.75,3.5
-CA,Tài chính / kinh doanh,3.5,7.0
-CA,Công nghệ,2.1,4.2
-CA,Sức khỏe,1.75,3.5
-CA,Tâm lý / phát triển bản thân,1.75,3.5
-CA,Tâm linh / tôn giáo,1.05,2.45
-CA,Nấu ăn,1.4,2.8
-CA,Du lịch,1.4,2.8
-CA,Game,0.7,1.75
-CA,Thiếu nhi,0.7,1.4
-CA,Âm nhạc / thư giãn,0.7,1.75
-AU,Giải trí / kể chuyện,1.05,2.1
-AU,Lịch sử,1.4,2.8
-AU,Giáo dục,1.75,3.5
-AU,Tài chính / kinh doanh,3.5,7.0
-AU,Công nghệ,2.1,4.2
-AU,Sức khỏe,1.75,3.5
-AU,Tâm lý / phát triển bản thân,1.75,3.5
-AU,Tâm linh / tôn giáo,1.05,2.45
-AU,Nấu ăn,1.4,2.8
-AU,Du lịch,1.4,2.8
-AU,Game,0.7,1.75
-AU,Thiếu nhi,0.7,1.4
-AU,Âm nhạc / thư giãn,0.7,1.75
-FR,Giải trí / kể chuyện,0.75,1.5
-FR,Lịch sử,1.0,2.0
-FR,Giáo dục,1.25,2.5
-FR,Tài chính / kinh doanh,2.5,5.0
-FR,Công nghệ,1.5,3.0
-FR,Sức khỏe,1.25,2.5
-FR,Tâm lý / phát triển bản thân,1.25,2.5
-FR,Tâm linh / tôn giáo,0.75,1.75
-FR,Nấu ăn,1.0,2.0
-FR,Du lịch,1.0,2.0
-FR,Game,0.5,1.25
-FR,Thiếu nhi,0.5,1.0
-FR,Âm nhạc / thư giãn,0.5,1.25
-TW,Giải trí / kể chuyện,0.45,0.9
-TW,Lịch sử,0.6,1.2
-TW,Giáo dục,0.75,1.5
-TW,Tài chính / kinh doanh,1.5,3.0
-TW,Công nghệ,0.9,1.8
-TW,Sức khỏe,0.75,1.5
-TW,Tâm lý / phát triển bản thân,0.75,1.5
-TW,Tâm linh / tôn giáo,0.45,1.05
-TW,Nấu ăn,0.6,1.2
-TW,Du lịch,0.6,1.2
-TW,Game,0.3,0.75
-TW,Thiếu nhi,0.3,0.6
-TW,Âm nhạc / thư giãn,0.3,0.75
-MX,Giải trí / kể chuyện,0.24,0.48
-MX,Lịch sử,0.32,0.64
-MX,Giáo dục,0.4,0.8
-MX,Tài chính / kinh doanh,0.8,1.6
-MX,Công nghệ,0.48,0.96
-MX,Sức khỏe,0.4,0.8
-MX,Tâm lý / phát triển bản thân,0.4,0.8
-MX,Tâm linh / tôn giáo,0.24,0.56
-MX,Nấu ăn,0.32,0.64
-MX,Du lịch,0.32,0.64
-MX,Game,0.16,0.4
-MX,Thiếu nhi,0.16,0.32
-MX,Âm nhạc / thư giãn,0.16,0.4
-AR,Giải trí / kể chuyện,0.12,0.24
-AR,Lịch sử,0.16,0.32
-AR,Giáo dục,0.2,0.4
-AR,Tài chính / kinh doanh,0.4,0.8
-AR,Công nghệ,0.24,0.48
-AR,Sức khỏe,0.2,0.4
-AR,Tâm lý / phát triển bản thân,0.2,0.4
-AR,Tâm linh / tôn giáo,0.12,0.28
-AR,Nấu ăn,0.16,0.32
-AR,Du lịch,0.16,0.32
-AR,Game,0.08,0.2
-AR,Thiếu nhi,0.08,0.16
-AR,Âm nhạc / thư giãn,0.08,0.2
+VN,Entertainment / storytelling,0.3,0.6
+VN,History,0.4,0.8
+VN,Education,0.5,1.0
+VN,Finance / business,1.0,2.0
+VN,Technology,0.6,1.2
+VN,Health,0.5,1.0
+VN,Psychology / self-improvement,0.5,1.0
+VN,Spirituality / religion,0.3,0.7
+VN,Cooking,0.4,0.8
+VN,Travel,0.4,0.8
+VN,Gaming,0.2,0.5
+VN,Kids,0.2,0.4
+VN,Music / relaxation,0.2,0.5
+US,Entertainment / storytelling,1.2,2.4
+US,History,1.6,3.2
+US,Education,2.0,4.0
+US,Finance / business,4.0,8.0
+US,Technology,2.4,4.8
+US,Health,2.0,4.0
+US,Psychology / self-improvement,2.0,4.0
+US,Spirituality / religion,1.2,2.8
+US,Cooking,1.6,3.2
+US,Travel,1.6,3.2
+US,Gaming,0.8,2.0
+US,Kids,0.8,1.6
+US,Music / relaxation,0.8,2.0
+GB,Entertainment / storytelling,1.05,2.1
+GB,History,1.4,2.8
+GB,Education,1.75,3.5
+GB,Finance / business,3.5,7.0
+GB,Technology,2.1,4.2
+GB,Health,1.75,3.5
+GB,Psychology / self-improvement,1.75,3.5
+GB,Spirituality / religion,1.05,2.45
+GB,Cooking,1.4,2.8
+GB,Travel,1.4,2.8
+GB,Gaming,0.7,1.75
+GB,Kids,0.7,1.4
+GB,Music / relaxation,0.7,1.75
+DE,Entertainment / storytelling,1.05,2.1
+DE,History,1.4,2.8
+DE,Education,1.75,3.5
+DE,Finance / business,3.5,7.0
+DE,Technology,2.1,4.2
+DE,Health,1.75,3.5
+DE,Psychology / self-improvement,1.75,3.5
+DE,Spirituality / religion,1.05,2.45
+DE,Cooking,1.4,2.8
+DE,Travel,1.4,2.8
+DE,Gaming,0.7,1.75
+DE,Kids,0.7,1.4
+DE,Music / relaxation,0.7,1.75
+JP,Entertainment / storytelling,0.75,1.5
+JP,History,1.0,2.0
+JP,Education,1.25,2.5
+JP,Finance / business,2.5,5.0
+JP,Technology,1.5,3.0
+JP,Health,1.25,2.5
+JP,Psychology / self-improvement,1.25,2.5
+JP,Spirituality / religion,0.75,1.75
+JP,Cooking,1.0,2.0
+JP,Travel,1.0,2.0
+JP,Gaming,0.5,1.25
+JP,Kids,0.5,1.0
+JP,Music / relaxation,0.5,1.25
+KR,Entertainment / storytelling,0.6,1.2
+KR,History,0.8,1.6
+KR,Education,1.0,2.0
+KR,Finance / business,2.0,4.0
+KR,Technology,1.2,2.4
+KR,Health,1.0,2.0
+KR,Psychology / self-improvement,1.0,2.0
+KR,Spirituality / religion,0.6,1.4
+KR,Cooking,0.8,1.6
+KR,Travel,0.8,1.6
+KR,Gaming,0.4,1.0
+KR,Kids,0.4,0.8
+KR,Music / relaxation,0.4,1.0
+BR,Entertainment / storytelling,0.3,0.6
+BR,History,0.4,0.8
+BR,Education,0.5,1.0
+BR,Finance / business,1.0,2.0
+BR,Technology,0.6,1.2
+BR,Health,0.5,1.0
+BR,Psychology / self-improvement,0.5,1.0
+BR,Spirituality / religion,0.3,0.7
+BR,Cooking,0.4,0.8
+BR,Travel,0.4,0.8
+BR,Gaming,0.2,0.5
+BR,Kids,0.2,0.4
+BR,Music / relaxation,0.2,0.5
+IN,Entertainment / storytelling,0.15,0.3
+IN,History,0.2,0.4
+IN,Education,0.25,0.5
+IN,Finance / business,0.5,1.0
+IN,Technology,0.3,0.6
+IN,Health,0.25,0.5
+IN,Psychology / self-improvement,0.25,0.5
+IN,Spirituality / religion,0.15,0.35
+IN,Cooking,0.2,0.4
+IN,Travel,0.2,0.4
+IN,Gaming,0.1,0.25
+IN,Kids,0.1,0.2
+IN,Music / relaxation,0.1,0.25
+ID,Entertainment / storytelling,0.18,0.36
+ID,History,0.24,0.48
+ID,Education,0.3,0.6
+ID,Finance / business,0.6,1.2
+ID,Technology,0.36,0.72
+ID,Health,0.3,0.6
+ID,Psychology / self-improvement,0.3,0.6
+ID,Spirituality / religion,0.18,0.42
+ID,Cooking,0.24,0.48
+ID,Travel,0.24,0.48
+ID,Gaming,0.12,0.3
+ID,Kids,0.12,0.24
+ID,Music / relaxation,0.12,0.3
+TH,Entertainment / storytelling,0.24,0.48
+TH,History,0.32,0.64
+TH,Education,0.4,0.8
+TH,Finance / business,0.8,1.6
+TH,Technology,0.48,0.96
+TH,Health,0.4,0.8
+TH,Psychology / self-improvement,0.4,0.8
+TH,Spirituality / religion,0.24,0.56
+TH,Cooking,0.32,0.64
+TH,Travel,0.32,0.64
+TH,Gaming,0.16,0.4
+TH,Kids,0.16,0.32
+TH,Music / relaxation,0.16,0.4
+PH,Entertainment / storytelling,0.18,0.36
+PH,History,0.24,0.48
+PH,Education,0.3,0.6
+PH,Finance / business,0.6,1.2
+PH,Technology,0.36,0.72
+PH,Health,0.3,0.6
+PH,Psychology / self-improvement,0.3,0.6
+PH,Spirituality / religion,0.18,0.42
+PH,Cooking,0.24,0.48
+PH,Travel,0.24,0.48
+PH,Gaming,0.12,0.3
+PH,Kids,0.12,0.24
+PH,Music / relaxation,0.12,0.3
+CA,Entertainment / storytelling,1.05,2.1
+CA,History,1.4,2.8
+CA,Education,1.75,3.5
+CA,Finance / business,3.5,7.0
+CA,Technology,2.1,4.2
+CA,Health,1.75,3.5
+CA,Psychology / self-improvement,1.75,3.5
+CA,Spirituality / religion,1.05,2.45
+CA,Cooking,1.4,2.8
+CA,Travel,1.4,2.8
+CA,Gaming,0.7,1.75
+CA,Kids,0.7,1.4
+CA,Music / relaxation,0.7,1.75
+AU,Entertainment / storytelling,1.05,2.1
+AU,History,1.4,2.8
+AU,Education,1.75,3.5
+AU,Finance / business,3.5,7.0
+AU,Technology,2.1,4.2
+AU,Health,1.75,3.5
+AU,Psychology / self-improvement,1.75,3.5
+AU,Spirituality / religion,1.05,2.45
+AU,Cooking,1.4,2.8
+AU,Travel,1.4,2.8
+AU,Gaming,0.7,1.75
+AU,Kids,0.7,1.4
+AU,Music / relaxation,0.7,1.75
+FR,Entertainment / storytelling,0.75,1.5
+FR,History,1.0,2.0
+FR,Education,1.25,2.5
+FR,Finance / business,2.5,5.0
+FR,Technology,1.5,3.0
+FR,Health,1.25,2.5
+FR,Psychology / self-improvement,1.25,2.5
+FR,Spirituality / religion,0.75,1.75
+FR,Cooking,1.0,2.0
+FR,Travel,1.0,2.0
+FR,Gaming,0.5,1.25
+FR,Kids,0.5,1.0
+FR,Music / relaxation,0.5,1.25
+TW,Entertainment / storytelling,0.45,0.9
+TW,History,0.6,1.2
+TW,Education,0.75,1.5
+TW,Finance / business,1.5,3.0
+TW,Technology,0.9,1.8
+TW,Health,0.75,1.5
+TW,Psychology / self-improvement,0.75,1.5
+TW,Spirituality / religion,0.45,1.05
+TW,Cooking,0.6,1.2
+TW,Travel,0.6,1.2
+TW,Gaming,0.3,0.75
+TW,Kids,0.3,0.6
+TW,Music / relaxation,0.3,0.75
+MX,Entertainment / storytelling,0.24,0.48
+MX,History,0.32,0.64
+MX,Education,0.4,0.8
+MX,Finance / business,0.8,1.6
+MX,Technology,0.48,0.96
+MX,Health,0.4,0.8
+MX,Psychology / self-improvement,0.4,0.8
+MX,Spirituality / religion,0.24,0.56
+MX,Cooking,0.32,0.64
+MX,Travel,0.32,0.64
+MX,Gaming,0.16,0.4
+MX,Kids,0.16,0.32
+MX,Music / relaxation,0.16,0.4
+AR,Entertainment / storytelling,0.12,0.24
+AR,History,0.16,0.32
+AR,Education,0.2,0.4
+AR,Finance / business,0.4,0.8
+AR,Technology,0.24,0.48
+AR,Health,0.2,0.4
+AR,Psychology / self-improvement,0.2,0.4
+AR,Spirituality / religion,0.12,0.28
+AR,Cooking,0.16,0.32
+AR,Travel,0.16,0.32
+AR,Gaming,0.08,0.2
+AR,Kids,0.08,0.16
+AR,Music / relaxation,0.08,0.2

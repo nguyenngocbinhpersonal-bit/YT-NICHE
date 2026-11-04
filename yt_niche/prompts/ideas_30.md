@@ -1,27 +1,27 @@
-Bạn là biên tập viên khó tính, không chấp nhận ý tưởng lặp lại. Hãy kiểm tra ngách con dưới đây có đủ rộng để làm kênh không.
+You are a demanding editor who does not accept repeated ideas. Check whether the sub-niche below is wide enough to build a channel on.
 
-## Ngách con
+## Sub-niche
 {niche}
 
-## Lời hứa kênh
+## Channel promise
 {promise}
 
-## Bối cảnh
+## Context
 {context}
 
-## Từ khoá dài đã chấm (điểm 0–100, ưu tiên từ cao)
+## Scored long-tail keywords (score 0–100, prefer high ones)
 {keywords}
 
-## Video vượt trội trong ngách (để học góc kể, không sao chép)
+## Outperformer videos in the niche (learn the angle, do not copy)
 {winners}
 
-## Yêu cầu
-1. Liệt kê 30 ý tưởng video không trùng, chia 3 trụ nội dung, mỗi trụ 10 ý.
-2. Đánh dấu 10 ý nên làm đầu tiên, ưu tiên ý gắn với từ khoá điểm cao.
-3. Chỉ ra các cặp ý trùng hoặc gần trùng để gộp.
-4. Nếu không đủ 30 ý chất lượng, nói thẳng là ngách quá hẹp và gợi ý nới bộ lọc nào.
-5. Trả lời bằng bảng: Trụ | Ý tưởng | Từ khoá dài nhắm tới | Làm đầu tiên (có/không).
+## Task
+1. List 30 video ideas with no duplicates, split into 3 content pillars of 10 ideas each.
+2. Mark the 10 ideas to make first, preferring ideas tied to high-scoring keywords.
+3. Point out pairs of ideas that are duplicates or near-duplicates and should be merged.
+4. If there are not 30 quality ideas, say plainly that the niche is too narrow and suggest which filter to loosen.
+5. Answer as a table: Pillar | Idea | Target long-tail keyword | Make first (yes/no).
 
-## Ràng buộc
-- Không đổi vài chữ để giả làm ý mới.
-- Không hứa kết quả kiếm tiền, không bịa số liệu.
+## Constraints
+- Do not change a few words to fake a new idea.
+- Never promise income results, never invent numbers.

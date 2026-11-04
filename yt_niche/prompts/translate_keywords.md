@@ -1,7 +1,7 @@
-Dịch từ khoá tìm kiếm YouTube "{topic}" sang cách người bản xứ thực sự gõ vào ô tìm kiếm YouTube ở từng thị trường dưới đây (không dịch từng chữ).
+Translate the YouTube search keyword "{topic}" into what native speakers actually type into the YouTube search box in each market below (not a word-for-word translation).
 
-Thị trường:
+Markets:
 {markets}
 
-Trả lời đúng định dạng, mỗi dòng một thị trường, không giải thích:
+Answer in exactly this format, one market per line, no explanation:
 {format}

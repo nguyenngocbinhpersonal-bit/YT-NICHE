@@ -1,8 +1,8 @@
-"""DataForSEO: nguồn Google Trends dự phòng (trả phí theo lượt) khi Google chặn máy bạn (429).
+"""DataForSEO: backup Google Trends source (paid per task) for when Google blocks your machine (429).
 
-Chỉ dùng khi Google đang chặn và đã bật ở Cài đặt → Google Trends; có giới hạn số lượt mỗi ngày.
-Chỉ gửi từ khoá, mã nước, nguồn (Web / YouTube), khoảng thời gian, mã danh mục. Đăng nhập bằng login / password API
-của DataForSEO (Basic auth), lưu trong .env như các key khác.
+Used only while Google is blocking and when enabled under Settings → Google Trends; has a daily task limit.
+Sends only the keyword, country code, source (Web / YouTube), time range and category id. Signs in with the DataForSEO
+API login / password (Basic auth), stored in .env like the other keys.
 """
 
 from __future__ import annotations
@@ -22,16 +22,19 @@ BASE_URL = "https://api.dataforseo.com/v3"
 CONFIG_KEY = "dataforseo_config"
 DEFAULT_CONFIG = {"enabled": False, "radar": True, "max_tasks_per_day": 40}
 FEATURES = {
-    "dig": "Đào ngách, so sánh ngách con, lấy lại Trends (bạn tự bấm)",
-    "radar": "Radar từ khoá chạy nền (tốn lượt đều đặn khi Google chặn lâu)",
+    "dig": "Dig, compare sub-niches, refetch Trends (triggered by you)",
+    "radar": "Keyword radar in the background (uses tasks steadily while Google blocks for long)",
 }
-PRICE_PER_TASK = 0.009  # USD, chế độ Live (số thật lấy từ trường "cost" của mỗi lần gọi)
+PRICE_PER_TASK = 0.009  # USD, Live mode (the real number comes from the "cost" field of each call)
 TIME_RANGES = {"5y": "past_5_years", "12m": "past_12_months", "3m": "past_90_days", "1m": "past_30_days"}
 LOCATIONS_KEY = "dataforseo_locations"
 LOCATIONS_TTL = 30 * 86400
 TIMEOUT = 90
-# DataForSEO không nhận các ký tự này trong từ khoá.
+# DataForSEO rejects these characters in keywords.
 _BAD_CHARS = re.compile(r"[<>|\"\-+=~!:*()\[\]{}]")
+
+NOT_ENABLED = "DataForSEO is not enabled"
+NO_CREDENTIALS = "DataForSEO login / password not entered"
 
 
 class BackupError(Exception):
@@ -39,7 +42,7 @@ class BackupError(Exception):
 
 
 # ---------------------------------------------------------------------------
-# Cấu hình, lượt dùng
+# Configuration, usage
 # ---------------------------------------------------------------------------
 
 
@@ -82,7 +85,7 @@ def usage_today(conn: sqlite3.Connection) -> dict:
 
 
 def record(conn: sqlite3.Connection, cost: float) -> None:
-    """Ghi một lượt gọi (kể cả lượt lỗi, để lỗi lặp lại không gọi mãi) và chi phí thật."""
+    """Record one call (failed ones too, so a repeating error does not call forever) and its real cost."""
     u = usage_today(conn)
     u = {"tasks": u["tasks"] + 1, "cost": round(u["cost"] + float(cost or 0), 5)}
     conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)", (_usage_key(), json.dumps(u)))
@@ -91,13 +94,13 @@ def record(conn: sqlite3.Connection, cost: float) -> None:
 def unavailable_reason(conn: sqlite3.Connection, feature: str = "dig") -> str | None:
     c = get_config(conn)
     if not c["enabled"]:
-        return "chưa bật DataForSEO"
+        return NOT_ENABLED
     if not all(credentials()):
-        return "chưa nhập login / password DataForSEO"
+        return NO_CREDENTIALS
     if feature == "radar" and not c["radar"]:
-        return "Radar không dùng DataForSEO"
+        return "Radar does not use DataForSEO"
     if usage_today(conn)["tasks"] >= int(c["max_tasks_per_day"]):
-        return f"DataForSEO đã dùng hết {c['max_tasks_per_day']} lượt hôm nay"
+        return f"DataForSEO has used all {c['max_tasks_per_day']} tasks for today"
     return None
 
 
@@ -106,19 +109,19 @@ def available(conn: sqlite3.Connection, feature: str = "dig") -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Gọi API
+# API calls
 # ---------------------------------------------------------------------------
 
 
 def _request(method: str, path: str, payload: list | None = None) -> dict:
-    """Tách riêng để test thay thế. Lỗi HTTP / lỗi của DataForSEO → BackupError."""
+    """Kept separate so tests can replace it. HTTP errors / DataForSEO errors → BackupError."""
     login, password = credentials()
     if not (login and password):
-        raise BackupError("chưa nhập login / password DataForSEO")
+        raise BackupError(NO_CREDENTIALS)
     try:
         r = httpx.request(method, BASE_URL + path, json=payload, auth=(login, password), timeout=TIMEOUT)
     except httpx.HTTPError as e:
-        raise BackupError(f"không kết nối được DataForSEO: {type(e).__name__}") from e
+        raise BackupError(f"could not reach DataForSEO: {type(e).__name__}") from e
     try:
         body = r.json()
     except ValueError:
@@ -136,13 +139,13 @@ def _result(body: dict) -> list:
 
 
 def account_balance() -> float:
-    """Số dư tài khoản (USD). Không tính phí: dùng để kiểm tra login / password."""
+    """Account balance (USD). Free call: used to verify the login / password."""
     res = _result(_request("GET", "/appendix/user_data"))
     return float(((res[0] if res else {}).get("money") or {}).get("balance") or 0)
 
 
 def location_code(conn: sqlite3.Connection, geo: str) -> int | None:
-    """Mã nước của DataForSEO cho mã ISO (US → 2840). geo rỗng = toàn cầu (None)."""
+    """DataForSEO country code for an ISO code (US → 2840). Empty geo = worldwide (None)."""
     if not geo:
         return None
     codes = cache.get(conn, LOCATIONS_KEY)
@@ -154,7 +157,7 @@ def location_code(conn: sqlite3.Connection, geo: str) -> int | None:
         }
         cache.put(conn, LOCATIONS_KEY, codes, LOCATIONS_TTL)
     if geo.upper() not in codes:
-        raise BackupError(f"DataForSEO không có dữ liệu Trends cho nước {geo}")
+        raise BackupError(f"DataForSEO has no Trends data for country {geo}")
     return codes[geo.upper()]
 
 
@@ -177,7 +180,7 @@ def _base_task(loc: int | None, source: str, name: str) -> dict:
 
 
 def fetch_series(loc: int | None, topics: list[str], source: str, name: str) -> tuple[dict[str, list], float]:
-    """Chuỗi Trends của tối đa 5 chủ đề trên cùng một thang, như pytrends: ({chủ đề: [[ngày, giá trị]]}, chi phí)."""
+    """Trends series of up to 5 topics on one scale, like pytrends: ({topic: [[date, value]]}, cost)."""
     items, cost = _explore({**_base_task(loc, source, name), "keywords": [clean_keyword(t) for t in topics]}, "google_trends_graph")
     out: dict[str, list] = {t: [] for t in topics}
     for p in (items[0].get("data") or []) if items else []:
@@ -189,14 +192,14 @@ def fetch_series(loc: int | None, topics: list[str], source: str, name: str) -> 
 
 
 def fetch_category_queries(loc: int | None, category_id: int) -> tuple[dict[str, list[tuple[str, int]]], float]:
-    """Truy vấn hàng đầu / đang tăng của cả một danh mục (Web Search, 3 tháng), như trends.category_queries."""
+    """Top / rising queries of a whole category (Web Search, 3 months), like trends.category_queries."""
     items, cost = _explore({**_base_task(loc, "web", "3m"), "category_code": int(category_id)}, "google_trends_queries_list")
     data = (items[0].get("data") or {}) if items else {}
     return {k: [(str(q["query"]), int(q.get("value") or 0)) for q in (data.get(k) or [])] for k in ("top", "rising")}, cost
 
 
 # ---------------------------------------------------------------------------
-# Gọi đồng bộ kèm kiểm giới hạn (Radar)
+# Synchronous calls with limit checks (Radar)
 # ---------------------------------------------------------------------------
 
 

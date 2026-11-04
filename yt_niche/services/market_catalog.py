@@ -1,10 +1,10 @@
-"""Danh sách thị trường duy nhất của app: bảng `market` trong DB, sửa ở Cài đặt → Thị trường.
+"""The app's single list of markets: the `market` table in the DB, edited in Settings → Markets.
 
-Khu vực và ngôn ngữ lấy theo danh sách chính thức của Google (YouTube i18nRegions / i18nLanguages). apply() nạp bảng
-vào config để mọi tính năng dùng chung:
-- config.MARKETS: {mã: (relevanceLanguage, tên)} gồm cả thị trường đã tắt (tra tên / ngôn ngữ cho dữ liệu cũ);
-- config.ENABLED_MARKETS: thị trường đang bật, theo thứ tự nhóm (dùng cho mọi ô chọn thị trường);
-- config.MARKET_GROUPS: {nhóm: [mã đang bật]}.
+Regions and languages follow Google's official lists (YouTube i18nRegions / i18nLanguages). apply() loads the table
+into config so every feature shares it:
+- config.MARKETS: {code: (relevanceLanguage, name)} including disabled markets (name / language lookup for old data);
+- config.ENABLED_MARKETS: enabled markets in group order (used by every market picker);
+- config.MARKET_GROUPS: {group: [enabled codes]}.
 """
 
 from __future__ import annotations
@@ -17,10 +17,10 @@ from datetime import datetime, timezone
 from yt_niche import config as cfg
 from yt_niche.sources.youtube import YouTubeClient
 
-OTHER_GROUP = "Khác"
+OTHER_GROUP = "Other"
 CATALOG_KEY = "google_markets"
 
-# Ngôn ngữ chính của từng khu vực YouTube hỗ trợ (gợi ý khi bật khu vực mới). Mã theo relevanceLanguage.
+# Main language of each region YouTube supports (suggested when a new region is enabled). Codes are relevanceLanguage.
 REGION_LANGUAGE = {
     "AE": "ar", "AM": "hy", "AR": "es", "AT": "de", "AU": "en", "AZ": "az", "BA": "bs", "BD": "bn", "BE": "nl",
     "BG": "bg", "BH": "ar", "BO": "es", "BR": "pt", "BY": "ru", "CA": "en", "CH": "de", "CL": "es", "CO": "es",
@@ -36,7 +36,7 @@ REGION_LANGUAGE = {
     "TR": "tr", "TW": "zh-Hant", "TZ": "sw", "UA": "uk", "UG": "en", "US": "en", "UY": "es", "VE": "es", "VN": "vi",
     "YE": "ar", "ZA": "en", "ZW": "en",
 }
-# Mã ngôn ngữ của Google (hl) ↔ relevanceLanguage của YouTube search.
+# Google language code (hl) ↔ YouTube search relevanceLanguage.
 _HL_TO_RELEVANCE = {"iw": "he", "fil": "tl", "zh-CN": "zh-Hans", "zh-TW": "zh-Hant", "zh-HK": "zh-Hant", "nb": "no"}
 _RELEVANCE_TO_HL = {"he": "iw", "tl": "fil", "zh-Hans": "zh-CN", "zh-Hant": "zh-TW"}
 
@@ -50,7 +50,7 @@ def _now() -> str:
 
 
 def relevance_language(hl: str) -> str:
-    """Mã ngôn ngữ Google → relevanceLanguage: 'es-419' → 'es', 'zh-TW' → 'zh-Hant', 'iw' → 'he'."""
+    """Google language code → relevanceLanguage: 'es-419' → 'es', 'zh-TW' → 'zh-Hant', 'iw' → 'he'."""
     if hl in _HL_TO_RELEVANCE:
         return _HL_TO_RELEVANCE[hl]
     if hl.startswith("zh"):
@@ -64,7 +64,7 @@ def default_hl(region: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Danh sách chính thức của Google (lưu lại để dùng khi không có mạng / chưa có API key)
+# Google's official lists (stored for use offline / before an API key exists)
 # ---------------------------------------------------------------------------
 
 
@@ -75,7 +75,7 @@ async def _fetch_catalog(conn: sqlite3.Connection) -> dict:
 
 
 def refresh_catalog(conn: sqlite3.Connection) -> dict:
-    """Tải lại 111 khu vực và 83 ngôn ngữ của Google (2 unit quota) và lưu vào DB."""
+    """Reload Google's 111 regions and 83 languages (2 quota units) and store them in the DB."""
     got = asyncio.run(_fetch_catalog(conn))
     got["fetched_at"] = _now()
     conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)", (CATALOG_KEY, json.dumps(got, ensure_ascii=False)))
@@ -88,12 +88,12 @@ def catalog(conn: sqlite3.Connection) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Bảng market
+# The market table
 # ---------------------------------------------------------------------------
 
 
 def _seed(conn: sqlite3.Connection) -> None:
-    """Lần đầu: 17 thị trường mặc định + thị trường đã thêm ở bản cũ (bảng custom_market)."""
+    """First run: the 17 default markets plus markets added in the old version (custom_market table)."""
     if conn.execute("SELECT 1 FROM market LIMIT 1").fetchone():
         return
     group_of = {code: g for g, codes in cfg.DEFAULT_MARKET_GROUPS.items() for code in codes}
@@ -126,7 +126,7 @@ def list_markets(conn: sqlite3.Connection, enabled_only: bool = False) -> list[d
 
 
 def apply(conn: sqlite3.Connection) -> None:
-    """Nạp bảng market vào config (sửa tại chỗ để mọi `from config import MARKETS` thấy cùng một dict)."""
+    """Load the market table into config (edited in place so every `from config import MARKETS` sees the same dict)."""
     rows = list_markets(conn)
     cfg.MARKETS.clear()
     cfg.MARKETS.update({r["region"]: (relevance_language(r["hl"]), r["name"]) for r in rows})
@@ -138,23 +138,23 @@ def apply(conn: sqlite3.Connection) -> None:
 
 
 def save(conn: sqlite3.Connection, rows: list[dict]) -> None:
-    """rows: [{region, name, hl, group_name, enabled}] cho các khu vực được sửa (khu vực khác giữ nguyên).
+    """rows: [{region, name, hl, group_name, enabled}] for the edited regions (other regions are left alone).
 
-    Khu vực chưa có trong bảng chỉ được lưu khi bật; tắt thì giữ dòng (dữ liệu cũ vẫn tra được tên).
+    A region not yet in the table is only stored when enabled; disabling keeps the row (old data can still look up the name).
     """
     current = {r["region"]: r for r in list_markets(conn)}
     final = {code: bool(r["enabled"]) for code, r in current.items()}
     final.update({r["region"]: bool(r["enabled"]) for r in rows})
     if not any(final.values()):
-        raise MarketError("Phải bật ít nhất một thị trường")
+        raise MarketError("At least one market must be enabled")
     langs = {lang["code"] for lang in (catalog(conn) or {}).get("languages", [])}
     for r in rows:
         if not r["enabled"] and r["region"] not in current:
             continue
         if not str(r.get("name") or "").strip() or not str(r.get("hl") or "").strip():
-            raise MarketError(f"{r['region']}: thiếu tên hoặc ngôn ngữ")
+            raise MarketError(f"{r['region']}: name or language missing")
         if langs and r["hl"] not in langs:
-            raise MarketError(f"{r['region']}: ngôn ngữ \"{r['hl']}\" không có trong danh sách của Google")
+            raise MarketError(f"{r['region']}: language \"{r['hl']}\" is not in Google's list")
         conn.execute(
             """INSERT INTO market (region, name, hl, group_name, enabled, updated_at) VALUES (?, ?, ?, ?, ?, ?)
                ON CONFLICT(region) DO UPDATE SET name = excluded.name, hl = excluded.hl,
@@ -166,10 +166,10 @@ def save(conn: sqlite3.Connection, rows: list[dict]) -> None:
 
 
 def enable_language(conn: sqlite3.Connection, hl: str) -> list[str]:
-    """Bật mọi khu vực của Google có ngôn ngữ chính là hl. Trả về mã đã bật thêm."""
+    """Enable every Google region whose main language is hl. Returns the newly enabled codes."""
     cat = catalog(conn)
     if not cat:
-        raise MarketError("Chưa tải danh sách của Google")
+        raise MarketError("Google's list has not been downloaded yet")
     names = {r["code"]: r["name"] for r in cat["regions"]}
     lang = relevance_language(hl)
     current = {r["region"]: r for r in list_markets(conn)}
@@ -183,7 +183,7 @@ def enable_language(conn: sqlite3.Connection, hl: str) -> list[str]:
 
 
 def reset_defaults(conn: sqlite3.Connection) -> None:
-    """Về 17 thị trường mặc định (khu vực khác bị tắt, không xoá)."""
+    """Back to the 17 default markets (other regions are disabled, not deleted)."""
     conn.execute("UPDATE market SET enabled = 0, updated_at = ?", (_now(),))
     save(conn, [
         {"region": code, "name": name, "hl": _RELEVANCE_TO_HL.get(lang, lang),

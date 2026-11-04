@@ -3,20 +3,21 @@ import math
 import pytest
 
 from tests.factories import weekly
+from yt_niche.core.money import RPM_HIGH, RPM_LOW, RPM_MEDIUM
 from yt_niche.core.three_tier import DROP, MEDIUM, STRONG, TRY, TRY_AFTER_FIX, WEAK, rate_money, three_tier
-from yt_niche.core.trends_classify import FAD, FALLING, SEASONAL, STABLE, classify_trends
+from yt_niche.core.trends_classify import FAD, FALLING, FLAT, SEASONAL, STABLE, UP, classify_trends
 
-N = 261  # số tuần trong 5 năm
+N = 261  # weeks in 5 years
 
 
 def test_stable_flat():
     r = classify_trends({"5y": weekly([50 + (i % 3) for i in range(N)])})
-    assert r["class"] == STABLE and r["direction"] == "đi ngang"
+    assert r["class"] == STABLE and r["direction"] == FLAT
 
 
 def test_stable_rising():
     r = classify_trends({"5y": weekly([20 + i * 0.3 for i in range(N)])})
-    assert r["class"] == STABLE and r["direction"] == "đi lên"
+    assert r["class"] == STABLE and r["direction"] == UP
 
 
 def test_fad():
@@ -25,7 +26,7 @@ def test_fad():
 
 
 def test_low_but_not_spiking_is_not_fad():
-    values = [3] * (N - 13) + [12] * 13  # gấp 4 lần nền nhưng vẫn thấp (< 20)
+    values = [3] * (N - 13) + [12] * 13  # 4× the base but still low (< 20)
     assert classify_trends({"5y": weekly(values)})["class"] != FAD
 
 
@@ -38,7 +39,7 @@ def test_falling():
 def test_seasonal_even_with_rising_base():
     values = [20 + i * 0.1 + 30 * max(0, math.cos(2 * math.pi * i / 52)) ** 4 for i in range(N)]
     r = classify_trends({"5y": weekly(values)})
-    assert r["class"] == SEASONAL and r["direction"] == "đi lên" and "peak_month" in r
+    assert r["class"] == SEASONAL and r["direction"] == UP and "peak_month" in r
 
 
 def test_missing_trends():
@@ -52,7 +53,7 @@ def test_sparse_flag():
 
 def _tiers(**kw):
     base = dict(
-        demand_bar=70, trend_class=STABLE, outliers=12, small_channels=6, competition=10, rpm_tier="vừa", affiliates=3
+        demand_bar=70, trend_class=STABLE, outliers=12, small_channels=6, competition=10, rpm_tier=RPM_MEDIUM, affiliates=3
     )
     return three_tier(**{**base, **kw})
 
@@ -69,7 +70,7 @@ def test_all_strong_is_try():
         ({"trend_class": FALLING}, "demand"),
         ({"small_channels": 2}, "supply"),
         ({"competition": 61}, "supply"),
-        ({"rpm_tier": "thấp", "affiliates": 0}, "money"),
+        ({"rpm_tier": RPM_LOW, "affiliates": 0}, "money"),
     ],
 )
 def test_one_weak_tier_needs_fix(kw, tier):
@@ -91,6 +92,6 @@ def test_seasonal_can_be_strong_demand():
 
 def test_money_combinations():
     assert rate_money(None, None)[0] == MEDIUM
-    assert rate_money("thấp", 3)[0] == MEDIUM  # (1 + 3) // 2 = 2
-    assert rate_money("cao", None)[0] == STRONG
+    assert rate_money(RPM_LOW, 3)[0] == MEDIUM  # (1 + 3) // 2 = 2
+    assert rate_money(RPM_HIGH, None)[0] == STRONG
     assert rate_money(None, 0)[0] == WEAK

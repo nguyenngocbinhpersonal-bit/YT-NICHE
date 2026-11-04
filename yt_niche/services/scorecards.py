@@ -1,4 +1,4 @@
-"""Bảng chấm chốt ngách: tạo, khoá trọng số, tạo phiên bản, chấm điểm, ra quyết định."""
+"""Final-decision scorecard: create, lock weights, create versions, score, decide."""
 
 from __future__ import annotations
 
@@ -11,6 +11,8 @@ from yt_niche.db import runs as run_repo
 from yt_niche.services import keywords as keyword_svc
 
 MIN_ITEMS, MAX_ITEMS = 2, 5
+# Placeholder rationale core.scorecard writes for cells that must be scored by hand (left out of the review prompt).
+_MANUAL_RATIONALES = (sc.MANUAL,)
 
 
 class ScorecardError(ValueError):
@@ -24,7 +26,7 @@ def _now() -> str:
 def _header(conn: sqlite3.Connection, scorecard_id: int) -> dict:
     row = conn.execute("SELECT * FROM scorecard WHERE id = ?", (scorecard_id,)).fetchone()
     if row is None:
-        raise ScorecardError(f"Không có bảng chấm #{scorecard_id}")
+        raise ScorecardError(f"No scorecard #{scorecard_id}")
     d = dict(row)
     d["weights"] = json.loads(d.pop("weights_json"))
     return d
@@ -32,12 +34,12 @@ def _header(conn: sqlite3.Connection, scorecard_id: int) -> dict:
 
 def _require_unlocked(header: dict) -> None:
     if header["locked_at"]:
-        raise ScorecardError("Trọng số đã khoá. Muốn đổi thì tạo phiên bản mới.")
+        raise ScorecardError("Weights are locked. Create a new version to change them.")
 
 
 def _require_locked(header: dict) -> None:
     if not header["locked_at"]:
-        raise ScorecardError("Khoá trọng số trước khi chấm điểm.")
+        raise ScorecardError("Lock the weights before scoring.")
 
 
 # ---------------------------------------------------------------------------
@@ -46,17 +48,17 @@ def _require_locked(header: dict) -> None:
 def create(conn: sqlite3.Connection, name: str, run_ids: list[int]) -> int:
     run_ids = list(dict.fromkeys(run_ids))
     if not MIN_ITEMS <= len(run_ids) <= MAX_ITEMS:
-        raise ScorecardError(f"Chọn từ {MIN_ITEMS} đến {MAX_ITEMS} ngách")
+        raise ScorecardError(f"Pick between {MIN_ITEMS} and {MAX_ITEMS} niches")
     runs = [run_repo.get(conn, rid) for rid in run_ids]
     if any(r is None for r in runs):
-        raise ScorecardError("Có lần đào không còn tồn tại")
+        raise ScorecardError("One of the digs no longer exists")
     low = [r["topic"] for r in runs if not r["result"]["can_shortlist"]]
     if low:
-        raise ScorecardError(f"Độ tin cậy thấp, không đưa vào bảng chấm: {', '.join(low)}")
+        raise ScorecardError(f"Low confidence, cannot go on the scorecard: {', '.join(low)}")
 
     cur = conn.execute(
         "INSERT INTO scorecard (name, weights_json, created_at) VALUES (?, ?, ?)",
-        (name.strip() or "Bảng chấm", json.dumps(sc.DEFAULT_WEIGHTS), _now()),
+        (name.strip() or "Scorecard", json.dumps(sc.DEFAULT_WEIGHTS), _now()),
     )
     scorecard_id = cur.lastrowid
     for pos, rid in enumerate(run_ids):
@@ -90,7 +92,7 @@ def lock(conn: sqlite3.Connection, scorecard_id: int) -> None:
 
 
 def new_version(conn: sqlite3.Connection, scorecard_id: int) -> int:
-    """Bản sao chưa khoá (giữ điểm đã chấm) để đổi trọng số; bản cũ giữ nguyên để đối chiếu."""
+    """An unlocked copy (keeping the scores) so the weights can change; the old version stays for reference."""
     h = _header(conn, scorecard_id)
     cur = conn.execute(
         """INSERT INTO scorecard (name, version, parent_id, weights_json, promise, backup_close, created_at)
@@ -112,13 +114,13 @@ def new_version(conn: sqlite3.Connection, scorecard_id: int) -> int:
 
 
 def set_scores(conn: sqlite3.Connection, scorecard_id: int, run_id: int, scores: dict[str, tuple[int | None, str]]) -> None:
-    """scores: {criterion: (điểm 1–5 hoặc None, căn cứ người chấm)}."""
+    """scores: {criterion: (score 1–5 or None, the scorer's reasoning)}."""
     _require_locked(_header(conn, scorecard_id))
     for criterion, (score, note) in scores.items():
         if criterion not in sc.CRITERIA_BY_KEY:
-            raise ScorecardError(f"Tiêu chí lạ: {criterion}")
+            raise ScorecardError(f"Unknown criterion: {criterion}")
         if score is not None and not 1 <= int(score) <= 5:
-            raise ScorecardError("Điểm phải từ 1 đến 5")
+            raise ScorecardError("Scores must be between 1 and 5")
         conn.execute(
             "UPDATE scorecard_cell SET score = ?, note = ? WHERE scorecard_id = ? AND run_id = ? AND criterion = ?",
             (None if score is None else int(score), note.strip(), scorecard_id, run_id, criterion),
@@ -130,7 +132,7 @@ def _keywords(conn: sqlite3.Connection, runs: list[dict]) -> dict[int, list[dict
 
 
 def refresh_suggestions(conn: sqlite3.Connection, scorecard_id: int) -> None:
-    """Tính lại gợi ý từ kết quả đào hiện tại (sau khi tính lại RPM / affiliate); không đụng điểm đã chấm."""
+    """Recompute suggestions from the current dig results (after an RPM / affiliate re-score); scores are untouched."""
     data = load(conn, scorecard_id)
     for rid, cells in sc.auto_suggestions(data["runs"], _keywords(conn, data["runs"])).items():
         for criterion, (auto, rationale) in cells.items():

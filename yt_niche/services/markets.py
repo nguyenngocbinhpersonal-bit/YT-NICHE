@@ -1,4 +1,4 @@
-"""Đào đa thị trường (bài 2.4): một chủ đề, mỗi nước một từ khoá đã dịch, cùng thiết lập, cùng ngày."""
+"""Multi-market dig (lesson 2.4): one topic, one translated keyword per market, same settings, same day."""
 
 from __future__ import annotations
 
@@ -13,9 +13,9 @@ from yt_niche.services.fetch import DigParams
 from yt_niche.services.runs import dig
 from yt_niche.sources.youtube import QuotaExceeded, YouTubeError
 
-# Unit ước tính cho một nước khi chưa cache kênh (1 trang search ≈ 200, 2 trang ≈ 320).
+# Estimated units per market with no channel cache (1 search page ≈ 200, 2 pages ≈ 320).
 UNITS_PER_MARKET = {1: 200, 2: 320}
-MAX_MARKETS = 10  # bài 2.4: chạy 6–10 nước cho ngách dẫn đầu
+MAX_MARKETS = 10  # lesson 2.4: run 6–10 markets for the leading niche
 
 
 class MarketError(ValueError):
@@ -39,14 +39,14 @@ def create_batch(
     window_days: int,
     fmt: str,
 ) -> int:
-    """keywords: {mã nước: từ khoá đã dịch}. Bỏ nước để trống."""
+    """keywords: {market code: translated keyword}. Markets left blank are skipped."""
     keywords = {r: " ".join(k.split()) for r, k in keywords.items() if r in cfg.ENABLED_MARKETS and k and k.strip()}
     if not topic.strip():
-        raise MarketError("Nhập chủ đề gốc trước đã")
+        raise MarketError("Enter the source topic first")
     if len(keywords) < 2:
-        raise MarketError("Cần ít nhất 2 thị trường có từ khoá")
+        raise MarketError("At least 2 markets need a keyword")
     if len(keywords) > MAX_MARKETS:
-        raise MarketError(f"Tối đa {MAX_MARKETS} thị trường mỗi lần (mỗi nước tốn khoảng 200–320 unit)")
+        raise MarketError(f"At most {MAX_MARKETS} markets per batch (each market costs about 200–320 units)")
     cur = conn.execute(
         "INSERT INTO market_batch (topic, category, window_days, fmt, created_at) VALUES (?, ?, ?, ?, ?)",
         (topic.strip(), category, window_days, fmt, _now()),
@@ -67,10 +67,10 @@ def run_batch(
     with_trends: bool = False,
     on_progress: Callable[[int, int, str], None] | None = None,
 ) -> dict:
-    """Đào lần lượt các nước chưa có kết quả. Hết quota thì dừng, giữ các nước đã xong."""
+    """Dig the markets without a result one by one. Stops when the quota runs out, keeping the markets already done."""
     batch = conn.execute("SELECT * FROM market_batch WHERE id = ?", (batch_id,)).fetchone()
     if batch is None:
-        raise MarketError("Không tìm thấy lần đào đa thị trường")
+        raise MarketError("Multi-market dig not found")
     todo = conn.execute(
         "SELECT region, keyword FROM market_batch_item WHERE batch_id = ? AND run_id IS NULL ORDER BY rowid", (batch_id,)
     ).fetchall()
@@ -96,9 +96,9 @@ def run_batch(
             )
             done += 1
         except QuotaExceeded:
-            stopped = "Hết quota YouTube hôm nay; các nước còn lại sẽ đào tiếp khi bấm lại sau khi quota reset."
+            stopped = "YouTube quota exhausted for today; the remaining markets will be dug when you run again after the quota resets."
             conn.execute(
-                "UPDATE market_batch_item SET error = 'hết quota' WHERE batch_id = ? AND region = ?", (batch_id, region)
+                "UPDATE market_batch_item SET error = 'quota exhausted' WHERE batch_id = ? AND region = ?", (batch_id, region)
             )
             break
         except YouTubeError as e:
@@ -143,5 +143,5 @@ def load_batch(conn: sqlite3.Connection, batch_id: int) -> dict | None:
 
 
 def delete_batch(conn: sqlite3.Connection, batch_id: int) -> None:
-    """Xoá lần đào đa thị trường; các lần đào từng nước vẫn giữ ở Ngách đã lưu."""
+    """Delete the multi-market dig; the per-market digs stay in Saved niches."""
     conn.execute("DELETE FROM market_batch WHERE id = ?", (batch_id,))

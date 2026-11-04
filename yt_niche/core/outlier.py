@@ -1,13 +1,13 @@
-"""Outlier: lượt xem video ÷ trung vị lượt xem của chính kênh đó (cùng định dạng)."""
+"""Outlier: video views ÷ the channel's own median views (same format)."""
 
 from __future__ import annotations
 
 from yt_niche import config as cfg
 from yt_niche.core.formats import LONG, SHORTS
 
-LEVEL_OUTPERFORM = "Vượt trội"
-LEVEL_VIRAL = "Nổ view"
-LEVEL_SUPER_VIRAL = "Siêu viral"
+LEVEL_OUTPERFORM = "Outperformer"
+LEVEL_VIRAL = "Viral"
+LEVEL_SUPER_VIRAL = "Super viral"
 
 
 def outlier_level(ratio: float | None) -> str | None:
@@ -23,7 +23,7 @@ def outlier_level(ratio: float | None) -> str | None:
 
 
 def channel_median_for(channel: dict | None, fmt: str) -> float | None:
-    """Trung vị kênh đúng định dạng; None nếu thiếu hoặc mẫu kênh quá ít để tin."""
+    """Channel median for the matching format; None when missing or the channel sample is too small to trust."""
     if not channel:
         return None
     if fmt == LONG:
@@ -36,7 +36,7 @@ def channel_median_for(channel: dict | None, fmt: str) -> float | None:
 
 
 def enrich_videos(videos: list[dict], channels: dict[str, dict]) -> list[dict]:
-    """Thêm channel_median, outlier, level, subs và cờ estimated cho từng video."""
+    """Add channel_median, outlier, level, subs and the estimated flag to each video."""
     out = []
     for v in videos:
         ch = channels.get(v["channel_id"])
@@ -50,7 +50,7 @@ def enrich_videos(videos: list[dict], channels: dict[str, dict]) -> list[dict]:
                 "channel_median": med,
                 "outlier": ratio,
                 "level": outlier_level(ratio),
-                # Số "ước tính": thiếu view, ẩn sub, hoặc không tin được trung vị kênh.
+                # "Estimated" number: views missing, subs hidden, or the channel median cannot be trusted.
                 "estimated": v["views"] is None or subs is None or med is None,
             }
         )

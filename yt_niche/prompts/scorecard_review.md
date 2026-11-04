@@ -1,24 +1,24 @@
-Bạn là người phản biện khó tính cho quyết định chọn ngách YouTube. Hãy soi bảng chấm dưới đây trước khi tôi chốt.
+You are a tough reviewer of a YouTube niche decision. Scrutinise the scorecard below before I lock in the choice.
 
-## Trọng số đã khoá (tổng 100)
+## Locked weights (total 100)
 {weights}
 
-## Bảng chấm (điểm 1–5; điểm chốt = Σ trọng số × điểm ÷ 5)
+## Scorecard (scores 1–5; final score = Σ weight × score ÷ 5)
 {table}
 
-## Căn cứ từng ô
+## Reasoning per cell
 {rationale}
 
-## Số liệu đào của từng ngách
+## Dig numbers per niche
 {data}
 
-## Trả lời đúng 5 mục
-1. Bảng tính lại điểm chốt của từng ngách (dạng bảng), ghi rõ nếu khác với số tôi đưa.
-2. Những ô chấm không khớp số liệu: ô nào, vì sao, nên chấm lại mấy điểm.
-3. Cờ đỏ: ô dưới 2 điểm, và rủi ro bị bỏ sót (bản quyền, nhạy cảm, y tế/tài chính, khó sản xuất đều đặn).
-4. Đề xuất 1 ngách chính và 1 ngách dự phòng gần ngách chính về khán giả, kèm lý do bằng số.
-5. Ba điều kiện cụ thể để chuyển sang ngách dự phòng (đo được trong YouTube Studio hoặc khi đào lại).
+## Answer exactly these 5 points
+1. A table recomputing each niche's final score, flagging any difference from the numbers I gave.
+2. Cells whose score does not match the numbers: which cell, why, and what score it should get.
+3. Red flags: cells below 2, and risks that were missed (copyright, sensitive topics, medical/financial, hard to produce consistently).
+4. Propose 1 main niche and 1 backup niche close to the main one in audience, with reasons backed by numbers.
+5. Three concrete conditions for switching to the backup niche (measurable in YouTube Studio or on a re-dig).
 
-## Ràng buộc
-- Chỉ dùng số liệu ở trên, không bịa số. Thiếu dữ liệu thì ghi "cần đo thêm: …".
-- Số có dấu ≈ là ước tính.
+## Constraints
+- Use only the numbers above; do not invent any. Where data is missing, write "needs measuring: …".
+- Numbers marked ≈ are estimates.

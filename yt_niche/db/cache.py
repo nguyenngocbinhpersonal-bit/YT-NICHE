@@ -1,4 +1,4 @@
-"""Cache phản hồi API theo key + thời gian sống."""
+"""API response cache by key + time to live."""
 
 from __future__ import annotations
 
