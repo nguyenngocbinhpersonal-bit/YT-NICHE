@@ -1,4 +1,4 @@
-"""Radar từ khoá: chọn danh mục, lọc ngắn hạn, lượt quét rải đều, chấm YouTube, thị trường tự thêm."""
+"""Keyword radar: category choice, short-lived filter, spread-out ticks, YouTube scoring, self-added markets."""
 
 from datetime import date, datetime, timedelta, timezone
 
@@ -31,7 +31,7 @@ def _daily(values):
 
 STEADY_UP = _daily([50 + i for i in range(31)])
 SPARSE = _daily([0] * 20 + [100] + [0] * 10)
-SPIKY = _daily([5] * 30 + [100])  # ngày nào cũng có nhưng dồn vào một ngày: trung bình thấp
+SPIKY = _daily([5] * 30 + [100])  # present every day but concentrated in one day: low average
 
 
 @pytest.fixture
@@ -75,11 +75,14 @@ def test_filters():
     assert rd.blocked("Xổ Số Miền Nam hôm nay", rd.DEFAULT_BLOCKLIST)
     good = rd.judge_volume({"youtube": rd.volume_30d(STEADY_UP), "web": rd.volume_30d(STEADY_UP)})
     assert good["ok"] and good["durability"] == 100 and good["trend_30d"] > 0
+    yt, web = rd.SOURCE_LABEL["youtube"], rd.SOURCE_LABEL["web"]
     none = rd.judge_volume({"youtube": rd.volume_30d([])})
-    assert not none["ok"] and none["reason"].startswith("YouTube Search: không có dữ liệu")
+    assert not none["ok"] and none["reason"].startswith(f"{yt}:") and none["volume"]["youtube"]["avg"] == 0
     sparse = rd.judge_volume({"youtube": rd.volume_30d(STEADY_UP), "web": rd.volume_30d(SPARSE)})
-    assert not sparse["ok"] and sparse["reason"].startswith("Google Search:") and "quá ít người tìm" in sparse["reason"]
-    assert "lượng tìm thấp" in rd.judge_volume({"youtube": rd.volume_30d(SPIKY)})["reason"]
+    assert not sparse["ok"] and sparse["reason"].startswith(f"{web}:")  # the second source is the one that fails
+    assert sparse["volume"]["web"]["zeros"] > cfg.RADAR_30D_MAX_ZERO_SHARE  # too few people searching
+    spiky = rd.judge_volume({"youtube": rd.volume_30d(SPIKY)})
+    assert not spiky["ok"] and spiky["reason"].startswith(f"{yt}:") and spiky["volume"]["youtube"]["avg"] < cfg.RADAR_30D_MIN_AVG  # low volume
 
 
 def test_pick_new_prefers_rising():
@@ -101,9 +104,9 @@ def test_tick_flow(conn, us_only):
     r = radar.tick(conn, now=NOW)
     assert r["action"] == "discover" and fake[0][0] == "discover"
     pending = {k["keyword"] for k in radar.keywords(conn, [rd.PENDING])}
-    assert pending == {"katseye", "dog training tips"}  # xổ số bị chặn, bão dưới +200%, chỉ 2 từ mới
+    assert pending == {"katseye", "dog training tips"}  # lottery is blocklisted, the storm is under +200%, only 2 new
 
-    assert radar.tick(conn, now=NOW + timedelta(seconds=10))["action"] == "skip"  # chưa đến lượt
+    assert radar.tick(conn, now=NOW + timedelta(seconds=10))["action"] == "skip"  # not due yet
 
     t = NOW
     for _ in range(4):
@@ -113,10 +116,10 @@ def test_tick_flow(conn, us_only):
     excluded = {k["keyword"]: k for k in radar.keywords(conn, [rd.EXCLUDED])}
     assert [k["keyword"] for k in passed] == ["dog training tips"] and passed[0]["potential"] > 0
     assert "Girl group" in excluded["katseye"]["reason"]
-    assert not any(c[:2] == ("series", "katseye") for c in fake)  # loại ở bước thực thể, không tốn yêu cầu Trends
+    assert not any(c[:2] == ("series", "katseye") for c in fake)  # dropped at the entity step, no Trends request spent
     assert passed[0]["trend"]["volume"]["youtube"]["ok"] and passed[0]["trend"]["volume"]["web"]["ok"]
 
-    # Ngày hôm sau gặp lại → số ngày tăng, điểm tăng
+    # Seen again the next day → seen_days grows, potential grows
     before = passed[0]["potential"]
     conn.execute("DELETE FROM radar_source")
     radar.tick(conn, now=NOW + timedelta(days=1), force=True)
@@ -139,7 +142,7 @@ def test_tick_throttled_cools_down(conn, fake, monkeypatch):
 
 def test_lock_blocks_parallel_tick(conn, fake):
     assert radar._acquire(conn, NOW)
-    assert radar.tick(conn, now=NOW, force=True)["detail"] == "đang có lượt khác chạy"
+    assert radar.tick(conn, now=NOW, force=True)["detail"] == "another tick is running"
     radar._release(conn)
 
 
@@ -151,7 +154,7 @@ def test_youtube_scoring_budget(conn, us_only, monkeypatch):
     async def fake_score(conn_, region, kws, fresh):
         scored.append(kws[0])
         return [{"keyword": kws[0], "score": 80, "demand": 70, "competition": 10, "n": 40, "low_data": False,
-                 "median_views": 5000, "big_share": 0.1, "exact_share": 0.1, "label": "Rất tốt"}], 102
+                 "median_views": 5000, "big_share": 0.1, "exact_share": 0.1, "label": "Very good"}], 102
 
     monkeypatch.setattr("yt_niche.services.keywords._score_many", fake_score)
     t = NOW
@@ -166,17 +169,17 @@ def test_youtube_scoring_budget(conn, us_only, monkeypatch):
 def test_market_table_is_single_source(conn):
     assert mc.relevance_language("es-419") == "es" and mc.relevance_language("iw") == "he"
     assert mc.relevance_language("zh-TW") == "zh-Hant" and mc.default_hl("TW") == "zh-TW"
-    mc.apply(conn)  # lần đầu: 17 thị trường mặc định
-    assert cfg.ENABLED_MARKETS == list(cfg.DEFAULT_MARKETS) and cfg.MARKETS["TW"] == ("zh-Hant", "Đài Loan")
+    mc.apply(conn)  # first time: the 17 default markets
+    assert cfg.ENABLED_MARKETS == list(cfg.DEFAULT_MARKETS) and cfg.MARKETS["TW"] == ("zh-Hant", "Taiwan")
     try:
         mc.save(conn, [
-            {"region": "ES", "name": "Tây Ban Nha", "hl": "es", "group_name": "Châu Âu", "enabled": True},
-            {"region": "KR", "name": "Hàn Quốc", "hl": "ko", "group_name": "Châu Á", "enabled": False},
-            {"region": "XX", "name": "Không bật", "hl": "en", "group_name": "", "enabled": False},
+            {"region": "ES", "name": "Spain", "hl": "es", "group_name": "Europe", "enabled": True},
+            {"region": "KR", "name": "South Korea", "hl": "ko", "group_name": "East Asia", "enabled": False},
+            {"region": "XX", "name": "Not enabled", "hl": "en", "group_name": "", "enabled": False},
         ])
-        assert "ES" in cfg.ENABLED_MARKETS and cfg.MARKET_GROUPS["Châu Âu"] == ["ES"]
-        assert "KR" not in cfg.ENABLED_MARKETS and cfg.MARKETS["KR"][1] == "Hàn Quốc"  # tắt nhưng vẫn tra được tên
-        assert "XX" not in cfg.MARKETS  # khu vực chưa bật không lưu
+        assert "ES" in cfg.ENABLED_MARKETS and cfg.MARKET_GROUPS["Europe"] == ["ES"]
+        assert "KR" not in cfg.ENABLED_MARKETS and cfg.MARKETS["KR"][1] == "South Korea"  # disabled but the name is still there
+        assert "XX" not in cfg.MARKETS  # a region never enabled is not stored
         with pytest.raises(mc.MarketError):
             mc.save(conn, [{"region": r, "name": "x", "hl": "en", "enabled": False} for r in cfg.MARKETS])
         radar.save_scope(conn, [], [66], [], all_markets=True)
@@ -188,10 +191,10 @@ def test_market_table_is_single_source(conn):
 
 
 def test_old_custom_markets_migrate(conn):
-    conn.execute("INSERT INTO custom_market (region, language, name, added_at) VALUES ('ES', 'es', 'Tây Ban Nha', 'x')")
+    conn.execute("INSERT INTO custom_market (region, language, name, added_at) VALUES ('ES', 'es', 'Spain', 'x')")
     try:
         mc.apply(conn)
-        assert cfg.MARKETS["ES"] == ("es", "Tây Ban Nha") and "ES" in cfg.ENABLED_MARKETS
+        assert cfg.MARKETS["ES"] == ("es", "Spain") and "ES" in cfg.ENABLED_MARKETS
     finally:
         conn.execute("DELETE FROM market")
         conn.execute("DELETE FROM custom_market")
@@ -199,9 +202,9 @@ def test_old_custom_markets_migrate(conn):
 
 
 def test_disabled_market_is_skipped(conn, us_only, monkeypatch):
-    radar.tick(conn, now=NOW)  # quét US → 2 từ chờ kiểm tra
+    radar.tick(conn, now=NOW)  # scan US → 2 keywords pending
     monkeypatch.setattr(cfg, "ENABLED_MARKETS", ["VN"])
-    assert radar._next_pending(conn) is None  # US đã tắt: không kiểm tra, không tốn yêu cầu
+    assert radar._next_pending(conn) is None  # US disabled: no check, no request spent
     assert radar.keywords(conn, [rd.PENDING], cfg.ENABLED_MARKETS) == []
 
 
@@ -221,7 +224,7 @@ def test_pace_speeds_up_and_backs_off(conn, monkeypatch):
     for _ in range(100):
         radar._adapt_interval(conn, {"action": "check", "requests": 3})
     assert radar.current_interval(conn) == cfg.RADAR_MIN_INTERVAL_S
-    monkeypatch.setattr(cfg, "RADAR_INTERVAL_S", 300)  # đổi ở Cài đặt: bắt đầu lại
+    monkeypatch.setattr(cfg, "RADAR_INTERVAL_S", 300)  # changed in Settings: start over
     assert radar.current_interval(conn) == 300
 
 
@@ -246,7 +249,7 @@ def test_entity_check_shared_across_markets(conn, fake):
     for _ in range(6):
         radar.tick(conn, now=t, force=True)
         t += timedelta(minutes=10)
-    assert fake.count(("entity", "katseye")) == 1  # CA dùng lại kết quả của US
+    assert fake.count(("entity", "katseye")) == 1  # CA reuses the US result
     assert {k["region"] for k in radar.keywords(conn, [rd.EXCLUDED]) if k["keyword"] == "katseye"} == {"US", "CA"}
 
 
@@ -255,7 +258,7 @@ def test_time_to_max_pace(conn, monkeypatch):
     monkeypatch.setattr(cfg, "RADAR_SPEEDUP_EVERY", 10)
     monkeypatch.setattr(cfg, "RADAR_SPEEDUP_PCT", 20)
     monkeypatch.setattr(cfg, "RADAR_MIN_INTERVAL_S", 60)
-    # 240 → 192 → 153,6 → 122,9 → 98,3 → 78,6 → 62,9 → 60: 7 bước × 10 lượt
+    # 240 → 192 → 153.6 → 122.9 → 98.3 → 78.6 → 62.9 → 60: 7 steps × 10 ticks
     expected = 10 * (240 + 192 + 153.6 + 122.88 + 98.304 + 78.6432 + 62.91456) / 3600
     assert radar.time_to_max_pace(conn) == pytest.approx(expected)
     s = radar.stats(conn)
@@ -267,9 +270,9 @@ def test_trends_errors_do_not_block_queue(conn, us_only, monkeypatch):
         raise RuntimeError("The request failed: Google returned a response with code 404")
 
     monkeypatch.setattr(trends, "entity_types", entity_404)
-    radar.tick(conn, now=NOW)  # quét: 2 từ chờ
+    radar.tick(conn, now=NOW)  # scan: 2 pending
     r = radar.tick(conn, now=NOW + timedelta(minutes=10))
-    assert r["action"] == "check"  # lỗi loại thực thể: vẫn xét hình dạng, không dừng
+    assert r["action"] == "check"  # entity lookup error: the shape is still judged, nothing stops
     assert {k["keyword"] for k in radar.keywords(conn, [rd.PASSED, rd.EXCLUDED])}
 
     def series_404(q, geo, source="web"):
@@ -277,8 +280,8 @@ def test_trends_errors_do_not_block_queue(conn, us_only, monkeypatch):
 
     monkeypatch.setattr(trends, "series_30d", series_404)
     radar.tick(conn, now=NOW + timedelta(minutes=20))
-    assert radar.keywords(conn, [rd.PENDING]) == []  # lỗi chuỗi 30 ngày: loại kèm lý do, hàng chờ không kẹt
-    assert any("lỗi khi lấy 30 ngày" in k["reason"] for k in radar.keywords(conn, [rd.EXCLUDED]))
+    assert radar.keywords(conn, [rd.PENDING]) == []  # 30-day series error: excluded with a reason, the queue is not stuck
+    assert any("error while fetching 30 days" in k["reason"] for k in radar.keywords(conn, [rd.EXCLUDED]))
 
 
 def test_youtube_empty_excluded_without_web_call(conn, us_only, monkeypatch):
@@ -289,8 +292,9 @@ def test_youtube_empty_excluded_without_web_call(conn, us_only, monkeypatch):
         radar.tick(conn, now=t)
         t += timedelta(minutes=10)
     out = {k["keyword"]: k for k in radar.keywords(conn, [rd.EXCLUDED])}
-    assert out["dog training tips"]["reason"].startswith("YouTube Search: không có dữ liệu 30 ngày")
-    assert calls == ["youtube"]  # YouTube trống: loại luôn, không gọi Google Search
+    assert out["dog training tips"]["reason"].startswith(f"{rd.SOURCE_LABEL['youtube']}:")
+    assert out["dog training tips"]["trend"]["volume"]["youtube"]["avg"] == 0  # no YouTube data at all
+    assert calls == ["youtube"]  # YouTube empty: excluded right away, Google Search never called
 
 
 def test_failed_tick_still_schedules_next(conn, us_only, monkeypatch):
@@ -300,7 +304,7 @@ def test_failed_tick_still_schedules_next(conn, us_only, monkeypatch):
     monkeypatch.setattr(radar, "_run_trends_job", lambda conn_, now: crash(None, None))
     with pytest.raises(KeyError):
         radar.tick(conn, now=NOW)
-    assert radar.next_due(conn) > NOW  # lượt hỏng vẫn hẹn lượt sau, không bị gọi lại liên tục
+    assert radar.next_due(conn) > NOW  # a failed tick still schedules the next one, no tight retry loop
 
 
 def test_pace_log_and_report(conn, us_only, monkeypatch):
@@ -311,14 +315,14 @@ def test_pace_log_and_report(conn, us_only, monkeypatch):
     rows = radar.pace_log(conn, 1, now=t)
     assert rows and all(r["requests"] > 0 and r["forced"] == 1 for r in rows)
     assert rows[1]["gap_s"] == 300 and rows[-1]["req_1h"] == sum(r["requests"] for r in rows)
-    assert radar.pace_report(conn, 1, now=t)["suggested_min_interval"] is None  # chưa bị chặn
+    assert radar.pace_report(conn, 1, now=t)["suggested_min_interval"] is None  # never blocked yet
 
     def blocked(q, geo, source="web"):
         raise trends.Throttled()
 
     monkeypatch.setattr(trends, "series_30d", blocked)
     monkeypatch.setattr(trends, "category_queries", lambda geo, cat: (_ for _ in ()).throw(trends.Throttled()))
-    conn.execute("UPDATE radar_source SET scanned_at = ?", ("2000-01-01T00:00:00+00:00",))  # cặp đến hạn: lượt sau gọi Google
+    conn.execute("UPDATE radar_source SET scanned_at = ?", ("2000-01-01T00:00:00+00:00",))  # pair due: next tick calls Google
     radar.tick(conn, now=t, force=True)
     rep = radar.pace_report(conn, 1, now=t)
     assert rep["blocks"] == 1 and rep["min_block_req_1h"] == rows[-1]["req_1h"]
@@ -331,10 +335,10 @@ def test_rescued_429_is_logged(conn, us_only, monkeypatch):
     real = trends.category_queries
 
     def flaky(geo, cat):
-        trends.stats["rescued"] += 1  # như khi 429 rồi phiên mới qua
+        trends.stats["rescued"] += 1  # as when a 429 is followed by a successful new session
         return real(geo, cat)
 
     monkeypatch.setattr(trends, "category_queries", flaky)
     r = radar.tick(conn, now=NOW)
-    assert r["rescued"] == 1 and "lấy cookie mới thì qua" in r["detail"]
+    assert r["rescued"] == 1 and "a fresh cookie got through" in r["detail"]
     assert radar.pace_report(conn, 1, NOW + timedelta(minutes=1))["rescued"] == 1

@@ -1,4 +1,4 @@
-"""Chạy engine trên dữ liệu thật đã lưu: 'kể chuyện lịch sử', VN, 30 ngày, mọi độ dài (17/10/2026)."""
+"""Run the engine on saved real data: 'kể chuyện lịch sử' (Vietnamese history stories), VN, 30 days, any length (17/10/2026)."""
 
 import json
 from pathlib import Path
@@ -7,6 +7,9 @@ import pytest
 
 from yt_niche.core.analyze import analyze
 from yt_niche.core.confidence import HIGH
+from yt_niche.core.niche_score import LABEL_GREEN
+from yt_niche.core.three_tier import DROP, TRY, TRY_AFTER_FIX
+from yt_niche.core.trends_classify import SEASONAL, UP
 
 FIXTURE = Path(__file__).parent / "fixtures" / "history_vn_any.json"
 
@@ -18,7 +21,7 @@ def result():
 
 
 def test_sample_and_confidence(result):
-    assert result["n"] == 98  # 59 dài + 39 Shorts, không có video 3–4 phút
+    assert result["n"] == 98  # 59 long-form + 39 Shorts, no 3–4 minute videos
     assert result["confidence"] == HIGH and result["can_shortlist"]
 
 
@@ -30,7 +33,7 @@ def test_score_is_consistent(result):
         + 0.20 * (100 - result["competition"])
     )
     assert result["score"] == pytest.approx(expected, abs=0.1)
-    assert result["labels"][0] == "Ngách xanh"  # DeepNiche cũng chấm ngách này là xanh (75/100)
+    assert result["labels"][0] == LABEL_GREEN  # DeepNiche also rates this niche green (75/100)
 
 
 def test_outliers_use_same_format_median(result):
@@ -49,9 +52,9 @@ def test_supply_signals(result):
 
 def test_trends_seasonal_tet_peak(result):
     t = result["trends"]
-    assert t["class"] == "theo mùa" and t["peak_month"] in (2, 3) and t["direction"] == "đi lên"
+    assert t["class"] == SEASONAL and t["peak_month"] in (2, 3) and t["direction"] == UP
 
 
 def test_note_and_verdict(result):
-    assert result["three_tier"]["verdict"] in ("THỬ", "THỬ SAU KHI SỬA", "BỎ")
+    assert result["three_tier"]["verdict"] in (TRY, TRY_AFTER_FIX, DROP)
     assert result["note"].startswith("kể chuyện lịch sử — ")

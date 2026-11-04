@@ -1,4 +1,4 @@
-"""Dữ liệu giả cho test engine."""
+"""Fake data for the engine tests."""
 
 from datetime import datetime, timedelta, timezone
 

@@ -1,4 +1,4 @@
-"""Ghi và đọc số unit YouTube API đã dùng theo ngày quota."""
+"""Record and read the YouTube API units used per quota day."""
 
 from __future__ import annotations
 

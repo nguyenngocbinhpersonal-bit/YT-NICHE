@@ -1,22 +1,22 @@
-Bạn là nhà phân tích ngách YouTube. Hãy so các phương án dưới đây cho một kênh mới, chỉ dựa vào số tôi đưa.
+You are a YouTube niche analyst. Compare the options below for a new channel, using only the numbers I give you.
 
-## Năng lực và hoàn cảnh của tôi
+## My abilities and situation
 {ability}
 
-## Bảng số ({setup})
+## Numbers ({setup})
 {table}
 
-## Ghi chú của app
+## Notes from the app
 {notes}
 
-## Yêu cầu
-1. Loại phương án có độ tin cậy thấp khỏi xếp hạng (ghi rõ đã loại).
-2. Tính chênh lượt xem trung vị (tỉ lệ) và chênh điểm từng cặp. Chỉ coi là khác biệt khi chênh từ 5 điểm trở lên; từ 10 điểm là rõ; 2–3 điểm là nhiễu.
-3. Xếp hạng cơ hội cho kênh mới bằng bảng, mỗi hạng có lý do trích số.
-4. Nêu rủi ro lớn nhất của phương án đứng đầu.
-5. Chỉ ra "ngõ" của phương án thua (kênh nhỏ nổ, định dạng khác) và cách kiểm chứng bằng một lần đào nữa.
-6. Kết luận 3 câu: phương án nào dẫn, nhờ cột nào, rủi ro lớn nhất là gì.
+## Task
+1. Remove low-confidence options from the ranking (say explicitly which ones you removed).
+2. Compute the median-views gap (as a ratio) and the score gap for each pair. Treat a gap of 5 points or more as a difference; 10 points or more is clear; 2–3 points is noise.
+3. Rank the opportunities for a new channel in a table, with a reason for each rank that quotes the numbers.
+4. State the biggest risk of the top option.
+5. Point out the "side door" of the losing options (small booming channels, a different format) and how to verify it with one more dig.
+6. Conclude in 3 sentences: which option leads, thanks to which column, and what its biggest risk is.
 
-## Ràng buộc
-- Chỉ dùng số đã cung cấp, không tự thêm số. Số có dấu ≈ là ước tính.
-- Không hứa thu nhập; thu nhập ước tính chỉ để so tương đối.
+## Constraints
+- Use only the numbers provided; do not add any. Numbers marked ≈ are estimates.
+- Never promise income; estimated income is only for relative comparison.

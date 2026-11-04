@@ -1,15 +1,16 @@
-"""MCP server để Claude Code điều khiển app (docs/NICHE_MAP_MCP_PLAN.md).
+"""MCP server that lets Claude Code drive the app (docs/NICHE_MAP_MCP_PLAN.md).
 
-Chạy: `python -m yt_niche.mcp` (stdio). Claude Code tự bật qua .mcp.json ở gốc repo.
+Run: `python -m yt_niche.mcp` (stdio). Claude Code starts it automatically through .mcp.json at the repo root.
 
-Ba nhóm tool:
-- đọc (không tốn quota): quota_status, map_list, map_compare, niche_get, runs_list, run_get, radar_keywords, niche_events
-- lấy dữ liệu thật (tốn quota YouTube, tool trả luôn số unit đã tiêu): keywords_suggest, keywords_score, niche_dig,
+Three groups of tools:
+- read (no quota): quota_status, map_list, map_compare, niche_get, runs_list, run_get, radar_keywords, niche_events
+- fetch real data (spends YouTube quota; the tool reports the units spent): keywords_suggest, keywords_score, niche_dig,
   similar_from_url, competitors_refresh
-- ghi quyết định (bắt buộc có rationale): niche_create, niche_update, niche_attach_keywords, niche_detach_keywords,
+- write decisions (rationale required): niche_create, niche_update, niche_attach_keywords, niche_detach_keywords,
   niche_attach_run, niche_set_channels, niche_move, niche_merge, niche_unmerge, niche_set_motivation, niche_rank, niche_drop
 
-Server chỉ gọi services/, không chứa công thức. Mọi lỗi nghiệp vụ trả về chuỗi "Lỗi: ..." để Claude đọc được và tự sửa.
+The server only calls services/ and holds no formulas. Every business error is returned as a string "Error: ..." so Claude
+can read it and correct itself.
 """
 
 from __future__ import annotations
@@ -25,11 +26,11 @@ from yt_niche.db import runs as run_repo
 from yt_niche.db.connection import connect
 from yt_niche.services import niche_map as nm
 
-INSTRUCTIONS = """YT-Niche: công cụ chọn ngách YouTube chạy local. Bạn (Claude) làm việc phán đoán: suy ra từ khoá,
-đặt tên ngách, dựng cây, gán động cơ khán giả, gộp ngách gần nhau, xếp tiềm năng. App làm việc cơ học: lấy số thật,
-tính điểm, lưu, vẽ. Quy tắc: (1) gọi quota_status trước việc tốn quota; (2) chỉ gắn kind=main cho từ khoá đã có số
-thật (keywords_score hoặc radar); (3) xếp tiềm năng bằng niche_rank sau khi đọc map_compare, không trước;
-(4) mỗi quyết định ghi kèm rationale 1–2 câu. Đọc kỹ skill `yt-niche` nếu có."""
+INSTRUCTIONS = """YT-Niche: a local YouTube niche-picking tool. You (Claude) do the judgement work: infer keywords,
+name niches, build the tree, assign audience motivations, merge nearby niches, rank potential. The app does the mechanical
+work: fetch real numbers, score, store, draw. Rules: (1) call quota_status before anything that spends quota; (2) only use
+kind=main for keywords that have real numbers (keywords_score or radar); (3) rank potential with niche_rank after reading
+map_compare, never before; (4) every decision carries a 1–2 sentence rationale. Read the `yt-niche` skill carefully if present."""
 
 server = MCPServer("yt-niche", instructions=INSTRUCTIONS)
 _conn: sqlite3.Connection | None = None
@@ -43,23 +44,23 @@ def _db() -> sqlite3.Connection:
 
 
 def _guard(units_needed: int, force: bool) -> str | None:
-    """Chặn việc tốn quota nếu sẽ ăn vào phần dành cho Streamlit (cfg.MCP_QUOTA_RESERVE)."""
+    """Block quota-spending work when it would eat into the share reserved for Streamlit (cfg.MCP_QUOTA_RESERVE)."""
     used = quota.used_on(_db())
     left = cfg.YOUTUBE_DAILY_QUOTA - used
     if not force and left - units_needed < cfg.MCP_QUOTA_RESERVE:
         return (
-            f"Lỗi: việc này cần ≈{units_needed} unit, quota còn {left} và phải giữ {cfg.MCP_QUOTA_RESERVE} cho giao diện. "
-            "Giảm số từ khoá / số trang, đợi ngày mai, hoặc gọi lại với force=true nếu người dùng đồng ý."
+            f"Error: this needs ≈{units_needed} units, {left} are left and {cfg.MCP_QUOTA_RESERVE} must stay reserved for the UI. "
+            "Reduce the number of keywords / pages, wait until tomorrow, or call again with force=true if the user agrees."
         )
     return None
 
 
 def _err(e: Exception) -> str:
-    return f"Lỗi: {e}"
+    return f"Error: {e}"
 
 
 def _run_brief(run: dict) -> dict:
-    """Tóm tắt một lần đào đủ để Claude phán đoán, không kèm danh sách video thô."""
+    """Summary of a dig with enough for Claude to judge, without the raw video list."""
     res = run.get("result") or {}
     booms = res.get("small_boom_channels") or []
     return {
@@ -83,11 +84,11 @@ def _run_brief(run: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Đọc
+# Read
 # ---------------------------------------------------------------------------
 
 
-@server.tool(description="Quota YouTube đã dùng / còn lại hôm nay, trạng thái tạm chặn Google Trends, ngưỡng giữ cho giao diện.")
+@server.tool(description="YouTube quota used / left today, Google Trends cooldown state, and the share reserved for the UI.")
 def quota_status() -> dict:
     from yt_niche.sources import trends
 
@@ -105,17 +106,17 @@ def quota_status() -> dict:
     }
 
 
-@server.tool(description="Toàn bộ cây ngách (phẳng, có depth và path), tiềm năng, số từ khoá / lần đào / kênh của mỗi ngách.")
+@server.tool(description="The whole niche tree (flat, with depth and path), potential, and the number of keywords / digs / channels per niche.")
 def map_list(include_merged: bool = False, include_dropped: bool = False) -> list[dict]:
     return nm.list_tree(_db(), include_merged=include_merged, include_dropped=include_dropped)
 
 
-@server.tool(description="Bảng so sánh số thật của các ngách (nhu cầu, cạnh tranh, điểm đào, trend, kênh nhỏ nổ) kèm hạng hiện tại và cờ stale. Đọc trước khi niche_rank.")
+@server.tool(description="Comparison table of the niches' real numbers (demand, competition, dig score, trend, small booming channels) with the current rank and the stale flag. Read it before niche_rank.")
 def map_compare(niche_ids: list[int] | None = None) -> list[dict]:
     return nm.compare_table(_db(), niche_ids)
 
 
-@server.tool(description="Chi tiết một ngách: từ khoá theo loại kèm số, lần đào, kênh, số liệu tổng hợp, 10 sự kiện gần nhất.")
+@server.tool(description="One niche in detail: keywords by kind with numbers, digs, channels, aggregated signals, the 10 latest events.")
 def niche_get(niche_id: int) -> dict | str:
     try:
         return nm.get(_db(), niche_id)
@@ -123,18 +124,18 @@ def niche_get(niche_id: int) -> dict | str:
         return _err(e)
 
 
-@server.tool(description="Nhật ký quyết định (ai, làm gì, vì sao). niche_id bỏ trống = toàn bản đồ.")
+@server.tool(description="Decision log (who, what, why). Leave niche_id empty for the whole map.")
 def niche_events(niche_id: int | None = None, limit: int = 50) -> list[dict]:
     return nm.events(_db(), niche_id, limit)
 
 
-@server.tool(description="Ngách nào đã chứa các từ khoá này (để quyết định gắn vào ngách cũ, tạo mới hay gộp).")
+@server.tool(description="Which niches already hold these keywords (to decide between attaching to an existing niche, creating a new one or merging).")
 def niche_find_by_keywords(keywords: list[dict]) -> list[dict]:
     """keywords: [{keyword, region}]"""
     return nm.find_similar_niches(_db(), keywords)
 
 
-@server.tool(description="Danh sách các lần đào đã có (tóm tắt). Lọc theo topic chứa chuỗi, region.")
+@server.tool(description="List of existing digs (summary). Filter by topic substring and region.")
 def runs_list(contains: str | None = None, region: str | None = None, limit: int = 50) -> list[dict]:
     out = []
     for r in run_repo.list_all(_db()):
@@ -148,13 +149,13 @@ def runs_list(contains: str | None = None, region: str | None = None, limit: int
     return out
 
 
-@server.tool(description="Một lần đào: điểm, 4 thanh, 3 tầng, kênh nhỏ nổ, video vượt trội, Trends.")
+@server.tool(description="One dig: score, four bars, three tiers, small booming channels, outperformer videos, Trends.")
 def run_get(run_id: int) -> dict | str:
     run = run_repo.get(_db(), run_id)
-    return _run_brief(run) if run else f"Lỗi: không có lần đào id={run_id}"
+    return _run_brief(run) if run else f"Error: no dig with id={run_id}"
 
 
-@server.tool(description="Từ khoá Radar (Google Trends quét danh mục) theo trạng thái: pending | passed | watching | excluded | ignored.")
+@server.tool(description="Radar keywords (Google Trends category scan) by status: pending | passed | watching | excluded | ignored.")
 def radar_keywords(statuses: list[str] | None = None, regions: list[str] | None = None, limit: int = 100) -> list[dict]:
     from yt_niche.services import radar
 
@@ -163,7 +164,7 @@ def radar_keywords(statuses: list[str] | None = None, regions: list[str] | None 
     return [{k: r.get(k) for k in keep} for r in rows[:limit]]
 
 
-@server.tool(description="Từ khoá đã lấy gợi ý / đã chấm trong bảng keyword theo từ gốc (seed) và thị trường. Không tốn quota.")
+@server.tool(description="Keywords already suggested / scored in the keyword table, by seed and market. No quota.")
 def keywords_list(seed: str | None = None, region: str | None = None, scored_only: bool = False, limit: int = 100) -> list[dict]:
     from yt_niche.services import keywords
 
@@ -174,18 +175,18 @@ def keywords_list(seed: str | None = None, region: str | None = None, scored_onl
 
 
 # ---------------------------------------------------------------------------
-# Lấy dữ liệu thật
+# Fetch real data
 # ---------------------------------------------------------------------------
 
 
-@server.tool(description="Gợi ý tìm kiếm YouTube cho một từ gốc (0 unit). az=true lấy thêm biến thể a–z. Trả về từ khoá kèm điểm nếu đã chấm trước đó.")
+@server.tool(description="YouTube search suggestions for a seed (0 units). az=true also fetches the a–z variants. Returns the keywords with their score if scored before.")
 def keywords_suggest(seed: str, region: str = "VN", az: bool = False) -> dict | str:
     from yt_niche.services import keywords
 
     conn = _db()
     try:
         items = keywords.fetch_suggestions(conn, seed, region.upper(), az=az)
-    except Exception as e:  # noqa: BLE001 — Claude cần đọc lỗi mạng / đầu vào
+    except Exception as e:  # noqa: BLE001 — Claude needs to read network / input errors
         return _err(e)
     rows = keywords.list_keywords(conn, seed, region.upper())
     return {
@@ -194,14 +195,14 @@ def keywords_suggest(seed: str, region: str = "VN", az: bool = False) -> dict | 
     }
 
 
-@server.tool(description="Chấm từ khoá bằng kết quả search YouTube thật (≈102 unit / từ, tối đa 10 từ). Từ khoá phải nằm trong bảng keyword (keywords_suggest trước, hoặc add_manual=true).")
+@server.tool(description="Score keywords with real YouTube search results (≈102 units / keyword, at most 10). The keywords must be in the keyword table (keywords_suggest first, or add_manual=true).")
 def keywords_score(region: str, keywords_to_score: list[str], seed: str | None = None, add_manual: bool = False, force: bool = False) -> dict | str:
     from yt_niche.services import keywords
 
     conn = _db()
     region = region.upper()
     if not keywords_to_score:
-        return "Lỗi: danh sách từ khoá trống"
+        return "Error: the keyword list is empty"
     if msg := _guard(keywords.UNITS_PER_KEYWORD * len(keywords_to_score), force):
         return msg
     try:
@@ -220,7 +221,7 @@ def keywords_score(region: str, keywords_to_score: list[str], seed: str | None =
     }
 
 
-@server.tool(description="Đào một ngách: search YouTube + video + kênh + Trends → điểm ngách, 3 tầng, kênh nhỏ nổ (≈210–350 unit). Có lần đào cùng thiết lập trong 90 ngày thì trả về lần đó thay vì đào lại, trừ khi fresh=true.")
+@server.tool(description="Dig a niche: YouTube search + videos + channels + Trends → niche score, three tiers, small booming channels (≈210–350 units). If a dig with the same setup exists from the last 90 days, that dig is returned instead of digging again, unless fresh=true.")
 def niche_dig(
     topic: str, region: str = "VN", window_days: int = 30, fmt: str = "any", pages: int = 2,
     with_trends: bool = True, parent_run_id: int | None = None, fresh: bool = False, force: bool = False,
@@ -233,9 +234,9 @@ def niche_dig(
     conn = _db()
     region = region.upper()
     if region not in cfg.MARKETS:
-        return f"Lỗi: thị trường {region} không có trong danh sách {list(cfg.ENABLED_MARKETS)}"
+        return f"Error: market {region} is not in the list {list(cfg.ENABLED_MARKETS)}"
     if fmt not in ("any", "long", "shorts"):
-        return "Lỗi: fmt phải là any | long | shorts"
+        return "Error: fmt must be any | long | shorts"
     topic_n = " ".join(topic.lower().split())
     if not fresh:
         cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
@@ -258,7 +259,7 @@ def niche_dig(
     return {"reused": False, "units_spent": quota.used_on(conn) - before, **_run_brief(run_repo.get(conn, run_id))}
 
 
-@server.tool(description="Từ URL video / kênh YouTube: kênh và video tương tự (đối thủ), tiêu đề video thắng, tag kênh gốc (≈10–30 unit). region quyết định ngôn ngữ tìm kiếm: phải thuộc ngôn ngữ của ngách đang xét. Kết quả kèm country của từng kênh; kênh khác ngôn ngữ thì bỏ, không lấy làm đối thủ hay từ khoá.")
+@server.tool(description="From a YouTube video / channel URL: similar channels and videos (competitors), winning video titles, the source channel's tags (≈10–30 units). region sets the search language: it must belong to the language of the niche in question. Each channel comes with its country; drop channels in another language, never use them as competitors or keyword sources.")
 def similar_from_url(url: str, region: str = "US", force: bool = False) -> dict | str:
     from yt_niche.services import similar
 
@@ -289,7 +290,7 @@ def similar_from_url(url: str, region: str = "US", force: bool = False) -> dict 
     }
 
 
-@server.tool(description="Quét lại kênh đã gắn vào ngách và kênh nhỏ nổ ở các lần đào của ngách: sub, trung vị view hiện tại (≈2 unit / kênh). Trả về bảng để Claude quyết định leader / rising / fallen.")
+@server.tool(description="Rescan the channels attached to a niche and the small booming channels of its digs: subs, current median views (≈2 units / channel). Returns a table for Claude to decide leader / rising / fallen.")
 def competitors_refresh(niche_id: int, force: bool = False) -> dict | str:
     import asyncio
 
@@ -307,7 +308,7 @@ def competitors_refresh(niche_id: int, force: bool = False) -> dict | str:
             if c.get("channel_id"):
                 ids.add(c["channel_id"])
     if not ids:
-        return {"channels": [], "note": "Ngách chưa có kênh nào; gắn kênh bằng niche_set_channels hoặc đào trước."}
+        return {"channels": [], "note": "The niche has no channels yet; attach some with niche_set_channels or dig first."}
     if msg := _guard(2 * len(ids), force):
         return msg
 
@@ -339,16 +340,16 @@ def competitors_refresh(niche_id: int, force: bool = False) -> dict | str:
         })
     return {
         "niche_language": d["language"], "regions_allowed": sorted(allowed), "channels": out, "units_spent": 2 * len(ids),
-        "note": "language_mismatch=true: kênh khai quốc gia / ngôn ngữ khác ngách — cân nhắc bỏ khỏi đối thủ.",
+        "note": "language_mismatch=true: the channel declares a country / language different from the niche — consider dropping it from the competitors.",
     }
 
 
 # ---------------------------------------------------------------------------
-# Ghi quyết định
+# Write decisions
 # ---------------------------------------------------------------------------
 
 
-@server.tool(description=f"Tạo ngách. Một ngách = một ngôn ngữ: truyền language (vi, en, ja…) hoặc region (VN, US…) để suy ra. Từ khoá, lần đào, ngách mẹ, ngách gộp sau này đều phải cùng ngôn ngữ. motivation ∈ {list(nm.MOTIVATIONS)}. Ngách mới ở trạng thái draft cho tới khi có từ khoá main đã chấm hoặc một lần đào.")
+@server.tool(description=f"Create a niche. One niche = one language: pass language (vi, en, ja…) or region (VN, US…) to infer it. Keywords, digs, parent and merged niches must later share that language. motivation ∈ {list(nm.MOTIVATIONS)}. A new niche stays draft until it has a scored main keyword or a dig.")
 def niche_create(
     name: str, rationale: str, language: str | None = None, region: str | None = None, parent_id: int | None = None,
     motivation: str | None = None, motivation_secondary: str | None = None, summary: str = "",
@@ -356,7 +357,7 @@ def niche_create(
     try:
         if not language:
             if not region:
-                return "Lỗi: cần language (vi, en…) hoặc region (VN, US…) để biết ngách thuộc ngôn ngữ nào"
+                return "Error: language (vi, en…) or region (VN, US…) is needed to know which language the niche belongs to"
             language = nm.language_of_region(region)
         nid = nm.create(_db(), name, language=language, parent_id=parent_id, motivation=motivation,
                         motivation_secondary=motivation_secondary, summary=summary, rationale=rationale)
@@ -365,7 +366,7 @@ def niche_create(
         return _err(e)
 
 
-@server.tool(description="Đổi tên / tóm tắt ngách.")
+@server.tool(description="Rename a niche / change its summary.")
 def niche_update(niche_id: int, rationale: str, name: str | None = None, summary: str | None = None) -> dict | str:
     try:
         return nm.update(_db(), niche_id, name=name, summary=summary, rationale=rationale)
@@ -373,7 +374,7 @@ def niche_update(niche_id: int, rationale: str, name: str | None = None, summary
         return _err(e)
 
 
-@server.tool(description="Gắn từ khoá vào ngách. items: [{keyword, region, kind: main|related|longtail|trend, source?}]. region phải cùng ngôn ngữ với ngách (xem regions_allowed trong niche_get). Số liệu copy từ bảng keyword / radar lúc gắn; kind=main chỉ nên dùng cho từ đã có số.")
+@server.tool(description="Attach keywords to a niche. items: [{keyword, region, kind: main|related|longtail|trend, source?}]. region must share the niche's language (see regions_allowed in niche_get). Numbers are copied from the keyword / radar tables at attach time; kind=main should only be used for keywords that have numbers.")
 def niche_attach_keywords(niche_id: int, items: list[dict], rationale: str) -> dict | str:
     try:
         return nm.attach_keywords(_db(), niche_id, items, rationale)
@@ -381,7 +382,7 @@ def niche_attach_keywords(niche_id: int, items: list[dict], rationale: str) -> d
         return _err(e)
 
 
-@server.tool(description="Bỏ từ khoá khỏi ngách. items: [{keyword, region}].")
+@server.tool(description="Remove keywords from a niche. items: [{keyword, region}].")
 def niche_detach_keywords(niche_id: int, items: list[dict], rationale: str) -> dict | str:
     try:
         return nm.detach_keywords(_db(), niche_id, items, rationale)
@@ -389,7 +390,7 @@ def niche_detach_keywords(niche_id: int, items: list[dict], rationale: str) -> d
         return _err(e)
 
 
-@server.tool(description="Gắn một lần đào (dig_run) vào ngách; lần đào phải cùng ngôn ngữ với ngách.")
+@server.tool(description="Attach a dig (dig_run) to a niche; the dig must share the niche's language.")
 def niche_attach_run(niche_id: int, run_id: int, rationale: str = "") -> dict | str:
     try:
         return nm.attach_run(_db(), niche_id, run_id, rationale)
@@ -397,7 +398,7 @@ def niche_attach_run(niche_id: int, run_id: int, rationale: str = "") -> dict | 
         return _err(e)
 
 
-@server.tool(description="Ghi kênh đối thủ của ngách. items: [{channel_id, role: leader|rising|fallen, note?}].")
+@server.tool(description="Record the niche's competitor channels. items: [{channel_id, role: leader|rising|fallen, note?}].")
 def niche_set_channels(niche_id: int, items: list[dict], rationale: str) -> dict | str:
     try:
         return nm.set_channels(_db(), niche_id, items, rationale)
@@ -405,7 +406,7 @@ def niche_set_channels(niche_id: int, items: list[dict], rationale: str) -> dict
         return _err(e)
 
 
-@server.tool(description="Chuyển ngách sang mẹ khác (new_parent_id bỏ trống = lên gốc).")
+@server.tool(description="Move a niche under another parent (new_parent_id empty = to the root).")
 def niche_move(niche_id: int, rationale: str, new_parent_id: int | None = None) -> dict | str:
     try:
         return nm.move(_db(), niche_id, new_parent_id, rationale)
@@ -413,7 +414,7 @@ def niche_move(niche_id: int, rationale: str, new_parent_id: int | None = None) 
         return _err(e)
 
 
-@server.tool(description="Gộp mềm source vào target (phải cùng ngôn ngữ): từ khoá, lần đào, kênh, ngách con chuyển sang target; source thành merged, tách lại được bằng niche_unmerge.")
+@server.tool(description="Soft-merge source into target (same language required): keywords, digs, channels and children move to the target; the source becomes merged and can be split again with niche_unmerge.")
 def niche_merge(source_id: int, target_id: int, rationale: str) -> dict | str:
     try:
         return nm.merge(_db(), source_id, target_id, rationale)
@@ -421,7 +422,7 @@ def niche_merge(source_id: int, target_id: int, rationale: str) -> dict | str:
         return _err(e)
 
 
-@server.tool(description="Tách lại một ngách đã gộp.")
+@server.tool(description="Undo a merge.")
 def niche_unmerge(niche_id: int, rationale: str) -> dict | str:
     try:
         return nm.unmerge(_db(), niche_id, rationale, actor="claude")
@@ -429,7 +430,7 @@ def niche_unmerge(niche_id: int, rationale: str) -> dict | str:
         return _err(e)
 
 
-@server.tool(description=f"Gán động cơ khán giả (chính + phụ tuỳ chọn). Các mã: {nm.MOTIVATIONS}")
+@server.tool(description=f"Assign the audience motivation (primary + optional secondary). Codes: {nm.MOTIVATIONS}")
 def niche_set_motivation(niche_id: int, primary: str, rationale: str, secondary: str | None = None) -> dict | str:
     try:
         return nm.set_motivation(_db(), niche_id, primary, secondary, rationale)
@@ -437,7 +438,7 @@ def niche_set_motivation(niche_id: int, primary: str, rationale: str, secondary:
         return _err(e)
 
 
-@server.tool(description="Xếp tiềm năng 0–100 cho một hoặc nhiều ngách sau khi đọc map_compare. items: [{niche_id, potential, rationale}]. App lưu kèm ảnh chụp số liệu để báo khi hạng đã cũ.")
+@server.tool(description="Rank the potential 0–100 of one or more niches after reading map_compare. items: [{niche_id, potential, rationale}]. The app stores a snapshot of the numbers to flag when the rank goes stale.")
 def niche_rank(items: list[dict], rationale: str = "") -> list[dict] | str:
     try:
         return nm.rank(_db(), items, rationale)
@@ -445,7 +446,7 @@ def niche_rank(items: list[dict], rationale: str = "") -> list[dict] | str:
         return _err(e)
 
 
-@server.tool(description="Bỏ ngách (status=dropped, không xoá dữ liệu).")
+@server.tool(description="Drop a niche (status=dropped, no data deleted).")
 def niche_drop(niche_id: int, rationale: str) -> dict | str:
     try:
         return nm.drop(_db(), niche_id, rationale)
@@ -453,7 +454,7 @@ def niche_drop(niche_id: int, rationale: str) -> dict | str:
         return _err(e)
 
 
-@server.tool(description="Chép lại số mới nhất từ bảng keyword / radar cho mọi từ khoá đã gắn vào ngách (sau khi chấm lại).")
+@server.tool(description="Copy the latest numbers from the keyword / radar tables for every keyword attached to the niche (after re-scoring).")
 def niche_refresh_numbers(niche_id: int) -> dict | str:
     try:
         n = nm.refresh_keyword_numbers(_db(), niche_id)

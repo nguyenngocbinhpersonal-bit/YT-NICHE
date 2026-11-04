@@ -1,4 +1,4 @@
-"""DataForSEO: nguồn Google Trends dự phòng khi Google chặn (429). Chỉ dùng khi đã bật, có giới hạn lượt/ngày."""
+"""DataForSEO: backup Google Trends source when Google blocks (429). Only when enabled, with a daily task limit."""
 
 import asyncio
 from datetime import date, timedelta
@@ -50,7 +50,7 @@ def backup(conn, monkeypatch):
 
 def test_off_by_default(conn, monkeypatch):
     monkeypatch.delenv("DATAFORSEO_LOGIN", raising=False)
-    assert dfs.unavailable_reason(conn) == "chưa bật DataForSEO"
+    assert dfs.unavailable_reason(conn) == dfs.NOT_ENABLED
     dfs.save_config(conn, {"enabled": True})
     assert "login" in dfs.unavailable_reason(conn)
 
@@ -64,13 +64,13 @@ def test_dig_uses_backup_when_google_throttled(conn, fake_google, backup):
     fake_google.blocked = {"today 5-y"}
     r = asyncio.run(trends.get_trends(conn, "dog training", "US"))
     assert r["provider"] == "dataforseo" and r["errors"] == {} and len(r["series"]["5y"]) == 261
-    assert r["derived"] == ["12m", "3m"]  # suy ra, không tốn thêm lượt trả phí
+    assert r["derived"] == ["12m", "3m"]  # derived, no extra paid task
     graph = [p for path, p in backup if path.endswith("/live")]
     assert len(graph) == 1 and graph[0][0]["location_code"] == 2840 and graph[0][0]["type"] == "youtube"
     assert graph[0][0]["time_range"] == "past_5_years"
     assert dfs.usage_today(conn) == {"tasks": 1, "cost": 0.009}
 
-    fake_google.calls.clear()  # đang nghỉ: đi thẳng DataForSEO, không gọi Google
+    fake_google.calls.clear()  # cooling down: straight to DataForSEO, Google is not called
     asyncio.run(trends.get_trends(conn, "cat training", "US"))
     assert fake_google.calls == [] and dfs.usage_today(conn)["tasks"] == 2
 
@@ -79,8 +79,8 @@ def test_daily_limit_and_backup_error(conn, fake_google, backup, monkeypatch):
     dfs.save_config(conn, {"max_tasks_per_day": 1})
     fake_google.blocked = {"today 5-y"}
     asyncio.run(trends.get_trends(conn, "a", "US"))
-    r = asyncio.run(trends.get_trends(conn, "b", "US"))  # hết lượt: như khi chưa có dự phòng
-    assert "tạm nghỉ gọi Trends" in r["errors"]["5y"]
+    r = asyncio.run(trends.get_trends(conn, "b", "US"))  # out of tasks: same as without a backup
+    assert trends.PAUSED in r["errors"]["5y"]
 
     dfs.save_config(conn, {"max_tasks_per_day": 10})
 
@@ -116,14 +116,14 @@ def test_request_errors(monkeypatch):
 
 def test_radar_uses_backup_during_cooldown(conn, us_only, backup):
     trends.start_cooldown(conn)
-    r = radar.tick(conn, now=NOW)  # Google đang chặn: quét danh mục qua DataForSEO
+    r = radar.tick(conn, now=NOW)  # Google is blocking: the category scan goes through DataForSEO
     assert r["action"] == "discover" and "[DataForSEO]" in r["detail"] and r.get("paid") == 1
     assert ("discover", "US", 66) not in us_only
     assert {k["keyword"] for k in radar.keywords(conn, [rd.PENDING])} == {"dog training tips", "puppy class"}
 
     r = radar.tick(conn, now=NOW + timedelta(minutes=10))
     assert r["action"] == "check" and "[DataForSEO]" in r["detail"] and r["requests"] == 0 and r["paid"] == 2
-    assert dfs.usage_today(conn)["tasks"] == 3  # kiểm tra: 30 ngày YouTube Search + Google Search = 2 lượt trả phí
+    assert dfs.usage_today(conn)["tasks"] == 3  # check: 30 days YouTube Search + Google Search = 2 paid tasks
     assert {p[0]["type"] for path, p in backup if p and p[0].get("time_range") == "past_30_days"} == {"youtube", "web"}
 
     dfs.save_config(conn, {"radar": False})
@@ -142,7 +142,7 @@ def test_radar_switches_to_backup_on_429(conn, us_only, backup, monkeypatch):
 
 def test_entity_lookup_not_counted_as_trends_request(conn, us_only, monkeypatch):
     radar.tick(conn, now=NOW)
-    # katseye bị loại nhờ gợi ý thực thể (không tính vào nhịp), rồi kiểm tiếp từ sau trong cùng lượt.
+    # katseye is excluded by the entity suggestions (not counted in the pace), then the next keyword is checked in the same tick.
     r = radar.tick(conn, now=NOW + timedelta(minutes=10))
     assert ("entity", "katseye") in us_only and ("series", "dog training tips", "web") in us_only
-    assert r["requests"] == 4  # 30 ngày YouTube Search + Google Search
+    assert r["requests"] == 4  # 30 days YouTube Search + Google Search

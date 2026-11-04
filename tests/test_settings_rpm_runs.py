@@ -18,7 +18,7 @@ def tmp_paths(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg, "SETTINGS_PATH", tmp_path / "settings.json")
     monkeypatch.setattr(cfg, "RPM_TABLE_PATH", tmp_path / "rpm.csv")
     yield tmp_path
-    settings.apply({})  # trả config về mặc định cho test khác
+    settings.apply({})  # restore the default config for the other tests
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def raw():
 def test_settings_save_apply_and_reset(tmp_paths):
     settings.save({"OUTLIER_OUTPERFORM": 4, "MIN_CHANNEL_SAMPLE": 5})
     assert cfg.OUTLIER_OUTPERFORM == 4.0
-    assert json.loads(cfg.SETTINGS_PATH.read_text()) == {"OUTLIER_OUTPERFORM": 4}  # chỉ lưu giá trị khác mặc định
+    assert json.loads(cfg.SETTINGS_PATH.read_text()) == {"OUTLIER_OUTPERFORM": 4}  # only values that differ from defaults
 
     settings.apply({})
     assert cfg.OUTLIER_OUTPERFORM == settings.DEFAULTS["OUTLIER_OUTPERFORM"]
@@ -53,30 +53,44 @@ def test_threshold_change_affects_analysis(tmp_paths, raw):
 
 def test_rpm_table_default_and_lookup(tmp_paths):
     assert not cfg.RPM_TABLE_PATH.exists()
-    vn = rpm_source.lookup("VN", "Lịch sử")
-    us = rpm_source.lookup("US", "Lịch sử")
+    vn = rpm_source.lookup("VN", "History")
+    us = rpm_source.lookup("US", "History")
     assert cfg.RPM_TABLE_PATH.exists()
     assert us[0] == pytest.approx(vn[0] * 4)
     assert rpm_source.lookup("VN", None) is None
-    assert rpm_source.lookup("VN", "không có") is None
+    assert rpm_source.lookup("VN", "no such category") is None
+
+
+def test_rpm_table_renames_legacy_vietnamese_categories(tmp_paths):
+    cfg.RPM_TABLE_PATH.write_text(
+        "market,category,rpm_low,rpm_high\nVN,Lịch sử,0.9,1.9\nVN,History,0.1,0.2\nUS,Game,5,6\n", encoding="utf-8"
+    )
+    df = rpm_source.load_table()
+    assert not df["category"].isin(rpm_source.LEGACY_CATEGORIES).any()
+    assert rpm_source.lookup("VN", "History") == (0.9, 1.9)  # the user's edited row wins over the duplicate
+    assert rpm_source.lookup("US", "Gaming") == (5.0, 6.0)
+    assert "Lịch sử" not in cfg.RPM_TABLE_PATH.read_text(encoding="utf-8")  # rewritten in English
+    assert set(df["market"]) == set(cfg.MARKETS)  # missing markets backfilled
 
 
 def test_runs_insert_reanalyze_compare(conn, tmp_paths, raw):
-    result = _analyze(raw, "Lịch sử", [])
-    run_id = run_repo.insert(conn, raw=raw, result=result, category="Lịch sử", affiliates=[])
+    result = _analyze(raw, "History", [])
+    run_id = run_repo.insert(conn, raw=raw, result=result, category="History", affiliates=[])
     run = run_repo.get(conn, run_id, with_raw=True)
     assert run["raw"]["params"]["topic"] == "kể chuyện lịch sử"
-    assert run["result"]["three_tier"]["money"]["reason"].endswith("chưa nhập affiliate")
+    assert run["result"]["three_tier"]["money"]["reason"].endswith("no affiliates entered")
 
-    new = reanalyze(conn, run_id, category="Lịch sử", affiliates=["Sách", "Bản đồ", "Truyện"])
-    assert "3 sản phẩm affiliate" in new["three_tier"]["money"]["reason"]
-    assert run_repo.get(conn, run_id)["affiliates"] == ["Sách", "Bản đồ", "Truyện"]
+    new = reanalyze(conn, run_id, category="History", affiliates=["Books", "Maps", "Stories"])
+    assert "3 affiliate products" in new["three_tier"]["money"]["reason"]
+    assert run_repo.get(conn, run_id)["affiliates"] == ["Books", "Maps", "Stories"]
 
-    second = run_repo.insert(conn, raw=raw, result=result, category="Lịch sử", affiliates=[])
+    second = run_repo.insert(conn, raw=raw, result=result, category="History", affiliates=[])
     history = run_repo.same_setup(conn, run_repo.get(conn, second))
     assert [h["id"] for h in history] == [second, run_id]
-    rows = {row["Chỉ số"]: row for row in compare(history[1], history[0])}
-    assert rows["Điểm ngách"]["Chênh"] == 0
+    rows = compare(history[1], history[0])
+    score_row = next(r for r in rows if "score" in str(list(r.values())[0]).lower())
+    old, new_value, diff = list(score_row.values())[1:4]  # metric, old, new, diff
+    assert old == new_value and diff == 0
 
     run_repo.set_checked_channels(conn, run_id, ["A", "B"])
     run_repo.set_shortlisted(conn, run_id, True)
@@ -88,12 +102,12 @@ def test_runs_insert_reanalyze_compare(conn, tmp_paths, raw):
 
 
 def test_report_prompt_and_excel(conn, tmp_paths, raw):
-    result = _analyze(raw, "Lịch sử", ["Sách lịch sử"])
-    run_id = run_repo.insert(conn, raw=raw, result=result, category="Lịch sử", affiliates=["Sách lịch sử"])
+    result = _analyze(raw, "History", ["History books"])
+    run_id = run_repo.insert(conn, raw=raw, result=result, category="History", affiliates=["History books"])
     run = run_repo.get(conn, run_id)
     for name in report.PROMPTS:
-        text = report.build_prompt(name, run, "không lộ mặt")
-        assert "{" not in text and "kể chuyện lịch sử" in text and "không lộ mặt" in text
-    assert "Sách lịch sử" in report.data_block(run)
+        text = report.build_prompt(name, run, "faceless")
+        assert "{" not in text and "kể chuyện lịch sử" in text and "faceless" in text
+    assert "History books" in report.data_block(run)
     xlsx = report.to_excel(run)
-    assert xlsx[:2] == b"PK"  # file zip (xlsx)
+    assert xlsx[:2] == b"PK"  # a zip file (xlsx)

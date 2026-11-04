@@ -12,7 +12,7 @@ from yt_niche.services import keywords as keyword_svc
 
 MIN_ITEMS, MAX_ITEMS = 2, 5
 # Placeholder rationale core.scorecard writes for cells that must be scored by hand (left out of the review prompt).
-_MANUAL_RATIONALES = ("score by hand", "scored by hand", "score manually", "manual")
+_MANUAL_RATIONALES = (sc.MANUAL,)
 
 
 class ScorecardError(ValueError):

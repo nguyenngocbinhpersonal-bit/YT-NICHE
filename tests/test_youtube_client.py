@@ -15,7 +15,7 @@ def _video(vid, duration, views, live="none"):
 
 CHANNEL = {
     "id": "C1",
-    "snippet": {"title": "Kênh 1", "publishedAt": "2025-01-01T00:00:00Z"},
+    "snippet": {"title": "Channel 1", "publishedAt": "2025-01-01T00:00:00Z"},
     "statistics": {"subscriberCount": "5000", "videoCount": "6", "hiddenSubscriberCount": False},
     "contentDetails": {"relatedPlaylists": {"uploads": "UU1"}},
 }
@@ -67,10 +67,10 @@ async def test_channel_medians_split_by_format_and_cached(conn):
         rows = await yt.channel_medians(channels)
         row = rows["C1"]
         assert row["median_long"] == 2000 and row["n_long"] == 3
-        assert row["median_short"] == 200 and row["n_short"] == 2  # bỏ qua livestream
+        assert row["median_short"] == 200 and row["n_short"] == 2  # livestreams are skipped
         assert row["subs"] == 5000
 
-        await yt.channel_medians(channels)  # lần 2: lấy từ bảng channel
+        await yt.channel_medians(channels)  # 2nd call: served from the channel table
         assert hits["playlistItems"] == 1
         assert yt.meter.cache_hits["channel_median"] == 1
 

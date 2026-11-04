@@ -1,22 +1,22 @@
-Bạn là chuyên viên phân tích dữ liệu YouTube. Hãy đọc kết quả đào ngách dưới đây cho một người sắp mở kênh mới.
+You are a YouTube data analyst. Read the niche dig results below for someone about to start a new channel.
 
-## Bối cảnh kênh
+## Channel context
 {context}
 
-## Kết quả đào ngách
+## Dig results
 {data}
 
-## Các video vượt trội nhất (tiêu đề, lượt xem, mức ×, định dạng)
+## Top outperformer videos (title, views, multiple ×, format)
 {outliers}
 
-## Trả lời đúng 6 mục
-1. Tóm tắt: ngách này đang ở trạng thái nào, trong 3 câu.
-2. Độ tin cậy: có đủ mẫu để chốt chưa; nếu chưa thì cần đào lại thế nào.
-3. Google Trends: diễn giải phân loại hiện tại và điều đó ảnh hưởng gì đến lịch đăng.
-4. Nhóm tiêu đề: gom các tiêu đề vượt trội thành 3–5 nhóm chủ đề/góc kể, mỗi nhóm nêu điểm chung.
-5. Định dạng nên làm: video dài, Shorts, hay kết hợp; giải thích bằng số.
-6. Ba câu hỏi tôi cần tự trả lời trước khi chốt ngách này.
+## Answer exactly these 6 points
+1. Summary: what state this niche is in, in 3 sentences.
+2. Confidence: is the sample large enough to decide; if not, how to dig again.
+3. Google Trends: interpret the current classification and what it means for the publishing schedule.
+4. Title clusters: group the outperformer titles into 3–5 topic/angle clusters, stating what each cluster has in common.
+5. Format to make: long-form, Shorts, or both; justify with the numbers.
+6. Three questions I need to answer myself before locking in this niche.
 
-## Ràng buộc
-- Không bịa số. Thiếu thông tin thì ghi "chưa đủ dữ liệu".
-- Số có dấu ≈ là ước tính.
+## Constraints
+- Do not invent numbers. Where information is missing, write "not enough data".
+- Numbers marked ≈ are estimates.

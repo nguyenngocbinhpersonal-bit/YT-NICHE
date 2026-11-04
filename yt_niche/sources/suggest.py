@@ -1,4 +1,4 @@
-"""Gợi ý tìm kiếm YouTube (autocomplete): miễn phí, không tốn quota API. Có cache SQLite 24h."""
+"""YouTube search suggestions (autocomplete): free, no API quota. SQLite cache for 24h."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from yt_niche.db import cache
 
 URL = "https://suggestqueries.google.com/complete/search"
 CONCURRENCY = 4
-# Mở rộng A–Z: thêm một chữ cái sau từ gốc để lấy biến thể.
-AZ_LETTERS = "abcdeghiklmnopqrstuvxy"  # bảng chữ cái tiếng Việt không có f, j, w, z
+# A–Z expansion: append one letter to the seed to get variants.
+AZ_LETTERS = "abcdeghiklmnopqrstuvxy"  # the Vietnamese alphabet has no f, j, w, z
 AZ_LETTERS_LATIN = "abcdefghijklmnopqrstuvwxyz"
 
 
@@ -34,7 +34,7 @@ async def _one(http: httpx.AsyncClient, conn: sqlite3.Connection, query: str, re
         return hit
     resp = await http.get(URL, params=params)
     if resp.status_code != 200:
-        raise SuggestError(f"Gợi ý YouTube lỗi {resp.status_code}")
+        raise SuggestError(f"YouTube suggestions failed with {resp.status_code}")
     items = _parse(resp.text)
     cache.put(conn, key, items, TTL_SUGGEST)
     return items
@@ -49,7 +49,7 @@ async def suggestions(
     az: bool = False,
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> list[dict]:
-    """[{"keyword", "source": suggest | az, "rank"}], bỏ trùng, giữ thứ tự (gợi ý gốc trước)."""
+    """[{"keyword", "source": suggest | az, "rank"}], deduplicated, order kept (plain suggestions first)."""
     seed = seed.strip()
     queries = [(seed, "suggest")]
     if az:
@@ -64,7 +64,7 @@ async def suggestions(
                 try:
                     return await _one(http, conn, q, region, language)
                 except (httpx.HTTPError, SuggestError, ValueError):
-                    return []  # một chữ cái lỗi không làm hỏng cả danh sách
+                    return []  # one failing letter must not break the whole list
 
         results = await asyncio.gather(*(run(q) for q, _ in queries))
 

@@ -1,16 +1,16 @@
-Bạn là người xem bản xứ {market_name} khó tính. Tôi là người Việt, định làm kênh YouTube chủ đề "{topic}" cho thị trường {market_name}, từ khoá chính "{keyword}".
+You are a demanding native viewer from {market_name}. I am not a native speaker and I plan a YouTube channel on "{topic}" for the {market_name} market, main keyword "{keyword}".
 
-## Số liệu đào ở {market_name}
+## Dig numbers for {market_name}
 {data}
 
-## Video vượt trội ở {market_name}
+## Outperformer videos in {market_name}
 {winners}
 
-## Yêu cầu
-1. Liệt kê 5 lỗi văn hoá, cách nói, xưng hô người nước ngoài hay mắc khi làm chủ đề này cho khán giả {market_name}.
-2. Liệt kê rủi ro bản quyền và chính sách của chủ đề này ở {market_name}.
-3. Đề xuất quy trình kiểm tra ngôn ngữ: ai đọc lại, đọc phần nào (tiêu đề, kịch bản, giọng đọc), tiêu chí đạt.
-4. Chấm 1–5 khả năng một người Việt làm được nội dung đạt chuẩn bản xứ, kèm điều kiện để đạt mức đó.
+## Task
+1. List 5 cultural, phrasing or form-of-address mistakes foreigners typically make when covering this topic for a {market_name} audience.
+2. List the copyright and policy risks of this topic in {market_name}.
+3. Propose a language-check process: who reviews, what they review (titles, script, voice-over), and the pass criteria.
+4. Rate 1–5 how likely a non-native creator is to produce content that meets native standards, with the conditions needed to reach that level.
 
-## Ràng buộc
-- Không bịa số. Chỗ nào không chắc, ghi "cần kiểm tra lại".
+## Constraints
+- Do not invent numbers. Where you are unsure, write "needs checking".

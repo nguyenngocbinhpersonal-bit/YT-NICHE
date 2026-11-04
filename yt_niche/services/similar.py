@@ -1,12 +1,12 @@
-"""Video & kênh tương tự từ một URL video hoặc URL kênh (kiểu Related video / Related channel của TubeBuddy).
+"""Similar videos & channels from a video URL or a channel URL (like TubeBuddy's Related video / Related channel).
 
-Luồng:
-1. Đọc đầu vào. URL kênh → lấy 4 video nhiều view nhất trong 15 video gần nhất làm điểm xuất phát.
-2. Thu tín hiệu (miễn phí, endpoint nội bộ của YouTube):
-   - related: cột "Up next" của từng video xuất phát, ở thị trường đã chọn và thị trường của kênh gốc;
-   - search / search_channel: search video và search kênh theo tiêu đề, tag và gợi ý autocomplete.
-3. Lấy chi tiết kênh và video ứng viên bằng YouTube Data API (rẻ: channels/videos/playlistItems ≈ 1 unit).
-4. Chấm điểm (core/similar) rồi lưu một dòng vào bảng similar_run.
+Flow:
+1. Parse the input. Channel URL → the 4 most-viewed of the 15 latest videos become the seeds.
+2. Collect signals (free, YouTube's internal endpoints):
+   - related: the "Up next" column of each seed video, in the chosen market and in the source channel's market;
+   - search / search_channel: video search and channel search by title, tags and autocomplete suggestions.
+3. Fetch candidate channel and video details with the YouTube Data API (cheap: channels/videos/playlistItems ≈ 1 unit).
+4. Score (core/similar) and store one row in the similar_run table.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ SEARCH_CHANNEL_TOP = 10
 
 
 def _is_topic(name: str) -> bool:
-    """Kênh nhạc YouTube tự tạo ("Tên ca sĩ - Topic"): không phải đối thủ nội dung."""
+    """Auto-generated YouTube music channels ("Artist - Topic"): not content competitors."""
     return (name or "").endswith(" - Topic")
 
 
@@ -45,7 +45,7 @@ class SimilarError(ValueError):
 
 
 def parse_input(url: str) -> tuple[str, str]:
-    """URL video / Shorts / youtu.be, URL kênh /channel/UC… hoặc /@handle, hoặc id trần → (loại, id)."""
+    """Video / Shorts / youtu.be URL, channel URL /channel/UC… or /@handle, or a bare id → (kind, id)."""
     s = unquote((url or "").strip())
     if m := re.search(r"(?:[?&]v=|youtu\.be/|/shorts/|/live/|/embed/)([\w-]{11})", s):
         return VIDEO, m.group(1)
@@ -55,7 +55,7 @@ def parse_input(url: str) -> tuple[str, str]:
         return HANDLE, m.group(1)
     if re.fullmatch(r"[\w-]{11}", s):
         return VIDEO, s
-    raise SimilarError("Không đọc được URL. Dán link video (watch?v=…, youtu.be/…, /shorts/…) hoặc link kênh (/@tên, /channel/UC…).")
+    raise SimilarError("Could not read the URL. Paste a video link (watch?v=…, youtu.be/…, /shorts/…) or a channel link (/@name, /channel/UC…).")
 
 
 def _now() -> str:
@@ -118,23 +118,23 @@ async def collect(
     async with YouTubeClient(conn, api_key=api_key, fresh=fresh, transport=yt_transport) as yt, Innertube(
         conn, hl, region, transport=it_transport, fresh=fresh
     ) as it:
-        # ---- 1. Nguồn ----
+        # ---- 1. Source ----
         src_video = None
         if kind == VIDEO:
             items = await yt.videos([ident])
             if not items:
-                raise SimilarError("Không tìm thấy video (đã xoá, riêng tư hoặc sai link).")
+                raise SimilarError("Video not found (deleted, private or wrong link).")
             src_video = items[0]
             cid = src_video["snippet"]["channelId"]
         elif kind == HANDLE:
             cid = await yt.channel_by_handle(ident)
             if not cid:
-                raise SimilarError(f"Không tìm thấy kênh {ident}.")
+                raise SimilarError(f"Channel {ident} not found.")
         else:
             cid = ident
         src_items = await yt.channels_branding([cid])
         if not src_items:
-            raise SimilarError("Không tìm thấy kênh.")
+            raise SimilarError("Channel not found.")
         src = _brand(src_items[0])
         recent = await yt.recent_uploads(src["uploads"], cfg.SIMILAR_RECENT_TITLES) if src["uploads"] else []
 
@@ -146,18 +146,18 @@ async def collect(
             recent_items.sort(key=lambda v: -int(v.get("statistics", {}).get("viewCount", 0)))
             seeds = recent_items[: cfg.SIMILAR_SEED_VIDEOS]
             if not seeds:
-                raise SimilarError("Kênh chưa có video công khai để làm điểm xuất phát.")
+                raise SimilarError("The channel has no public videos to start from.")
 
         locales = [(hl, region)]
         src_region = src["country"]
         if with_source_market and src_region in cfg.MARKETS and src_region != region:
             locales.append((cfg.MARKETS[src_region][0], src_region))
 
-        # ---- 2. Tín hiệu ----
+        # ---- 2. Signals ----
         cand_v: dict[str, dict] = {}
         sig_c: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
         names: dict[str, str] = {}
-        local_titles: dict[str, list[str]] = defaultdict(list)  # tiêu đề (đã dịch theo hl) của video từng kênh
+        local_titles: dict[str, list[str]] = defaultdict(list)  # titles (localised to hl) of each channel's videos
 
         def add_v(v: dict, sig: str, w: float) -> None:
             if not v.get("video_id") or not v.get("channel_id") or _is_topic(v.get("channel", "")):
@@ -174,7 +174,7 @@ async def collect(
             asyncio.gather(*(_safe(it.watch(vid, h, g), errors, None) for vid, h, g in pairs)),
             asyncio.gather(*(_safe(it.channel_videos(cid, h, g), errors, []) for h, g in locales)),
         )
-        # Tiêu đề video xuất phát / video của kênh gốc theo từng hl (YouTube tự dịch), để so được khác ngôn ngữ.
+        # Seed video / source channel titles per hl (YouTube auto-translates them), so other languages can be compared.
         seed_local: dict[str, list[str]] = defaultdict(list)
         for (_, h, _g), w in zip(pairs, watches):
             if not w:
@@ -212,7 +212,7 @@ async def collect(
 
         sig_c.pop(cid, None)
 
-        # ---- 3. Chi tiết qua YouTube Data API ----
+        # ---- 3. Details through the YouTube Data API ----
         top_c = sorted(sig_c, key=lambda c: cooccur_raw(sig_c[c]), reverse=True)[: cfg.SIMILAR_ENRICH_CHANNELS]
         ch_items = await yt.channels_branding(top_c) if top_c else []
         medians = await yt.channel_medians(ch_items) if ch_items else {}
@@ -229,7 +229,7 @@ async def collect(
         )[: cfg.SIMILAR_ENRICH_VIDEOS]
         v_items = {v["id"]: v for v in await yt.videos([v["video_id"] for v in top_v])} if top_v else {}
 
-    # ---- 4. Chấm điểm ----
+    # ---- 4. Scoring ----
     channel_cands = []
     for c, b in briefs.items():
         if _is_topic(b["title"]):
@@ -261,7 +261,7 @@ async def collect(
         item = v_items.get(v["video_id"])
         norm = _normalize_video(item) if item else None
         if not norm:
-            continue  # đã xoá / riêng tư / đang livestream
+            continue  # deleted / private / live stream
         brief = briefs.get(norm["channel_id"]) or {}
         med = channel_median_for(medians.get(norm["channel_id"]), norm["fmt"])
         ratio = norm["views"] / med if norm["views"] is not None and med else None
@@ -314,12 +314,12 @@ async def collect(
     }
 
 
-# ---- Lưu và đọc ----
+# ---- Save and read ----
 
 def find_similar(conn: sqlite3.Connection, url: str, region: str = "US", **kw) -> int:
-    """Chạy một lần tra và lưu lại; trả về id dòng similar_run. Lỗi: SimilarError, YouTubeError, QuotaExceeded."""
+    """Run one lookup and store it; returns the similar_run row id. Errors: SimilarError, YouTubeError, QuotaExceeded."""
     if not cfg.api_key() and not kw.get("api_key"):
-        raise YouTubeError("Chưa có YouTube API key. Vào trang Cài đặt để nhập.")
+        raise YouTubeError("No YouTube API key yet. Enter one on the Settings page.")
     result = asyncio.run(collect(conn, url, region, **kw))
     src = result["source"]
     label = src["video_title"] or src["channel"]
