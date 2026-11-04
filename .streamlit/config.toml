@@ -13,4 +13,9 @@ primaryColor = "#2a78d6"
 backgroundColor = "#fcfcfb"
 secondaryBackgroundColor = "#f3f2ee"
 textColor = "#0b0b0b"
-font = "sans serif"
+# Google Fonts (both cover Vietnamese diacritics, which topics and keywords often use).
+# Offline, the browser falls back to its default sans-serif.
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@300..700&display=swap, sans-serif"
+headingFont = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@300..700&display=swap, sans-serif"
+codeFont = "JetBrains Mono:https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400..600&display=swap, monospace"
+baseFontSize = 17

@@ -16,6 +16,15 @@ is the reference implementation; copy its patterns.
 | `label_icon(label)` / `verdict_icon(v)` / `tier_icon(t)` | status icons for niche labels, verdicts, tiers (shared mapping) |
 | `COLORS` | the palette (blue ramp, red pole, ink, muted, surfaces); charts take colors from here |
 
+## Typography
+
+- Font: **Inter** from Google Fonts for text and headings, **JetBrains Mono** for code (`.streamlit/config.toml`).
+  Both cover Vietnamese diacritics. Offline, the browser falls back to its default sans-serif.
+- Base size **17px** (`baseFontSize`). Custom CSS sizes in `theme.py` are scaled to match; charts use `theme.FONT`
+  and `theme.CHART_FONT_SIZE`.
+- Nothing may be cut off with an ellipsis: give button columns explicit ratios wide enough for the label, and let
+  text values in KPI tiles wrap (handled in `theme.inject_css`).
+
 ## Layout rules
 
 1. **Header → KPIs → controls → content → details.** Controls (filters, forms) sit in one or two rows above the content

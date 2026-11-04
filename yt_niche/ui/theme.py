@@ -27,21 +27,27 @@ COLORS = {
     "group": "#f3f2ee",
 }
 
+# Charts use the same Google font as the app (.streamlit/config.toml loads it).
+FONT = "Inter, system-ui, -apple-system, Segoe UI, sans-serif"
+CHART_FONT_SIZE = 14
+
 _CSS = """<style>
-.yt-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;margin-right:6px;
-         background:#f3f2ee;color:#52514e;border:1px solid #e1e0d9;line-height:18px}
+.yt-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600;margin-right:6px;
+         background:#f3f2ee;color:#52514e;border:1px solid #e1e0d9;line-height:20px}
 .yt-pill.blue{background:#e4effc;color:#1c5cab;border-color:#b7d3f6}
 .yt-pill.green{background:#e3f6e3;color:#0a5c0a;border-color:#b5e3b5}
 .yt-pill.red{background:#fbe5e5;color:#9f2626;border-color:#f3b4b4}
 .yt-pill.amber{background:#fff3d6;color:#7a5200;border-color:#f6dc9a}
-.yt-sub{color:#52514e;font-size:15px;margin-top:-10px;margin-bottom:14px}
-.yt-help{color:#898781;font-size:13px;margin-top:-6px;margin-bottom:8px}
-.yt-legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:#52514e;margin:2px 0 10px}
+.yt-sub{color:#52514e;font-size:17px;margin-top:-10px;margin-bottom:14px}
+.yt-help{color:#898781;font-size:14px;margin-top:-6px;margin-bottom:8px}
+.yt-legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:#52514e;margin:2px 0 10px}
 .yt-legend span.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;
                    border:1px solid rgba(11,11,11,.1)}
 .yt-ramp{display:inline-block;width:110px;height:12px;border-radius:3px;vertical-align:-1px;margin:0 6px;
          border:1px solid rgba(11,11,11,.1)}
 div[data-testid="stMetric"] label{color:#52514e}
+/* Text values in KPI tiles (niche names) wrap instead of being cut off with an ellipsis. */
+[data-testid="stMetricValue"] .stMarkdownEllipsis,[data-testid="stMetricValue"] .stMarkdownEllipsis p{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;overflow-wrap:anywhere;line-height:1.15}
 </style>"""
 
 

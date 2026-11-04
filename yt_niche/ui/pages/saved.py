@@ -87,7 +87,7 @@ selected = runs[rows[0]]
 st.divider()
 
 with st.container(border=True):
-    c1, c2, _ = st.columns([1, 1, 3])
+    c1, c2, _ = st.columns([1.4, 1.1, 2.5])
     if c1.button("🔄 Re-dig (fresh numbers)", type="primary", width="stretch",
                  help="Same setup, skips the cache; uses about 200–300 units"):
         with st.spinner("Re-digging…"):

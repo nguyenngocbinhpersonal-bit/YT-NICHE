@@ -239,8 +239,8 @@ for r in rows:
     else:
         labels.append(
             f"<b>{r['name']}</b>{flag}{tag}<br>"
-            f"<span style='font-size:20px'>{shown}</span>"
-            f"<span style='font-size:11px'>  {meta} · opp {opp}</span>"
+            f"<span style='font-size:22px'>{shown}</span>"
+            f"<span style='font-size:12px'>  {meta} · opp {opp}</span>"
         )
     parents.append(_parent_of(r))
     values.append(p if p is not None else MIN_SIZE)
@@ -266,15 +266,15 @@ fig = go.Figure(
         ids=ids, labels=labels, parents=parents, values=values, customdata=custom,
         branchvalues="remainder", hovertext=hover, hoverinfo="text",
         marker=dict(colors=colors, line=dict(color=lines, width=widths), cornerradius=6, pad=dict(t=28, l=4, r=4, b=4)),
-        textfont=dict(color=fonts, size=13), insidetextfont=dict(color=fonts),
+        textfont=dict(color=fonts, size=14), insidetextfont=dict(color=fonts),
         textposition="middle center", tiling=dict(packing="squarify", pad=3),
-        pathbar=dict(visible=True, thickness=24, textfont=dict(size=12, color=INK_2), edgeshape=">"),
-        hoverlabel=dict(bgcolor="#ffffff", bordercolor="#e1e0d9", font=dict(color=INK, size=12)),
+        pathbar=dict(visible=True, thickness=24, textfont=dict(size=13, color=INK_2), edgeshape=">"),
+        hoverlabel=dict(bgcolor="#ffffff", bordercolor="#e1e0d9", font=dict(color=INK, size=13)),
     )
 )
 fig.update_layout(
     margin=dict(t=4, l=0, r=0, b=0), height=600, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-    uniformtext=dict(minsize=11, mode="hide"), font=dict(family="system-ui, -apple-system, Segoe UI, sans-serif"),
+    uniformtext=dict(minsize=12, mode="hide"), font=dict(family=theme.FONT, size=theme.CHART_FONT_SIZE),
 )
 event = st.plotly_chart(fig, width="stretch", on_select="rerun", selection_mode="points", key="map_chart",
                         config={"displayModeBar": False})
@@ -436,7 +436,7 @@ with st.expander("Bubble view: demand × (100 − competition), size = potential
             fig2.add_trace(go.Scatter(
                 x=[r["signals"]["main_demand"] for r in part], y=[100 - r["signals"]["main_competition"] for r in part],
                 mode="markers+text", text=[r["name"] for r in part], textposition="top center", name=lang,
-                textfont=dict(color=INK_2, size=12),
+                textfont=dict(color=INK_2, size=13),
                 marker=dict(size=[(r["potential"] or MIN_SIZE) * 0.6 + 10 for r in part], sizemode="diameter",
                             color=LANG_COLORS[i], opacity=0.8, line=dict(color="#ffffff", width=2)),
                 hovertext=[f"{r['name']}: potential {r['potential'] if r['potential'] is not None else '—'}" for r in part], hoverinfo="text",
@@ -447,6 +447,6 @@ with st.expander("Bubble view: demand × (100 − competition), size = potential
             xaxis=dict(title="Demand of main keywords", range=[0, 100], gridcolor="#e1e0d9", zeroline=False),
             yaxis=dict(title="100 − competition", range=[0, 100], gridcolor="#e1e0d9", zeroline=False),
             height=460, margin=dict(t=10, r=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            legend=dict(title="Language", orientation="h", y=-0.18), font=dict(family="system-ui, -apple-system, Segoe UI, sans-serif"),
+            legend=dict(title="Language", orientation="h", y=-0.18), font=dict(family=theme.FONT, size=theme.CHART_FONT_SIZE),
         )
         st.plotly_chart(fig2, width="stretch", key="map_bubble", config={"displayModeBar": False})

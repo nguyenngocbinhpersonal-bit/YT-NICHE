@@ -77,7 +77,7 @@ for t in tracked:
         flag = theme.pill(f"🔔 due · {due[r['id']]['age_days']} days ago", "red") if is_due else theme.pill("up to date", "green")
         c1.markdown(
             f"**{r['topic']}** {theme.pill(t['role'], ROLE_KIND.get(t['role'], ''))}{flag}<br>"
-            f"<span style='color:{theme.COLORS['muted']};font-size:13px'>{market_label(r['region'])} · last dug {r['created_at'][:10]}</span>",
+            f"<span style='color:{theme.COLORS['muted']};font-size:14px'>{market_label(r['region'])} · last dug {r['created_at'][:10]}</span>",
             unsafe_allow_html=True,
         )
         if is_due and c2.button("🔄 Re-dig", key=f"redig_{r['id']}", type="primary", disabled=not cfg.api_key(), width="stretch"):

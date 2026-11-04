@@ -307,7 +307,7 @@ with tab_decide:
         fig.update_layout(
             height=240, margin=dict(t=10, r=10, l=0, b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
             xaxis=dict(title="Video", showgrid=False), yaxis=dict(title="Views after 7 days", gridcolor=C["line"], zeroline=False),
-            font=dict(family="system-ui, -apple-system, Segoe UI, sans-serif"),
+            font=dict(family=theme.FONT, size=theme.CHART_FONT_SIZE),
         )
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
         st.caption("Dark bars are the standouts (above the standout ratio of the median).")

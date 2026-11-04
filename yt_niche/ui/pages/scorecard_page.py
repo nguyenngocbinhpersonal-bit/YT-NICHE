@@ -122,7 +122,7 @@ if not data["locked_at"]:
 
 with st.container(border=True):
     theme.pills(*[theme.pill(f"{c.label} · {weights[c.key]}", "blue" if weights[c.key] > 0 else "") for c in sc.CRITERIA])
-    c1, c2 = st.columns([3, 1])
+    c1, c2 = st.columns([2.4, 1.2])
     c1.caption(f"🔒 Locked at {data['locked_at'][:16].replace('T', ' ')} (UTC).")
     if c2.button("New version to change weights", width="stretch"):
         st.session_state["board"] = svc.new_version(conn, board_id)
@@ -133,7 +133,7 @@ with st.container(border=True):
 # ---------------------------------------------------------------------------
 
 theme.section("2. Score each niche 1–5", "Cells the app can compute from the dig are prefilled: confirm or change them, then score the rest by hand.")
-_, h2 = st.columns([3, 1])
+_, h2 = st.columns([2.4, 1.2])
 if h2.button("Refresh suggestions from new data", width="stretch"):
     svc.refresh_suggestions(conn, board_id)
     st.rerun()

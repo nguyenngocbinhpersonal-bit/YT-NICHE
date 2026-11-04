@@ -185,7 +185,7 @@ with tab_good:
         )
         chosen = [rows[i] for i in event.selection.rows]
         items = [(r["region"], r["keyword"]) for r in chosen]
-        a1, a2, a3, a4 = st.columns(4)
+        a1, a2, a3, a4 = st.columns([0.8, 1.2, 1.4, 1])
         if a1.button("👁️ Watch", disabled=not chosen, width="stretch"):
             radar.set_status(conn, items, rd.WATCHING)
             st.rerun()
@@ -297,7 +297,7 @@ with tab_log:
         df["at"] = pd.to_datetime(df["at"]).dt.tz_convert(None) + (pd.Timestamp.now() - pd.Timestamp.now("UTC").tz_localize(None))
         base_layout = dict(
             margin=dict(t=10, r=10, l=0, b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(family="system-ui, -apple-system, Segoe UI, sans-serif"),
+            font=dict(family=theme.FONT, size=theme.CHART_FONT_SIZE),
             xaxis=dict(showgrid=False), legend=dict(orientation="h", y=1.12),
         )
         fig = go.Figure()
