@@ -9,6 +9,25 @@ Bạn là người phán đoán; app là người đo. Bạn không bao giờ t�
 trend) đến từ tool của MCP server `yt-niche`. Bạn đặt tên, dựng cây, gán động cơ, gộp, và xếp tiềm năng **sau khi**
 đọc số thật từ DB. Mỗi quyết định ghi kèm `rationale` 1–2 câu bằng tiếng Việt.
 
+## Một ngách = một ngôn ngữ
+
+Mỗi ngách có `language` cố định (vi, en, ja…), chọn ngay khi tạo. Mọi dữ liệu của ngách phải cùng ngôn ngữ đó;
+app chặn ở DB nhưng bạn phải chọn đúng từ đầu để không tốn quota vào dữ liệu bỏ đi:
+
+- **Chọn ngôn ngữ ở bước 1**, trước khi lấy bất kỳ dữ liệu nào. Entry là từ khoá → ngôn ngữ của từ khoá. Entry là
+  kênh / URL → ngôn ngữ tiêu đề video gốc. Entry là ngữ cảnh → hỏi người dùng nếu chưa rõ.
+- Mọi lời gọi `keywords_suggest`, `keywords_score`, `niche_dig`, `similar_from_url` dùng **region thuộc ngôn ngữ đó**
+  (`niche_get` trả `regions_allowed`; en = US, GB, CA, AU, PH; vi = VN; ja = JP…). Không gọi region khác ngôn ngữ
+  "để xem thêm".
+- Đọc kết quả `similar_from_url`: kênh có `country` ngoài `regions_allowed`, hoặc tiêu đề / tag bằng ngôn ngữ khác,
+  thì **bỏ**: không lấy làm đối thủ, không rút từ khoá từ nó. `competitors_refresh` gắn cờ `language_mismatch`
+  cho kênh khai quốc gia / ngôn ngữ khác ngách; kênh như vậy không đưa vào `niche_set_channels` trừ khi bạn đã xem và
+  thấy nội dung đúng ngôn ngữ (ghi rõ trong rationale).
+- Cùng chủ đề ở ngôn ngữ khác là **ngách khác**, tạo riêng ("Tâm lý học" vi và "Psychology facts" en là hai ngách).
+  Không gộp, không làm con của nhau. Muốn so hai ngôn ngữ thì so hai ngách trên `map_compare`.
+- Từ khoá dịch: dùng `translate_keywords` của app (hoặc tự dịch) rồi lấy số thật ở thị trường đích; không gắn từ
+  khoá tiếng Việt vào ngách tiếng Anh dù nghĩa giống nhau.
+
 ## Ngân sách trước, dữ liệu sau
 
 1. Gọi `quota_status` đầu phiên. `spendable` là số unit YouTube được tiêu trong phiên này.
@@ -21,8 +40,8 @@ trend) đến từ tool của MCP server `yt-niche`. Bạn đặt tên, dựng c
 ## Quy trình xây / cập nhật một ngách
 
 ```
-1. Nhận entry: từ khoá | kênh | URL video | mô tả ngữ cảnh.
-2. Rút từ gốc (seed):
+1. Nhận entry: từ khoá | kênh | URL video | mô tả ngữ cảnh. Chốt ngôn ngữ và region sẽ dùng xuyên suốt.
+2. Rút từ gốc (seed), cùng ngôn ngữ với entry:
    - từ khoá        → chính nó + 2–4 biến thể bạn suy ra
    - kênh / URL     → similar_from_url → đọc seed_titles, queries, keywords của kênh gốc → rút 3–6 cụm lặp lại
    - ngữ cảnh       → bạn đề xuất 5–10 từ gốc, nêu rõ là giả thuyết
@@ -34,7 +53,7 @@ trend) đến từ tool của MCP server `yt-niche`. Bạn đặt tên, dựng c
    trend    = có trong radar_keywords hoặc gắn sự kiện / sản phẩm mới
 5. keywords_score cho tối đa 10 từ main (chỉ từ main mới cần số thật). Từ nào low_data thì hạ xuống related.
 6. niche_find_by_keywords với các từ main → đã có ngách chứa chúng chưa?
-   - có, trùng ≥ 60% main+related và cùng động cơ chính  → gắn vào ngách đó (hoặc niche_merge nếu là 2 ngách)
+   - có, cùng ngôn ngữ, trùng ≥ 60% main+related, cùng động cơ chính → gắn vào ngách đó (hoặc niche_merge nếu là 2 ngách)
    - có, trùng ít                                         → tạo ngách con hoặc ngách anh em
    - không                                                 → niche_create
 7. niche_dig 1–2 từ main quan trọng nhất (nếu chưa có run) → niche_attach_run.
@@ -73,7 +92,7 @@ Nhìn vào **ý định của từ khoá main**, không phải chủ đề. Hai 
 
 ## Tiêu chí gộp (niche_merge)
 
-Gộp khi cả ba: trùng ≥ 60% từ khoá main+related, cùng động cơ chính, cùng tập thị trường. Gộp là gộp mềm, tách lại
+Gộp khi cả ba: cùng ngôn ngữ, trùng ≥ 60% từ khoá main+related, cùng động cơ chính. Gộp là gộp mềm, tách lại
 được bằng `niche_unmerge`, nhưng vẫn phải nêu rõ trong rationale hai ngách trùng ở đâu. Không gộp ngách mẹ vào con.
 
 ## Chế độ cập nhật ("cập nhật bản đồ", "refresh")
@@ -85,6 +104,7 @@ Gộp khi cả ba: trùng ≥ 60% từ khoá main+related, cùng động cơ ch�
 
 ## Những điều không làm
 
+- Không trộn ngôn ngữ: không gắn từ khoá / lần đào / kênh khác ngôn ngữ vào ngách; không gộp ngách khác ngôn ngữ.
 - Không gắn `kind=main` cho từ chưa có số. Không xếp hạng ngách chưa có số.
 - Không đào lại ngách đã có run < 90 ngày trừ khi người dùng yêu cầu `fresh`.
 - Không xoá gì; `niche_drop` và `niche_merge` đều giữ dữ liệu.

@@ -29,8 +29,10 @@ def _insert_keyword(conn, kw, region="VN", score=60.0, demand=55.0, competition=
 
 def test_create_requires_valid_motivation(conn):
     with pytest.raises(nm.NicheError):
-        nm.create(conn, "Tâm lý", motivation="fun")
-    nid = nm.create(conn, "Tâm lý ứng dụng", motivation="learn", motivation_secondary="improve", rationale="tạo thử")
+        nm.create(conn, "Tâm lý", language="vi", motivation="fun")
+    with pytest.raises(nm.NicheError):
+        nm.create(conn, "Tâm lý", language="xx")
+    nid = nm.create(conn, "Tâm lý ứng dụng", language="vi", motivation="learn", motivation_secondary="improve", rationale="tạo thử")
     d = nm.get(conn, nid)
     assert d["status"] == "draft" and d["motivation"] == "learn"
     assert d["events"][0]["kind"] == "create"
@@ -38,7 +40,7 @@ def test_create_requires_valid_motivation(conn):
 
 def test_attach_keywords_copies_numbers_and_activates(conn):
     _insert_keyword(conn, "hiệu ứng tâm lý", score=70, demand=65, competition=20)
-    nid = nm.create(conn, "Hiệu ứng tâm lý", motivation="learn")
+    nid = nm.create(conn, "Hiệu ứng tâm lý", language="vi", motivation="learn")
     d = nm.attach_keywords(
         conn, nid,
         [{"keyword": "Hiệu Ứng Tâm Lý", "region": "vn", "kind": "main"}, {"keyword": "tâm lý học về tiền", "region": "VN", "kind": "longtail"}],
@@ -56,7 +58,7 @@ def test_attach_keywords_copies_numbers_and_activates(conn):
 
 
 def test_attach_run_signals_and_rank_stale(conn):
-    nid = nm.create(conn, "Tâm lý học", motivation="learn")
+    nid = nm.create(conn, "Tâm lý học", language="vi", motivation="learn")
     run1 = _insert_run(conn, score=72)
     nm.attach_run(conn, nid, run1)
     sig = nm.signals(conn, nid)
@@ -74,9 +76,9 @@ def test_attach_run_signals_and_rank_stale(conn):
 
 
 def test_tree_move_and_cycle_guard(conn):
-    root = nm.create(conn, "Tâm lý", motivation="learn")
-    child = nm.create(conn, "Tâm lý tiền bạc", parent_id=root, motivation="improve")
-    grand = nm.create(conn, "Tiêu tiền khi buồn", parent_id=child, motivation="fix")
+    root = nm.create(conn, "Tâm lý", language="vi", motivation="learn")
+    child = nm.create(conn, "Tâm lý tiền bạc", language="vi", parent_id=root, motivation="improve")
+    grand = nm.create(conn, "Tiêu tiền khi buồn", language="vi", parent_id=child, motivation="fix")
     tree = nm.list_tree(conn)
     assert [(t["name"], t["depth"]) for t in tree] == [("Tâm lý", 0), ("Tâm lý tiền bạc", 1), ("Tiêu tiền khi buồn", 2)]
     assert tree[2]["path"] == "Tâm lý / Tâm lý tiền bạc / Tiêu tiền khi buồn"
@@ -88,15 +90,15 @@ def test_tree_move_and_cycle_guard(conn):
 
 def test_merge_moves_data_and_unmerge_restores(conn):
     _insert_keyword(conn, "a", score=50)
-    a = nm.create(conn, "Ngách A", motivation="learn")
-    b = nm.create(conn, "Ngách B", motivation="learn")
+    a = nm.create(conn, "Ngách A", language="vi", motivation="learn")
+    b = nm.create(conn, "Ngách B", language="vi", motivation="learn")
     nm.attach_keywords(conn, a, [{"keyword": "a", "region": "VN", "kind": "main"}, {"keyword": "chung", "region": "VN", "kind": "related"}],
                        rationale="gắn từ khoá cho A")
     nm.attach_keywords(conn, b, [{"keyword": "chung", "region": "VN", "kind": "related"}], rationale="gắn từ khoá cho B")
     run = _insert_run(conn)
     nm.attach_run(conn, a, run)
     nm.set_channels(conn, a, [{"channel_id": "UC1", "role": "rising"}], rationale="kênh nhỏ đang nổ")
-    child = nm.create(conn, "Con của A", parent_id=a)
+    child = nm.create(conn, "Con của A", language="vi", parent_id=a)
 
     merged = nm.merge(conn, a, b, rationale="hai ngách trùng 60% từ khoá chính, cùng động cơ")
     assert merged["id"] == b and merged["status"] == "active"
@@ -122,10 +124,10 @@ def test_merge_moves_data_and_unmerge_restores(conn):
 
 def test_find_similar_and_refresh_numbers(conn):
     _insert_keyword(conn, "hiệu ứng tâm lý", score=70, demand=65)
-    nid = nm.create(conn, "Hiệu ứng tâm lý", motivation="learn")
+    nid = nm.create(conn, "Hiệu ứng tâm lý", language="vi", motivation="learn")
     nm.attach_keywords(conn, nid, [{"keyword": "hiệu ứng tâm lý", "region": "VN", "kind": "main"}], rationale="từ khoá chính")
     hits = nm.find_similar_niches(conn, [{"keyword": "Hiệu ứng tâm lý", "region": "vn"}, {"keyword": "khác", "region": "VN"}])
-    assert hits == [{"id": nid, "name": "Hiệu ứng tâm lý", "motivation": "learn", "overlap": ["hiệu ứng tâm lý"]}]
+    assert hits == [{"id": nid, "name": "Hiệu ứng tâm lý", "language": "vi", "motivation": "learn", "overlap": ["hiệu ứng tâm lý"]}]
     conn.execute("UPDATE keyword SET demand = 90, scored_at = '2026-11-03T00:00:00' WHERE keyword = 'hiệu ứng tâm lý'")
     assert nm.refresh_keyword_numbers(conn, nid) == 1
     assert nm.get(conn, nid)["keywords"]["main"][0]["demand"] == 90
@@ -133,7 +135,7 @@ def test_find_similar_and_refresh_numbers(conn):
 
 
 def test_motivation_change_and_drop_logged(conn):
-    nid = nm.create(conn, "X", motivation="learn")
+    nid = nm.create(conn, "X", language="vi", motivation="learn")
     nm.set_motivation(conn, nid, "earn", "learn", rationale="từ khoá thắng đều về kiếm tiền")
     with pytest.raises(nm.NicheError):
         nm.set_motivation(conn, nid, "earn", "earn", rationale="phụ trùng chính phải bị chặn")
@@ -141,3 +143,31 @@ def test_motivation_change_and_drop_logged(conn):
     d = nm.get(conn, nid)
     assert d["status"] == "dropped" and [e["kind"] for e in d["events"][:2]] == ["drop", "motivation"]
     assert d["events"][1]["payload"]["to"] == ["earn", "learn"]
+
+
+def test_one_language_per_niche(conn):
+    vi = nm.create(conn, "Tâm lý học", language="vi", motivation="learn")
+    en = nm.create(conn, "Psychology", language="en", motivation="learn")
+    assert nm.get(conn, en)["regions_allowed"] == ["US", "GB", "CA", "AU", "PH"]
+    # Từ khoá thị trường Mỹ không gắn được vào ngách tiếng Việt.
+    with pytest.raises(nm.NicheError, match="một ngôn ngữ"):
+        nm.attach_keywords(conn, vi, [{"keyword": "psychology facts", "region": "US", "kind": "main"}], rationale="sai ngôn ngữ")
+    # Cùng ngôn ngữ, khác thị trường (GB vs US) thì được.
+    nm.attach_keywords(conn, en, [{"keyword": "psychology facts", "region": "GB", "kind": "related"}], rationale="cùng tiếng Anh")
+    # Lần đào tiếng Anh không gắn vào ngách tiếng Việt.
+    run_en = conn.execute(
+        """INSERT INTO dig_run (topic, region, language, window_days, fmt, created_at, score, label, confidence, verdict,
+               affiliates, raw_json, result_json) VALUES ('psychology', 'US', 'en', 30, 'any', '2026-11-01T00:00:00+00:00',
+               50, 'x', 'Cao', 'THỬ', '[]', '{}', '{}')"""
+    ).lastrowid
+    with pytest.raises(nm.NicheError, match="một ngôn ngữ"):
+        nm.attach_run(conn, vi, run_en)
+    nm.attach_run(conn, en, run_en)
+    # Không gộp, không làm con của ngách khác ngôn ngữ.
+    with pytest.raises(nm.NicheError):
+        nm.merge(conn, vi, en, rationale="khác ngôn ngữ phải bị chặn")
+    with pytest.raises(nm.NicheError):
+        nm.move(conn, vi, en, rationale="khác ngôn ngữ phải bị chặn")
+    with pytest.raises(nm.NicheError):
+        nm.create(conn, "Con", language="en", parent_id=vi)
+    assert [t["language"] for t in nm.list_tree(conn)] == ["en", "vi"] or [t["language"] for t in nm.list_tree(conn)] == ["vi", "en"]

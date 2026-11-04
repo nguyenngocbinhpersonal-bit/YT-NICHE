@@ -267,6 +267,7 @@ CREATE TABLE IF NOT EXISTS similar_run (
 CREATE TABLE IF NOT EXISTS niche (
     id                   INTEGER PRIMARY KEY,
     name                 TEXT NOT NULL,
+    language             TEXT NOT NULL DEFAULT '',       -- một ngách = một ngôn ngữ (mã relevanceLanguage: vi, en, ja…)
     parent_id            INTEGER REFERENCES niche(id) ON DELETE SET NULL,
     motivation           TEXT,                           -- động cơ chính (services/niche_map.MOTIVATIONS)
     motivation_secondary TEXT,
@@ -341,6 +342,7 @@ MIGRATIONS = {
     "radar_pace_log": {"rescued": "INTEGER NOT NULL DEFAULT 0"},
     # AI phân loại từ khoá (services/ai.KEYWORD_TYPES) và nghĩa tiếng Việt
     "radar_keyword": {"ai_type": "TEXT", "ai_vi": "TEXT"},  # số lần đã quét cặp này
+    "niche": {"language": "TEXT NOT NULL DEFAULT ''"},  # bản đồ ngách: một ngách = một ngôn ngữ
 }
 
 

@@ -21,7 +21,11 @@
 | Đặt tên ngách, dựng taxonomy mẹ → con, gán động cơ khán giả, gộp ngách gần nhau | **Claude** (ghi vào DB kèm lý do) | Việc phân loại và đặt tên là phán đoán |
 | Cập nhật đối thủ (kênh mới nổ, kênh rơi) | **App** quét → Claude đọc và quyết định có đổi phân loại không | |
 
-Nguyên tắc: **mọi quyết định của Claude được lưu như một sự kiện có lý do**, không ghi đè thầm lặng. Người dùng đọc lại được
+Nguyên tắc 1: **một ngách = một ngôn ngữ**. `niche.language` cố định lúc tạo; service từ chối từ khoá, lần đào, ngách
+mẹ và ngách gộp khác ngôn ngữ. Tool quét đối thủ trả `country` / `default_language` và cờ `language_mismatch` để Claude
+loại kênh lẫn. Cùng chủ đề ở ngôn ngữ khác là ngách khác, so nhau trên `map_compare`.
+
+Nguyên tắc 2: **mọi quyết định của Claude được lưu như một sự kiện có lý do**, không ghi đè thầm lặng. Người dùng đọc lại được
 "vì sao ngách A bị gộp vào B hôm 12/11".
 
 ---
@@ -55,7 +59,7 @@ Giữ nguyên các bảng cũ (`dig_run`, `keyword`, `channel`, `similar_run`, r
 
 ```sql
 niche (
-  id, slug, name, parent_id,              -- cây: ngách lớn → ngách → ngách con
+  id, slug, name, language, parent_id,    -- cây: ngách lớn → ngách → ngách con; một ngách = một ngôn ngữ
   motivation_primary, motivation_secondary, -- 1 trong 10 động cơ, phụ có thể NULL
   status,                                 -- draft | active | merged | dropped
   merged_into,                            -- niche.id khi status = merged (gộp mềm, mở lại được)
@@ -179,7 +183,7 @@ Một treemap Plotly, **nhiều chế độ nhóm** chọn bằng ô radio; di�
 | Động cơ | động cơ chính | ngách lớn | ngách con | thấy mình đang thiên về loại nhu cầu nào |
 | Mức tiềm năng | ≥ 70 / 50–69 / < 50 / chưa xếp | ngách | | chọn ngách để thử tiếp |
 | Cây ngách | ngách gốc | con | cháu | nhìn taxonomy đã dựng |
-| Thị trường | region | ngách | | so cùng ngách ở các thị trường |
+| Ngôn ngữ | language | ngách | ngách con | so cùng chủ đề giữa vi / en / ja |
 | Trend | bền / theo mùa / trào lưu / đang rơi / chưa có | ngách | | lọc ngách đang rơi |
 
 Màu = độ mới của dữ liệu (số liệu < 30 ngày đậm, cũ nhạt); viền đỏ = `stale` (cần xếp lại). Ngách `merged` ẩn, có ô
@@ -235,7 +239,7 @@ Bước 1–2 chạy được là đã thử được ý tưởng cốt lõi v�
 | Câu hỏi | Quyết định |
 |---|---|
 | Tiềm năng | **Claude xếp** trên số thật (người dùng chốt). App lưu ảnh chụp + cờ stale |
-| Thị trường | Mặc định: **một cây chung, từ khoá và run có region**. Đổi được nếu người dùng muốn mỗi thị trường một bản đồ |
+| Thị trường / ngôn ngữ | **Một ngách = một ngôn ngữ** (người dùng chốt). Cây chung cho mọi ngôn ngữ; thị trường cùng ngôn ngữ (US/GB/CA/AU) dùng chung một ngách; treemap có chế độ nhóm theo ngôn ngữ |
 | Độ sâu cây | Không giới hạn trong DB; treemap vẽ 3 tầng (tầng sâu hơn gộp vào tầng 3) |
 | Quota | Giữ 1.500 unit cho giao diện (`config.MCP_QUOTA_RESERVE`); Apify là nguồn dự phòng ở bước sau |
 | Vị trí skill | **Trong repo** `.claude/skills/yt-niche/` (`.gitignore` đã mở cho thư mục này; phần còn lại của `.claude/` vẫn bỏ qua) |

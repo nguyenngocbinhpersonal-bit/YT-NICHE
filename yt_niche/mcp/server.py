@@ -63,7 +63,7 @@ def _run_brief(run: dict) -> dict:
     res = run.get("result") or {}
     booms = res.get("small_boom_channels") or []
     return {
-        "id": run["id"], "topic": run["topic"], "region": run["region"], "window_days": run["window_days"], "fmt": run["fmt"],
+        "id": run["id"], "topic": run["topic"], "region": run["region"], "language": run.get("language"), "window_days": run["window_days"], "fmt": run["fmt"],
         "created_at": run["created_at"], "parent_id": run.get("parent_id"), "layer": run.get("layer"),
         "score": run["score"], "label": run["label"], "confidence": run["confidence"], "verdict": run["verdict"],
         "bars": {k: res.get(k) for k in ("demand", "opportunity", "freshness", "competition")},
@@ -142,7 +142,7 @@ def runs_list(contains: str | None = None, region: str | None = None, limit: int
             continue
         if region and r["region"] != region.upper():
             continue
-        out.append({k: r[k] for k in ("id", "topic", "region", "window_days", "fmt", "created_at", "score", "label", "confidence", "verdict", "parent_id", "layer")})
+        out.append({k: r[k] for k in ("id", "topic", "region", "language", "window_days", "fmt", "created_at", "score", "label", "confidence", "verdict", "parent_id", "layer")})
         if len(out) >= limit:
             break
     return out
@@ -258,11 +258,15 @@ def niche_dig(
     return {"reused": False, "units_spent": quota.used_on(conn) - before, **_run_brief(run_repo.get(conn, run_id))}
 
 
-@server.tool(description="Từ URL video / kênh YouTube: kênh và video tương tự (đối thủ), tiêu đề video thắng, tag kênh gốc (≈10–30 unit).")
+@server.tool(description="Từ URL video / kênh YouTube: kênh và video tương tự (đối thủ), tiêu đề video thắng, tag kênh gốc (≈10–30 unit). region quyết định ngôn ngữ tìm kiếm: phải thuộc ngôn ngữ của ngách đang xét. Kết quả kèm country của từng kênh; kênh khác ngôn ngữ thì bỏ, không lấy làm đối thủ hay từ khoá.")
 def similar_from_url(url: str, region: str = "US", force: bool = False) -> dict | str:
     from yt_niche.services import similar
 
     conn = _db()
+    try:
+        language = nm.language_of_region(region)
+    except nm.NicheError as e:
+        return _err(e)
     if msg := _guard(30, force):
         return msg
     try:
@@ -271,7 +275,9 @@ def similar_from_url(url: str, region: str = "US", force: bool = False) -> dict 
         return _err(e)
     res = similar.get_run(conn, sid)["result"]
     return {
-        "similar_run_id": sid, "kind": res.get("kind"), "source": res.get("source"),
+        "similar_run_id": sid, "region": region.upper(), "language": language,
+        "regions_same_language": nm.regions_of_language(language),
+        "kind": res.get("kind"), "source": res.get("source"),
         "seed_titles": [s["title"] for s in res.get("seeds", [])],
         "queries": res.get("queries", [])[:20],
         "channels": [
@@ -307,7 +313,7 @@ def competitors_refresh(niche_id: int, force: bool = False) -> dict | str:
 
     async def go() -> list[dict]:
         async with YouTubeClient(conn, fresh=True) as yt:
-            items = await yt.channels(sorted(ids))
+            items = await yt.channels_branding(sorted(ids))
         return items
 
     try:
@@ -315,17 +321,26 @@ def competitors_refresh(niche_id: int, force: bool = False) -> dict | str:
     except Exception as e:  # noqa: BLE001
         return _err(e)
     known = {c["channel_id"]: c for c in d["channels"]}
+    allowed = set(d["regions_allowed"])
     out = []
     for it in items:
-        st = it.get("statistics", {})
+        sn, st = it.get("snippet", {}), it.get("statistics", {})
+        country = sn.get("country")
+        lang = sn.get("defaultLanguage") or it.get("brandingSettings", {}).get("channel", {}).get("defaultLanguage")
+        base_lang = (lang or "").split("-")[0].lower() or None
+        mismatch = (country is not None and country not in allowed) or (base_lang is not None and base_lang != d["language"].split("-")[0].lower())
         out.append({
-            "channel_id": it["id"], "title": it.get("snippet", {}).get("title"),
+            "channel_id": it["id"], "title": sn.get("title"),
             "subs": None if st.get("hiddenSubscriberCount") else int(st.get("subscriberCount", 0)),
             "video_count": int(st.get("videoCount", 0)), "views_total": int(st.get("viewCount", 0)),
-            "created_at": it.get("snippet", {}).get("publishedAt"),
+            "created_at": sn.get("publishedAt"), "country": country, "default_language": lang,
+            "language_mismatch": mismatch,
             "current_role": known.get(it["id"], {}).get("role"),
         })
-    return {"channels": out, "units_spent": 2 * len(ids)}
+    return {
+        "niche_language": d["language"], "regions_allowed": sorted(allowed), "channels": out, "units_spent": 2 * len(ids),
+        "note": "language_mismatch=true: kênh khai quốc gia / ngôn ngữ khác ngách — cân nhắc bỏ khỏi đối thủ.",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -333,14 +348,18 @@ def competitors_refresh(niche_id: int, force: bool = False) -> dict | str:
 # ---------------------------------------------------------------------------
 
 
-@server.tool(description=f"Tạo ngách. motivation ∈ {list(nm.MOTIVATIONS)}. Ngách mới ở trạng thái draft cho tới khi có từ khoá main đã chấm hoặc một lần đào.")
+@server.tool(description=f"Tạo ngách. Một ngách = một ngôn ngữ: truyền language (vi, en, ja…) hoặc region (VN, US…) để suy ra. Từ khoá, lần đào, ngách mẹ, ngách gộp sau này đều phải cùng ngôn ngữ. motivation ∈ {list(nm.MOTIVATIONS)}. Ngách mới ở trạng thái draft cho tới khi có từ khoá main đã chấm hoặc một lần đào.")
 def niche_create(
-    name: str, rationale: str, parent_id: int | None = None, motivation: str | None = None,
-    motivation_secondary: str | None = None, summary: str = "",
+    name: str, rationale: str, language: str | None = None, region: str | None = None, parent_id: int | None = None,
+    motivation: str | None = None, motivation_secondary: str | None = None, summary: str = "",
 ) -> dict | str:
     try:
-        nid = nm.create(_db(), name, parent_id=parent_id, motivation=motivation, motivation_secondary=motivation_secondary,
-                        summary=summary, rationale=rationale)
+        if not language:
+            if not region:
+                return "Lỗi: cần language (vi, en…) hoặc region (VN, US…) để biết ngách thuộc ngôn ngữ nào"
+            language = nm.language_of_region(region)
+        nid = nm.create(_db(), name, language=language, parent_id=parent_id, motivation=motivation,
+                        motivation_secondary=motivation_secondary, summary=summary, rationale=rationale)
         return nm.get(_db(), nid)
     except nm.NicheError as e:
         return _err(e)
@@ -354,7 +373,7 @@ def niche_update(niche_id: int, rationale: str, name: str | None = None, summary
         return _err(e)
 
 
-@server.tool(description="Gắn từ khoá vào ngách. items: [{keyword, region, kind: main|related|longtail|trend, source?}]. Số liệu copy từ bảng keyword / radar lúc gắn; kind=main chỉ nên dùng cho từ đã có số.")
+@server.tool(description="Gắn từ khoá vào ngách. items: [{keyword, region, kind: main|related|longtail|trend, source?}]. region phải cùng ngôn ngữ với ngách (xem regions_allowed trong niche_get). Số liệu copy từ bảng keyword / radar lúc gắn; kind=main chỉ nên dùng cho từ đã có số.")
 def niche_attach_keywords(niche_id: int, items: list[dict], rationale: str) -> dict | str:
     try:
         return nm.attach_keywords(_db(), niche_id, items, rationale)
@@ -370,7 +389,7 @@ def niche_detach_keywords(niche_id: int, items: list[dict], rationale: str) -> d
         return _err(e)
 
 
-@server.tool(description="Gắn một lần đào (dig_run) vào ngách.")
+@server.tool(description="Gắn một lần đào (dig_run) vào ngách; lần đào phải cùng ngôn ngữ với ngách.")
 def niche_attach_run(niche_id: int, run_id: int, rationale: str = "") -> dict | str:
     try:
         return nm.attach_run(_db(), niche_id, run_id, rationale)
@@ -394,7 +413,7 @@ def niche_move(niche_id: int, rationale: str, new_parent_id: int | None = None) 
         return _err(e)
 
 
-@server.tool(description="Gộp mềm source vào target: từ khoá, lần đào, kênh, ngách con chuyển sang target; source thành merged, tách lại được bằng niche_unmerge.")
+@server.tool(description="Gộp mềm source vào target (phải cùng ngôn ngữ): từ khoá, lần đào, kênh, ngách con chuyển sang target; source thành merged, tách lại được bằng niche_unmerge.")
 def niche_merge(source_id: int, target_id: int, rationale: str) -> dict | str:
     try:
         return nm.merge(_db(), source_id, target_id, rationale)

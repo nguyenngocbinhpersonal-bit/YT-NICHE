@@ -10,6 +10,8 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 
+from yt_niche import config as cfg
+
 MOTIVATIONS = {
     "learn": "Học — X là gì, hoạt động thế nào",
     "earn": "Kiếm tiền — làm sao kiếm được tiền từ X",
@@ -72,6 +74,35 @@ def _check_motivation(m: str | None) -> str | None:
     return m
 
 
+def language_of_region(region: str) -> str:
+    """Mã ngôn ngữ của một thị trường (vi, en, ja…); thị trường lạ → lỗi."""
+    region = (region or "").upper()
+    if region not in cfg.MARKETS:
+        raise NicheError(f"Thị trường '{region}' không có trong danh sách {list(cfg.MARKETS)}")
+    return cfg.MARKETS[region][0]
+
+
+def regions_of_language(language: str) -> list[str]:
+    """Các thị trường đang bật dùng ngôn ngữ này (en → US, GB, CA, AU, PH…)."""
+    return [r for r in cfg.ENABLED_MARKETS if cfg.MARKETS[r][0] == language]
+
+
+def _check_language(language: str) -> str:
+    language = (language or "").strip()
+    known = {lang for lang, _ in cfg.MARKETS.values()}
+    if language not in known:
+        raise NicheError(f"Ngôn ngữ '{language}' không có thị trường nào; chọn một trong {sorted(known)}")
+    return language
+
+
+def _same_language(niche: dict, language: str, what: str) -> None:
+    if niche["language"] != language:
+        raise NicheError(
+            f"{what} thuộc ngôn ngữ '{language}' nhưng ngách '{niche['name']}' là '{niche['language']}'. "
+            "Một ngách chỉ thuộc một ngôn ngữ; tạo ngách khác cho ngôn ngữ này."
+        )
+
+
 def _row(conn: sqlite3.Connection, niche_id: int) -> dict:
     row = conn.execute("SELECT * FROM niche WHERE id = ?", (niche_id,)).fetchone()
     if row is None:
@@ -94,6 +125,7 @@ def create(
     conn: sqlite3.Connection,
     name: str,
     *,
+    language: str,
     parent_id: int | None = None,
     motivation: str | None = None,
     motivation_secondary: str | None = None,
@@ -104,18 +136,20 @@ def create(
     name = _norm(name)
     if not name:
         raise NicheError("Tên ngách trống")
+    language = _check_language(language)
     if parent_id is not None:
-        _row(conn, parent_id)
+        _same_language(_row(conn, parent_id), language, "Ngách con")
     m1, m2 = _check_motivation(motivation), _check_motivation(motivation_secondary)
     if m1 and m2 and m1 == m2:
         raise NicheError("Động cơ phụ phải khác động cơ chính")
     now = _now()
     niche_id = conn.execute(
-        """INSERT INTO niche (name, parent_id, motivation, motivation_secondary, summary, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (name, parent_id, m1, m2, _norm(summary), now, now),
+        """INSERT INTO niche (name, language, parent_id, motivation, motivation_secondary, summary, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (name, language, parent_id, m1, m2, _norm(summary), now, now),
     ).lastrowid
-    _event(conn, niche_id, "create", {"name": name, "parent_id": parent_id, "motivation": m1}, rationale, actor)
+    _event(conn, niche_id, "create", {"name": name, "language": language, "parent_id": parent_id, "motivation": m1},
+           rationale, actor)
     return niche_id
 
 
@@ -159,7 +193,7 @@ def move(conn: sqlite3.Connection, niche_id: int, new_parent_id: int | None, rat
     cur = _row(conn, niche_id)
     rationale = _require_rationale(rationale)
     if new_parent_id is not None:
-        _row(conn, new_parent_id)
+        _same_language(_row(conn, new_parent_id), cur["language"], "Ngách được chuyển")
         if new_parent_id == niche_id or niche_id in _ancestors(conn, new_parent_id):
             raise NicheError("Không thể chuyển ngách vào chính nó hoặc vào ngách con của nó")
     conn.execute("UPDATE niche SET parent_id = ? WHERE id = ?", (new_parent_id, niche_id))
@@ -248,8 +282,11 @@ def attach_keywords(
     rationale: str,
     actor: str = "claude",
 ) -> dict:
-    """items: [{keyword, region, kind, source?}]. Số liệu copy từ keyword / radar_keyword lúc gắn (không gọi API)."""
-    _row(conn, niche_id)
+    """items: [{keyword, region, kind, source?}]. Số liệu copy từ keyword / radar_keyword lúc gắn (không gọi API).
+
+    Thị trường của từ khoá phải cùng ngôn ngữ với ngách (một ngách = một ngôn ngữ).
+    """
+    niche = _row(conn, niche_id)
     rationale = _require_rationale(rationale)
     added = []
     for it in items:
@@ -259,6 +296,7 @@ def attach_keywords(
         kw, region = _kw(it.get("keyword", "")), (it.get("region") or "").upper()
         if not kw or not region:
             raise NicheError("Mỗi từ khoá cần keyword và region")
+        _same_language(niche, language_of_region(region), f"Từ khoá '{kw}' ({region})")
         nums = lookup_keyword(conn, region, kw)
         conn.execute(
             """INSERT INTO niche_keyword (niche_id, region, keyword, kind, source, demand, competition, score, n,
@@ -311,9 +349,11 @@ def refresh_keyword_numbers(conn: sqlite3.Connection, niche_id: int) -> int:
 
 
 def attach_run(conn: sqlite3.Connection, niche_id: int, run_id: int, rationale: str = "", actor: str = "claude") -> dict:
-    _row(conn, niche_id)
-    if conn.execute("SELECT 1 FROM dig_run WHERE id = ?", (run_id,)).fetchone() is None:
+    niche = _row(conn, niche_id)
+    run = conn.execute("SELECT topic, language FROM dig_run WHERE id = ?", (run_id,)).fetchone()
+    if run is None:
         raise NicheError(f"Không có lần đào id={run_id}")
+    _same_language(niche, run["language"], f"Lần đào '{run['topic']}'")
     conn.execute(
         "INSERT OR IGNORE INTO niche_run (niche_id, run_id, added_at) VALUES (?, ?, ?)", (niche_id, run_id, _now())
     )
@@ -362,6 +402,7 @@ def merge(conn: sqlite3.Connection, source_id: int, target_id: int, rationale: s
         raise NicheError("Ngách đích phải đang hoạt động")
     if source_id in _ancestors(conn, target_id):
         raise NicheError("Không thể gộp ngách mẹ vào ngách con của nó")
+    _same_language(dst, src["language"], f"Ngách '{src['name']}'")
 
     moved = {"keywords": [], "runs": [], "channels": [], "children": [], "parent_id": src["parent_id"]}
     for r in conn.execute("SELECT region, keyword, kind FROM niche_keyword WHERE niche_id = ?", (source_id,)):
@@ -570,6 +611,7 @@ def get(conn: sqlite3.Connection, niche_id: int) -> dict:
         (niche_id,),
     )]
     d["children"] = [r["id"] for r in conn.execute("SELECT id FROM niche WHERE parent_id = ? ORDER BY name", (niche_id,))]
+    d["regions_allowed"] = regions_of_language(d["language"])
     d["signals"] = signals(conn, niche_id)
     d["stale"] = d["potential"] is not None and is_stale(d["basis"], d["signals"])
     d["events"] = events(conn, niche_id, 10)
@@ -602,7 +644,7 @@ def list_tree(conn: sqlite3.Connection, *, include_merged: bool = False, include
         for r in sorted(by_parent.get(parent, []), key=lambda x: (-(x["potential"] or 0), x["name"])):
             c = counts.get(r["id"], {})
             out.append({
-                "id": r["id"], "name": r["name"], "parent_id": r["parent_id"], "depth": depth,
+                "id": r["id"], "name": r["name"], "language": r["language"], "parent_id": r["parent_id"], "depth": depth,
                 "path": " / ".join(path + [r["name"]]),
                 "motivation": r["motivation"], "motivation_secondary": r["motivation_secondary"],
                 "status": r["status"], "merged_into": r["merged_into"],
@@ -627,7 +669,7 @@ def compare_table(conn: sqlite3.Connection, niche_ids: list[int] | None = None) 
         d = _row(conn, nid)
         sig = signals(conn, nid)
         out.append({
-            "id": nid, "name": d["name"], "parent_id": d["parent_id"], "status": d["status"],
+            "id": nid, "name": d["name"], "language": d["language"], "parent_id": d["parent_id"], "status": d["status"],
             "motivation": d["motivation"], "potential": d["potential"], "ranked_at": d["ranked_at"],
             "stale": d["potential"] is not None and is_stale(d["basis"], sig),
             **sig,
@@ -654,6 +696,6 @@ def find_similar_niches(conn: sqlite3.Connection, keywords: list[dict], *, min_o
     for nid, kws in hits.items():
         if len(kws) >= min_overlap:
             d = _row(conn, nid)
-            out.append({"id": nid, "name": d["name"], "motivation": d["motivation"], "overlap": sorted(kws)})
+            out.append({"id": nid, "name": d["name"], "language": d["language"], "motivation": d["motivation"], "overlap": sorted(kws)})
     out.sort(key=lambda x: -len(x["overlap"]))
     return out
