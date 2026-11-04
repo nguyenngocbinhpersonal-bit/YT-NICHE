@@ -1,7 +1,9 @@
-"""Bản đồ ngách: cây ngách do Claude dựng qua MCP, số liệu lấy từ các bảng cũ (keyword, radar_keyword, dig_run, channel).
+"""Niche map: a niche tree Claude builds through MCP, with numbers taken from the existing tables (keyword, radar_keyword,
+dig_run, channel).
 
-Phân vai (docs/NICHE_MAP_MCP_PLAN.md): app lấy số thật và lưu; Claude đọc số rồi đặt tên, phân loại động cơ, gộp, xếp
-tiềm năng. Mọi quyết định đều ghi vào niche_event kèm lý do. Gộp là gộp mềm (status = merged, merged_into), tách lại được.
+Division of labour (docs/NICHE_MAP_MCP_PLAN.md): the app fetches real numbers and stores them; Claude reads the numbers,
+then names, assigns motivations, merges and ranks potential. Every decision is written to niche_event with a rationale.
+Merging is soft (status = merged, merged_into) and can be undone.
 """
 
 from __future__ import annotations
@@ -13,23 +15,23 @@ from datetime import datetime, timezone
 from yt_niche import config as cfg
 
 MOTIVATIONS = {
-    "learn": "Học — X là gì, hoạt động thế nào",
-    "earn": "Kiếm tiền — làm sao kiếm được tiền từ X",
-    "fix": "Sửa vấn đề — X bị lỗi, sửa sao",
-    "improve": "Cải thiện — làm X tốt hơn",
-    "believe": "Niềm tin & ý nghĩa — điều này có ý nghĩa gì với tôi",
-    "connect": "Kết nối — người khác giống tôi thế nào",
-    "escape": "Trốn thoát — cho tôi quên đi một lúc",
-    "experience": "Trải nghiệm — cảm giác X ra sao",
-    "updated": "Cập nhật — có gì mới về X",
-    "inspired": "Cảm hứng — cho tôi động lực",
+    "learn": "Learn — what X is, how it works",
+    "earn": "Earn — how to make money from X",
+    "fix": "Fix a problem — X is broken, how to fix it",
+    "improve": "Improve — do X better",
+    "believe": "Believe & meaning — what this means to me",
+    "connect": "Connect — how people like me live",
+    "escape": "Escape — let me forget for a while",
+    "experience": "Experience — what X feels like",
+    "updated": "Stay updated — what's new about X",
+    "inspired": "Feel inspired — give me motivation",
 }
 KINDS = ("main", "related", "longtail", "trend")
 STATUSES = ("draft", "active", "merged", "dropped")
 ROLES = ("leader", "rising", "fallen")
 ACTORS = ("claude", "user", "app")
 
-# Hạng bị coi là cũ khi số liệu lệch quá mức này so với lúc xếp.
+# A rank counts as stale when the numbers drift more than this from the snapshot taken at ranking time.
 STALE_SCORE_DELTA = 10.0
 STALE_DEMAND_DELTA = 10.0
 
@@ -52,7 +54,7 @@ def _kw(s: str) -> str:
 
 def _event(conn: sqlite3.Connection, niche_id: int | None, kind: str, payload: dict, rationale: str, actor: str) -> int:
     if actor not in ACTORS:
-        raise NicheError(f"actor phải là một trong {ACTORS}")
+        raise NicheError(f"actor must be one of {ACTORS}")
     return conn.execute(
         "INSERT INTO niche_event (niche_id, kind, payload_json, rationale, actor, created_at) VALUES (?, ?, ?, ?, ?, ?)",
         (niche_id, kind, json.dumps(payload, ensure_ascii=False), _norm(rationale), actor, _now()),
@@ -62,7 +64,7 @@ def _event(conn: sqlite3.Connection, niche_id: int | None, kind: str, payload: d
 def _require_rationale(rationale: str) -> str:
     r = _norm(rationale)
     if len(r) < 10:
-        raise NicheError("Cần lý do (rationale) ít nhất 10 ký tự cho mỗi quyết định")
+        raise NicheError("Every decision needs a rationale of at least 10 characters")
     return r
 
 
@@ -70,20 +72,20 @@ def _check_motivation(m: str | None) -> str | None:
     if m is None or m == "":
         return None
     if m not in MOTIVATIONS:
-        raise NicheError(f"Động cơ '{m}' không hợp lệ; chọn một trong {list(MOTIVATIONS)}")
+        raise NicheError(f"Motivation '{m}' is not valid; pick one of {list(MOTIVATIONS)}")
     return m
 
 
 def language_of_region(region: str) -> str:
-    """Mã ngôn ngữ của một thị trường (vi, en, ja…); thị trường lạ → lỗi."""
+    """Language code of a market (vi, en, ja…); an unknown market raises."""
     region = (region or "").upper()
     if region not in cfg.MARKETS:
-        raise NicheError(f"Thị trường '{region}' không có trong danh sách {list(cfg.MARKETS)}")
+        raise NicheError(f"Market '{region}' is not in the list {list(cfg.MARKETS)}")
     return cfg.MARKETS[region][0]
 
 
 def regions_of_language(language: str) -> list[str]:
-    """Các thị trường đang bật dùng ngôn ngữ này (en → US, GB, CA, AU, PH…)."""
+    """Enabled markets that use this language (en → US, GB, CA, AU, PH…)."""
     return [r for r in cfg.ENABLED_MARKETS if cfg.MARKETS[r][0] == language]
 
 
@@ -91,22 +93,22 @@ def _check_language(language: str) -> str:
     language = (language or "").strip()
     known = {lang for lang, _ in cfg.MARKETS.values()}
     if language not in known:
-        raise NicheError(f"Ngôn ngữ '{language}' không có thị trường nào; chọn một trong {sorted(known)}")
+        raise NicheError(f"Language '{language}' has no market; pick one of {sorted(known)}")
     return language
 
 
 def _same_language(niche: dict, language: str, what: str) -> None:
     if niche["language"] != language:
         raise NicheError(
-            f"{what} thuộc ngôn ngữ '{language}' nhưng ngách '{niche['name']}' là '{niche['language']}'. "
-            "Một ngách chỉ thuộc một ngôn ngữ; tạo ngách khác cho ngôn ngữ này."
+            f"{what} is in language '{language}' but niche '{niche['name']}' is '{niche['language']}'. "
+            "A niche belongs to one language; create another niche for this language."
         )
 
 
 def _row(conn: sqlite3.Connection, niche_id: int) -> dict:
     row = conn.execute("SELECT * FROM niche WHERE id = ?", (niche_id,)).fetchone()
     if row is None:
-        raise NicheError(f"Không có ngách id={niche_id}")
+        raise NicheError(f"No niche with id={niche_id}")
     d = dict(row)
     d["basis"] = json.loads(d.pop("basis_json") or "null")
     return d
@@ -117,7 +119,7 @@ def _touch(conn: sqlite3.Connection, niche_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Tạo / sửa / cây
+# Create / edit / tree
 # ---------------------------------------------------------------------------
 
 
@@ -135,13 +137,13 @@ def create(
 ) -> int:
     name = _norm(name)
     if not name:
-        raise NicheError("Tên ngách trống")
+        raise NicheError("Niche name is empty")
     language = _check_language(language)
     if parent_id is not None:
-        _same_language(_row(conn, parent_id), language, "Ngách con")
+        _same_language(_row(conn, parent_id), language, "The child niche")
     m1, m2 = _check_motivation(motivation), _check_motivation(motivation_secondary)
     if m1 and m2 and m1 == m2:
-        raise NicheError("Động cơ phụ phải khác động cơ chính")
+        raise NicheError("The secondary motivation must differ from the primary one")
     now = _now()
     niche_id = conn.execute(
         """INSERT INTO niche (name, language, parent_id, motivation, motivation_secondary, summary, created_at, updated_at)
@@ -193,9 +195,9 @@ def move(conn: sqlite3.Connection, niche_id: int, new_parent_id: int | None, rat
     cur = _row(conn, niche_id)
     rationale = _require_rationale(rationale)
     if new_parent_id is not None:
-        _same_language(_row(conn, new_parent_id), cur["language"], "Ngách được chuyển")
+        _same_language(_row(conn, new_parent_id), cur["language"], "The niche being moved")
         if new_parent_id == niche_id or niche_id in _ancestors(conn, new_parent_id):
-            raise NicheError("Không thể chuyển ngách vào chính nó hoặc vào ngách con của nó")
+            raise NicheError("Cannot move a niche under itself or under one of its descendants")
     conn.execute("UPDATE niche SET parent_id = ? WHERE id = ?", (new_parent_id, niche_id))
     _touch(conn, niche_id)
     _event(conn, niche_id, "move", {"from": cur["parent_id"], "to": new_parent_id}, rationale, actor)
@@ -214,9 +216,9 @@ def set_motivation(
     rationale = _require_rationale(rationale)
     m1, m2 = _check_motivation(primary), _check_motivation(secondary)
     if m1 is None:
-        raise NicheError("Cần động cơ chính")
+        raise NicheError("A primary motivation is required")
     if m2 == m1:
-        raise NicheError("Động cơ phụ phải khác động cơ chính")
+        raise NicheError("The secondary motivation must differ from the primary one")
     conn.execute("UPDATE niche SET motivation = ?, motivation_secondary = ? WHERE id = ?", (m1, m2, niche_id))
     _touch(conn, niche_id)
     _event(
@@ -236,7 +238,7 @@ def drop(conn: sqlite3.Connection, niche_id: int, rationale: str, actor: str = "
 
 
 def _activate_if_ready(conn: sqlite3.Connection, niche_id: int) -> None:
-    """draft → active khi đã có ít nhất một số thật (từ khoá main có điểm, hoặc một lần đào)."""
+    """draft → active once there is at least one real number (a scored main keyword, or a dig)."""
     row = conn.execute("SELECT status FROM niche WHERE id = ?", (niche_id,)).fetchone()
     if row is None or row["status"] != "draft":
         return
@@ -249,12 +251,12 @@ def _activate_if_ready(conn: sqlite3.Connection, niche_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Từ khoá, lần đào, kênh
+# Keywords, digs, channels
 # ---------------------------------------------------------------------------
 
 
 def lookup_keyword(conn: sqlite3.Connection, region: str, keyword: str) -> dict:
-    """Số thật mới nhất của một từ khoá: bảng keyword (chấm bằng search) trước, radar_keyword sau."""
+    """Latest real numbers for a keyword: the keyword table (scored with real search) first, then radar_keyword."""
     kw = _kw(keyword)
     row = conn.execute(
         """SELECT score, demand, competition, n, scored_at FROM keyword
@@ -282,9 +284,9 @@ def attach_keywords(
     rationale: str,
     actor: str = "claude",
 ) -> dict:
-    """items: [{keyword, region, kind, source?}]. Số liệu copy từ keyword / radar_keyword lúc gắn (không gọi API).
+    """items: [{keyword, region, kind, source?}]. Numbers are copied from keyword / radar_keyword at attach time (no API call).
 
-    Thị trường của từ khoá phải cùng ngôn ngữ với ngách (một ngách = một ngôn ngữ).
+    The keyword's market must share the niche's language (one niche = one language).
     """
     niche = _row(conn, niche_id)
     rationale = _require_rationale(rationale)
@@ -292,11 +294,11 @@ def attach_keywords(
     for it in items:
         kind = it.get("kind", "related")
         if kind not in KINDS:
-            raise NicheError(f"kind '{kind}' không hợp lệ; chọn một trong {KINDS}")
+            raise NicheError(f"kind '{kind}' is not valid; pick one of {KINDS}")
         kw, region = _kw(it.get("keyword", "")), (it.get("region") or "").upper()
         if not kw or not region:
-            raise NicheError("Mỗi từ khoá cần keyword và region")
-        _same_language(niche, language_of_region(region), f"Từ khoá '{kw}' ({region})")
+            raise NicheError("Each keyword needs keyword and region")
+        _same_language(niche, language_of_region(region), f"Keyword '{kw}' ({region})")
         nums = lookup_keyword(conn, region, kw)
         conn.execute(
             """INSERT INTO niche_keyword (niche_id, region, keyword, kind, source, demand, competition, score, n,
@@ -331,7 +333,7 @@ def detach_keywords(conn: sqlite3.Connection, niche_id: int, items: list[dict], 
 
 
 def refresh_keyword_numbers(conn: sqlite3.Connection, niche_id: int) -> int:
-    """Chép lại số mới nhất từ keyword / radar_keyword cho mọi từ khoá đã gắn (sau khi chấm lại). Trả về số dòng đổi."""
+    """Copy the latest numbers from keyword / radar_keyword for every attached keyword (after re-scoring). Returns rows changed."""
     rows = conn.execute("SELECT region, keyword FROM niche_keyword WHERE niche_id = ?", (niche_id,)).fetchall()
     changed = 0
     for r in rows:
@@ -352,8 +354,8 @@ def attach_run(conn: sqlite3.Connection, niche_id: int, run_id: int, rationale: 
     niche = _row(conn, niche_id)
     run = conn.execute("SELECT topic, language FROM dig_run WHERE id = ?", (run_id,)).fetchone()
     if run is None:
-        raise NicheError(f"Không có lần đào id={run_id}")
-    _same_language(niche, run["language"], f"Lần đào '{run['topic']}'")
+        raise NicheError(f"No dig with id={run_id}")
+    _same_language(niche, run["language"], f"Dig '{run['topic']}'")
     conn.execute(
         "INSERT OR IGNORE INTO niche_run (niche_id, run_id, added_at) VALUES (?, ?, ?)", (niche_id, run_id, _now())
     )
@@ -364,15 +366,15 @@ def attach_run(conn: sqlite3.Connection, niche_id: int, run_id: int, rationale: 
 
 
 def set_channels(conn: sqlite3.Connection, niche_id: int, items: list[dict], rationale: str, actor: str = "claude") -> dict:
-    """items: [{channel_id, role, note?}]. Kênh chưa có trong bảng channel vẫn ghi được (app sẽ bổ sung khi quét)."""
+    """items: [{channel_id, role, note?}]. Channels missing from the channel table can still be recorded (the app fills them in on scan)."""
     _row(conn, niche_id)
     rationale = _require_rationale(rationale)
     for it in items:
         role = it.get("role", "leader")
         if role not in ROLES:
-            raise NicheError(f"role '{role}' không hợp lệ; chọn một trong {ROLES}")
+            raise NicheError(f"role '{role}' is not valid; pick one of {ROLES}")
         if not it.get("channel_id"):
-            raise NicheError("Mỗi kênh cần channel_id")
+            raise NicheError("Each channel needs a channel_id")
         conn.execute(
             """INSERT INTO niche_channel (niche_id, channel_id, role, note, updated_at) VALUES (?, ?, ?, ?, ?)
                ON CONFLICT(niche_id, channel_id) DO UPDATE SET role = excluded.role, note = excluded.note,
@@ -386,23 +388,23 @@ def set_channels(conn: sqlite3.Connection, niche_id: int, items: list[dict], rat
 
 
 # ---------------------------------------------------------------------------
-# Gộp mềm / tách
+# Soft merge / unmerge
 # ---------------------------------------------------------------------------
 
 
 def merge(conn: sqlite3.Connection, source_id: int, target_id: int, rationale: str, actor: str = "claude") -> dict:
-    """Chuyển từ khoá, lần đào, kênh và ngách con của source sang target; source thành merged (không xoá)."""
+    """Move the source's keywords, digs, channels and children to the target; the source becomes merged (not deleted)."""
     src, dst = _row(conn, source_id), _row(conn, target_id)
     rationale = _require_rationale(rationale)
     if source_id == target_id:
-        raise NicheError("Không thể gộp ngách vào chính nó")
+        raise NicheError("Cannot merge a niche into itself")
     if src["status"] == "merged":
-        raise NicheError("Ngách này đã gộp rồi")
+        raise NicheError("This niche is already merged")
     if dst["status"] in ("merged", "dropped"):
-        raise NicheError("Ngách đích phải đang hoạt động")
+        raise NicheError("The target niche must be active")
     if source_id in _ancestors(conn, target_id):
-        raise NicheError("Không thể gộp ngách mẹ vào ngách con của nó")
-    _same_language(dst, src["language"], f"Ngách '{src['name']}'")
+        raise NicheError("Cannot merge a parent niche into one of its descendants")
+    _same_language(dst, src["language"], f"Niche '{src['name']}'")
 
     moved = {"keywords": [], "runs": [], "channels": [], "children": [], "parent_id": src["parent_id"]}
     for r in conn.execute("SELECT region, keyword, kind FROM niche_keyword WHERE niche_id = ?", (source_id,)):
@@ -450,11 +452,11 @@ def merge(conn: sqlite3.Connection, source_id: int, target_id: int, rationale: s
 
 
 def unmerge(conn: sqlite3.Connection, niche_id: int, rationale: str, actor: str = "user") -> dict:
-    """Tách lại ngách đã gộp: lấy danh sách đã chuyển từ sự kiện merge gần nhất và trả về."""
+    """Undo a merge: read what was moved from the latest merge event and move it back."""
     src = _row(conn, niche_id)
     rationale = _require_rationale(rationale)
     if src["status"] != "merged" or src["merged_into"] is None:
-        raise NicheError("Ngách này chưa gộp vào đâu")
+        raise NicheError("This niche is not merged into anything")
     target_id = src["merged_into"]
     ev = conn.execute(
         "SELECT payload_json FROM niche_event WHERE niche_id = ? AND kind = 'merge' ORDER BY id DESC LIMIT 1", (niche_id,)
@@ -484,7 +486,7 @@ def unmerge(conn: sqlite3.Connection, niche_id: int, rationale: str, actor: str 
 
 
 # ---------------------------------------------------------------------------
-# Số liệu tổng hợp và xếp hạng
+# Aggregated numbers and ranking
 # ---------------------------------------------------------------------------
 
 
@@ -494,7 +496,7 @@ def _avg(xs: list) -> float | None:
 
 
 def signals(conn: sqlite3.Connection, niche_id: int) -> dict:
-    """Bảng số thật của một ngách, không chứa phán đoán. Đây là thứ Claude đọc trước khi xếp hạng."""
+    """The real numbers of one niche, with no judgement. This is what Claude reads before ranking."""
     kws = [dict(r) for r in conn.execute("SELECT * FROM niche_keyword WHERE niche_id = ?", (niche_id,))]
     main = [k for k in kws if k["kind"] == "main"]
     runs = [
@@ -540,7 +542,7 @@ def signals(conn: sqlite3.Connection, niche_id: int) -> dict:
 
 
 def is_stale(basis: dict | None, now_signals: dict) -> bool:
-    """Hạng đã cũ khi so với ảnh chụp lúc xếp: thêm lần đào, hoặc điểm / nhu cầu lệch quá ngưỡng."""
+    """A rank is stale compared with the snapshot taken at ranking time: a dig was added, or score / demand drifted past the threshold."""
     if not basis:
         return True
     if (now_signals.get("n_runs") or 0) != (basis.get("n_runs") or 0):
@@ -553,14 +555,14 @@ def is_stale(basis: dict | None, now_signals: dict) -> bool:
 
 
 def rank(conn: sqlite3.Connection, items: list[dict], rationale: str = "", actor: str = "claude") -> list[dict]:
-    """items: [{niche_id, potential (0–100), rationale}]. Lưu kèm ảnh chụp số liệu để sau này biết hạng đã cũ."""
+    """items: [{niche_id, potential (0–100), rationale}]. Stored with a snapshot of the numbers so staleness can be detected later."""
     out = []
     for it in items:
         niche_id = int(it["niche_id"])
         _row(conn, niche_id)
         p = float(it["potential"])
         if not 0 <= p <= 100:
-            raise NicheError("potential phải trong 0–100")
+            raise NicheError("potential must be between 0 and 100")
         why = _require_rationale(it.get("rationale") or rationale)
         basis = signals(conn, niche_id)
         conn.execute(
@@ -574,7 +576,7 @@ def rank(conn: sqlite3.Connection, items: list[dict], rationale: str = "", actor
 
 
 # ---------------------------------------------------------------------------
-# Đọc
+# Reading
 # ---------------------------------------------------------------------------
 
 
@@ -619,7 +621,7 @@ def get(conn: sqlite3.Connection, niche_id: int) -> dict:
 
 
 def list_tree(conn: sqlite3.Connection, *, include_merged: bool = False, include_dropped: bool = False) -> list[dict]:
-    """Danh sách phẳng theo thứ tự cây: mỗi dòng có depth, path, số liệu tóm tắt. Ngách mồ côi (mẹ bị gộp/bỏ) lên gốc."""
+    """Flat list in tree order: each row has depth, path and summary counts. Orphans (parent merged/dropped) move to the root."""
     rows = [dict(r) for r in conn.execute("SELECT * FROM niche ORDER BY name")]
     hidden = {"merged"} - ({"merged"} if include_merged else set())
     hidden |= {"dropped"} - ({"dropped"} if include_dropped else set())
@@ -659,7 +661,7 @@ def list_tree(conn: sqlite3.Connection, *, include_merged: bool = False, include
 
 
 def compare_table(conn: sqlite3.Connection, niche_ids: list[int] | None = None) -> list[dict]:
-    """Một dòng mỗi ngách đang hoạt động: tên, động cơ, số thật, hạng hiện tại và cờ 'cũ'. Dùng để Claude so và xếp."""
+    """One row per live niche: name, motivation, real numbers, current rank and the stale flag. For Claude to compare and rank."""
     if niche_ids:
         ids = list(niche_ids)
     else:
@@ -679,7 +681,7 @@ def compare_table(conn: sqlite3.Connection, niche_ids: list[int] | None = None) 
 
 
 def find_similar_niches(conn: sqlite3.Connection, keywords: list[dict], *, min_overlap: int = 1) -> list[dict]:
-    """Ngách đang có đã chứa từ khoá nào trong danh sách (để Claude quyết định gắn vào hay tạo mới / gộp)."""
+    """Which live niches already hold any of these keywords (so Claude can decide to attach, create or merge)."""
     pairs = {((k.get("region") or "").upper(), _kw(k.get("keyword", ""))) for k in keywords}
     pairs.discard(("", ""))
     if not pairs:

@@ -1,4 +1,4 @@
-"""Ngách con (bài 2.3): cụm lặp lại ở video thắng, phân loại gợi ý tìm kiếm, kiểm tra tầng và "đủ sống"."""
+"""Sub-niches (lesson 2.3): phrases repeated in winning videos, search-suggestion columns, layer check and "viable" check."""
 
 from __future__ import annotations
 
@@ -10,32 +10,33 @@ from yt_niche.core.confidence import LOW
 from yt_niche.core.money import RPM_LOW
 from yt_niche.core.text import STOPWORDS, contains_phrase, no_space, normalize, tokens, word_count
 
-# Bốn bộ lọc, mỗi tầng chỉ thêm một bộ lọc.
+# Four filters; each layer adds exactly one filter.
 FILTERS = {
-    "audience": "Đối tượng",
-    "problem": "Vấn đề",
-    "angle": "Góc kể / định dạng",
-    "market": "Thị trường / ngôn ngữ",
+    "audience": "Audience",
+    "problem": "Problem",
+    "angle": "Angle / format",
+    "market": "Market / language",
 }
 FILTER_EXAMPLES = {
-    "audience": "tâm lý học cho người đi làm 25–35 tuổi",
-    "problem": "vì sao tiêu tiền khi buồn",
-    "angle": "kể lịch sử như truyện; mỗi video một hiệu ứng tâm lý với nhân vật cố định",
-    "market": "cùng chủ đề, nhắm thị trường ít người làm hơn",
+    "audience": "psychology for office workers aged 25–35",
+    "problem": "why we spend money when sad",
+    "angle": "history told like a story; one psychological effect per video with a fixed character",
+    "market": "same topic, aimed at an under-served market",
 }
 
-SUBNICHE, LONG, SHORT = "Ngách con", "Từ khoá dài", "Từ khoá ngắn"
+SUBNICHE, LONG, SHORT = "Sub-niche", "Long-tail keyword", "Short keyword"
 
 
 # ---------------------------------------------------------------------------
-# Cụm lặp lại trong tiêu đề video thắng
+# Phrases repeated in winning video titles
 # ---------------------------------------------------------------------------
 
 
 def repeated_phrases(videos: list[dict], topic: str, *, min_channels: int | None = None, top: int = 15) -> list[dict]:
-    """Cụm 2–6 từ (tiếng Việt: âm tiết) xuất hiện ở tiêu đề video thắng của ít nhất `min_channels` kênh khác nhau.
+    """2–6 word phrases (Vietnamese: syllables) found in winning video titles of at least `min_channels` different channels.
 
-    Bỏ cụm chỉ gồm từ của chủ đề gốc, cụm mở đầu / kết thúc bằng hư từ, và cụm con có cùng độ phủ với cụm dài hơn.
+    Drops phrases made only of the topic's words, phrases that start / end with a stopword, and sub-phrases covered by a
+    longer phrase with the same reach.
     """
     min_channels = min_channels or cfg.SUBNICHE_MIN_CHANNELS
     topic_words = set(tokens(topic))
@@ -62,7 +63,7 @@ def repeated_phrases(videos: list[dict], topic: str, *, min_channels: int | None
         for p, chs in channels.items()
         if len(chs) >= min_channels
     ]
-    # Cụm con ("học về") bị cụm dài hơn ("tâm lý học về tiền") phủ cùng số video thì bỏ.
+    # A sub-phrase ("about money") covered by a longer phrase ("psychology about money") in the same videos is dropped.
     found.sort(key=lambda x: (-len(x["phrase"]), -x["videos"]))
     kept: list[dict] = []
     for item in found:
@@ -76,12 +77,12 @@ def repeated_phrases(videos: list[dict], topic: str, *, min_channels: int | None
 
 
 # ---------------------------------------------------------------------------
-# Phân loại gợi ý tìm kiếm thành 3 cột
+# Sort search suggestions into 3 columns
 # ---------------------------------------------------------------------------
 
 
 def _extra(keyword: str, seed: str, language: str) -> int | None:
-    """Số từ thêm vào so với từ gốc; None nếu gợi ý không chứa đủ từ gốc."""
+    """Number of words added to the seed; None when the suggestion does not hold the whole seed."""
     if no_space(language):
         k, s = normalize(keyword).replace(" ", ""), normalize(seed).replace(" ", "")
         return len(k) - len(s) if s in k else None
@@ -92,10 +93,10 @@ def _extra(keyword: str, seed: str, language: str) -> int | None:
 
 
 def keyword_kind(keyword: str, seed: str, language: str) -> str:
-    """Ngách con: từ gốc ngắn + 1–3 từ (một bộ lọc). Từ khoá dài: đủ dài (3–6 từ ý). Còn lại: từ khoá ngắn.
+    """Sub-niche: short seed + 1–3 words (one filter). Long-tail keyword: long enough (3–6 meaningful words). Otherwise: short keyword.
 
-    Khi từ gốc đã là cụm dài (ngách con tầng 2 như "tâm lý học về tiền"), các gợi ý mở rộng từ nó là từ khoá dài
-    để chấm cho 10 video đầu, không phải ngách con mới.
+    When the seed is already a long phrase (a layer-2 sub-niche such as "psychology about money"), suggestions that extend
+    it are long-tail keywords to score for the first 10 videos, not new sub-niches.
     """
     min_len = cfg.KEYWORD_LONG_MIN_CHARS if no_space(language) else cfg.KEYWORD_LONG_MIN_WORDS
     extra = _extra(keyword, seed, language)
@@ -106,13 +107,13 @@ def keyword_kind(keyword: str, seed: str, language: str) -> str:
 
 
 def evidence(phrase: str, videos: list[dict]) -> dict:
-    """Số video thắng (và số kênh) có tiêu đề chứa đúng cụm này."""
+    """Number of winning videos (and channels) whose title holds this exact phrase."""
     hits = [v for v in videos if contains_phrase(v.get("title", ""), phrase)]
     return {"videos": len(hits), "channels": len({v.get("channel_id") for v in hits})}
 
 
 def columns(suggestions: list[dict], seed: str, language: str, winners: list[dict]) -> dict[str, list[dict]]:
-    """Chia gợi ý thành 3 cột Ngách con / Từ khoá dài / Từ khoá ngắn, kèm bằng chứng từ video thắng."""
+    """Split suggestions into the 3 columns Sub-niche / Long-tail keyword / Short keyword, with evidence from winning videos."""
     out: dict[str, list[dict]] = {SUBNICHE: [], LONG: [], SHORT: []}
     seed_norm = normalize(seed)
     for s in suggestions:
@@ -125,12 +126,12 @@ def columns(suggestions: list[dict], seed: str, language: str, winners: list[dic
 
 
 # ---------------------------------------------------------------------------
-# Kiểm tra tầng và "đủ sống"
+# Layer check and "viable" check
 # ---------------------------------------------------------------------------
 
 
 def layer_status(run: dict) -> dict:
-    """Quy tắc "hẹp nhưng vẫn có người xem" cho một lần đào ngách con."""
+    """The "narrow but still watched" rule for one sub-niche dig."""
     r = run["result"]
     layer = run.get("layer") or 1
     outliers = r["outlier_counts"]["total"]
@@ -138,21 +139,21 @@ def layer_status(run: dict) -> dict:
     if layer > cfg.SUBNICHE_MAX_LAYER:
         return {
             "status": "video",
-            "text": f"Tầng {layer}: thường là chủ đề video, không phải ngách. Dùng để lập danh sách video.",
+            "text": f"Layer {layer}: usually a video topic, not a niche. Use it to build the video list.",
         }
     if r["confidence"] == LOW or outliers == 0:
-        why = "mẫu còn ít" if r["confidence"] == LOW else "không còn video vượt trội"
-        return {"status": "too_narrow", "text": f"Quá hẹp ({why}): bỏ bớt một bộ lọc, lùi lên một tầng rồi đào lại."}
+        why = "small sample" if r["confidence"] == LOW else "no outperformer videos left"
+        return {"status": "too_narrow", "text": f"Too narrow ({why}): remove one filter, go up one layer and dig again."}
     if booms == 0:
-        return {"status": "weak", "text": "Còn video vượt trội nhưng chưa có kênh nhỏ nào nổ: cửa cho kênh mới còn hẹp."}
-    return {"status": "alive", "text": f"Còn sống: {outliers} video vượt trội, {booms} kênh nhỏ đang nổ."}
+        return {"status": "weak", "text": "Outperformer videos remain but no small channel is booming yet: the door for a new channel is narrow."}
+    return {"status": "alive", "text": f"Still alive: {outliers} outperformer videos, {booms} small booming channels."}
 
 
 _NUMBERING = re.compile(r"^\s*(?:[-*•]|\d+[.)/:-]?)\s*")
 
 
 def parse_ideas(text: str) -> list[str]:
-    """Mỗi dòng một ý tưởng; bỏ số thứ tự / gạch đầu dòng và dòng trống."""
+    """One idea per line; strips numbering / bullets and blank lines."""
     ideas = []
     for line in (text or "").splitlines():
         line = _NUMBERING.sub("", line).strip()
@@ -166,7 +167,7 @@ def _jaccard(a: set, b: set) -> float:
 
 
 def duplicate_ideas(ideas: list[str], threshold: float = 0.8) -> list[tuple[int, int]]:
-    """Cặp (i, j) trùng hoặc gần trùng (chỉ đổi vài chữ): ≥ 80% từ giống nhau."""
+    """Pairs (i, j) that are duplicates or near-duplicates (only a few words changed): ≥ 80% of words shared."""
     words = [set(w for w in tokens(x) if w not in STOPWORDS) or set(tokens(x)) for x in ideas]
     pairs = []
     for i in range(len(ideas)):
@@ -187,7 +188,7 @@ def _sentences(text: str) -> int:
 
 
 def viability(run: dict, ideas_text: str = "", promise: str = "") -> dict:
-    """5 ô kiểm tra ngách con "đủ sống". ok = None nghĩa là chưa đủ dữ liệu để kết luận."""
+    """The 5 checks that a sub-niche is "viable". ok = None means not enough data to conclude."""
     r = run["result"]
     outliers = r["outlier_counts"]["total"]
     booms = len(r["small_boom_channels"])
@@ -198,56 +199,56 @@ def viability(run: dict, ideas_text: str = "", promise: str = "") -> dict:
     tier = r.get("rpm_tier")
 
     if not promise:
-        promise_ok, promise_detail = None, "chưa viết"
+        promise_ok, promise_detail = None, "not written yet"
     elif _sentences(promise) > 1:
-        promise_ok, promise_detail = False, "đang có nhiều hơn một câu"
+        promise_ok, promise_detail = False, "more than one sentence"
     else:
         promise_ok, promise_detail = True, promise
 
     if tier is None and not affiliates:
-        money_ok, money_detail = None, "chưa chọn nhóm chủ đề (RPM) và chưa liệt kê affiliate"
+        money_ok, money_detail = None, "no topic category (RPM) picked and no affiliates listed"
     else:
         money_ok = (tier is not None and tier != RPM_LOW) or bool(affiliates)
-        money_detail = f"RPM bậc {tier or 'chưa có'}, {len(affiliates)} sản phẩm affiliate"
+        money_detail = f"RPM tier {tier or 'none'}, {len(affiliates)} affiliate products"
 
     checks = [
         {
             "key": "outliers",
-            "label": f"Còn video vượt trội từ {cfg.OUTLIER_OUTPERFORM:g}×",
+            "label": f"Outperformer videos remain from {cfg.OUTLIER_OUTPERFORM:g}×",
             "ok": outliers > 0,
-            "detail": f"{outliers} video",
+            "detail": f"{outliers} videos",
         },
         {
             "key": "small_channels",
-            "label": "Có ít nhất 1–2 kênh nhỏ làm đúng ngách đang tăng",
+            "label": "At least 1–2 small channels doing exactly this niche are growing",
             "ok": booms >= 1,
-            "detail": f"{booms} kênh nhỏ đang nổ",
+            "detail": f"{booms} small booming channels",
         },
         {
             "key": "ideas",
-            "label": f"Liệt kê được {cfg.SUBNICHE_MIN_IDEAS} ý tưởng video không trùng",
+            "label": f"Can list {cfg.SUBNICHE_MIN_IDEAS} video ideas without duplicates",
             "ok": None if not ideas else unique >= cfg.SUBNICHE_MIN_IDEAS,
-            "detail": f"{unique} ý không trùng / {len(ideas)} dòng" if ideas else "chưa nhập",
+            "detail": f"{unique} unique ideas / {len(ideas)} lines" if ideas else "not entered yet",
         },
         {
             "key": "promise",
-            "label": "Viết được lời hứa kênh trong một câu",
+            "label": "Can write the channel promise in one sentence",
             "ok": promise_ok,
             "detail": promise_detail,
         },
-        {"key": "money", "label": "Vẫn còn đường ra tiền", "ok": money_ok, "detail": money_detail},
+        {"key": "money", "label": "A path to money remains", "ok": money_ok, "detail": money_detail},
     ]
     return {"checks": checks, "passed": all(c["ok"] for c in checks), "unique_ideas": unique}
 
 
 # ---------------------------------------------------------------------------
-# So Trends ngách mẹ với ngách con (bài 2.2)
+# Compare parent-niche Trends with sub-niches (lesson 2.2)
 # ---------------------------------------------------------------------------
 
 
 def compare_trends(series: dict, parent: str) -> list[dict]:
-    """series: {"5y": {chủ đề: điểm}, "12m": {...}} cùng thang. Ngách con đi lên khi ngách mẹ đi ngang là ứng viên tốt."""
-    from yt_niche.core.trends_classify import relative_trend
+    """series: {"5y": {topic: points}, "12m": {...}} on one scale. A sub-niche rising while the parent is flat is a good candidate."""
+    from yt_niche.core.trends_classify import DOWN, FLAT, NO_DATA, UP, relative_trend
 
     def info(topic: str) -> dict:
         v5 = [float(v) for _, v in (series.get("5y") or {}).get(topic) or []]
@@ -264,16 +265,16 @@ def compare_trends(series: dict, parent: str) -> list[dict]:
 
     def direction(t: float | None) -> str:
         if t is None:
-            return "không có dữ liệu"
-        return "đi lên" if t > 0.1 else "đi xuống" if t < -0.1 else "đi ngang"
+            return NO_DATA
+        return UP if t > 0.1 else DOWN if t < -0.1 else FLAT
 
     topics = list((series.get("5y") or series.get("12m") or {}).keys())
     rows = [info(t) for t in topics]
     p = next((r for r in rows if r["topic"] == parent), None)
-    parent_flat_or_down = p is not None and direction(p["trend_12m"]) != "đi lên"
+    parent_flat_or_down = p is not None and direction(p["trend_12m"]) != UP
     for r in rows:
         r["direction_12m"] = direction(r["trend_12m"])
         r["direction_5y"] = direction(r["trend_5y"])
         r["is_parent"] = r["topic"] == parent
-        r["good_candidate"] = not r["is_parent"] and parent_flat_or_down and r["direction_12m"] == "đi lên"
+        r["good_candidate"] = not r["is_parent"] and parent_flat_or_down and r["direction_12m"] == UP
     return rows

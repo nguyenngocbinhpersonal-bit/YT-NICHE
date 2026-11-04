@@ -1,4 +1,4 @@
-"""Phân loại Google Trends: bền / trào lưu / đang rơi / theo mùa (bài 2.2)."""
+"""Classify Google Trends: evergreen / fad / declining / seasonal (lesson 2.2)."""
 
 from __future__ import annotations
 
@@ -7,13 +7,15 @@ from statistics import mean
 
 from yt_niche import config as cfg
 
-STABLE, FAD, FALLING, SEASONAL = "bền", "trào lưu", "đang rơi", "theo mùa"
+STABLE, FAD, FALLING, SEASONAL = "evergreen", "fad", "declining", "seasonal"
+# Direction of the 5-year trend line (also used for the parent/sub-niche comparison in core.subniche).
+UP, FLAT, DOWN, NO_DATA = "up", "flat", "down", "no data"
 
 ADVICE = {
-    STABLE: "Cầu bền: có thể xây cả kênh.",
-    FAD: "Trào lưu: làm nhanh vài video, không xây cả kênh.",
-    FALLING: "Đang rơi: chỉ vào nếu điểm vẫn cao, cần góc mới và ngách dự phòng.",
-    SEASONAL: "Theo mùa: chuẩn bị video trước đỉnh 4–6 tuần.",
+    STABLE: "Evergreen demand: you can build a whole channel on it.",
+    FAD: "Fad: make a few quick videos, do not build a channel on it.",
+    FALLING: "Declining: only enter if the score is still high; needs a fresh angle and a backup niche.",
+    SEASONAL: "Seasonal: prepare videos 4–6 weeks before the peak.",
 }
 
 WEEKS_PER_YEAR = 52
@@ -29,7 +31,7 @@ def _slope(values: list[float]) -> float:
 
 
 def relative_trend(values: list[float]) -> float:
-    """Độ thay đổi của đường hồi quy tuyến tính từ đầu đến cuối chuỗi, chia cho trung bình."""
+    """Change of the linear regression line from the start to the end of the series, divided by the mean."""
     avg = mean(values) if values else 0
     if len(values) < 2 or avg == 0:
         return 0.0
@@ -37,7 +39,7 @@ def relative_trend(values: list[float]) -> float:
 
 
 def detrend(values: list[float]) -> list[float]:
-    """Trừ đường xu hướng tuyến tính, để chuỗi đang lên/xuống không bị nhầm là theo mùa."""
+    """Subtract the linear trend line so a rising/falling series is not mistaken for seasonal."""
     slope, avg, x_mean = _slope(values), mean(values), (len(values) - 1) / 2
     return [v - (avg + slope * (i - x_mean)) for i, v in enumerate(values)]
 
@@ -54,7 +56,7 @@ def autocorrelation(values: list[float], lag: int) -> float:
 
 
 def peak_month(points: list[list]) -> int:
-    """Tháng (1–12) có giá trị trung bình cao nhất qua các năm."""
+    """Month (1–12) with the highest average value across the years."""
     by_month: dict[int, list[float]] = defaultdict(list)
     for date, value in points:
         by_month[int(date[5:7])].append(value)
@@ -62,10 +64,10 @@ def peak_month(points: list[list]) -> int:
 
 
 def classify_trends(series: dict[str, list[list]] | None) -> dict:
-    """series = {"5y": [[ngày, giá trị], ...], "12m": [...], "3m": [...]} (theo tuần cho 5y/12m)."""
+    """series = {"5y": [[date, value], ...], "12m": [...], "3m": [...]} (weekly for 5y/12m)."""
     points_5y = (series or {}).get("5y") or []
     if len(points_5y) < WEEKS_PER_YEAR * 2:
-        return {"class": None, "reason": "chưa có đủ dữ liệu Trends 5 năm", "sparse": True}
+        return {"class": None, "reason": "not enough 5-year Trends data yet", "sparse": True}
 
     values = [float(v) for _, v in points_5y]
     sparse = sum(v == 0 for v in values) / len(values) > cfg.TRENDS_SPARSE_ZERO_SHARE
@@ -84,22 +86,22 @@ def classify_trends(series: dict[str, list[list]] | None) -> dict:
         "autocorr_52w": round(ac, 2),
     }
 
-    direction = "đi lên" if rel_5y > 0.1 else "đi ngang" if rel_5y > cfg.TRENDS_FALLING_5Y else "đi xuống"
+    direction = UP if rel_5y > 0.1 else FLAT if rel_5y > cfg.TRENDS_FALLING_5Y else DOWN
     if base <= cfg.TRENDS_FAD_BASE_MAX and recent >= cfg.TRENDS_FAD_RECENT_MIN and recent >= cfg.TRENDS_FAD_RATIO * max(base, 1):
-        cls, reason = FAD, f"nền 4 năm ≈ {base:.1f}, 13 tuần gần nhất ≈ {recent:.1f}"
+        cls, reason = FAD, f"4-year base ≈ {base:.1f}, last 13 weeks ≈ {recent:.1f}"
     elif ac >= cfg.TRENDS_SEASONAL_AUTOCORR:
         cls = SEASONAL
         reason = (
-            f"lặp lại theo năm (tự tương quan 52 tuần = {ac:.2f}), đỉnh tháng {peak_month(points_5y)}, "
-            f"nền 5 năm {direction} ({rel_5y:+.0%})"
+            f"repeats yearly (52-week autocorrelation = {ac:.2f}), peak in month {peak_month(points_5y)}, "
+            f"5-year base {direction} ({rel_5y:+.0%})"
         )
     elif rel_5y <= cfg.TRENDS_FALLING_5Y and rel_12m < 0:
-        cls, reason = FALLING, f"5 năm {rel_5y:+.0%}, 12 tháng {rel_12m:+.0%}"
+        cls, reason = FALLING, f"5 years {rel_5y:+.0%}, 12 months {rel_12m:+.0%}"
     else:
-        cls, reason = STABLE, f"5 năm {direction} ({rel_5y:+.0%}), 12 tháng {rel_12m:+.0%}"
+        cls, reason = STABLE, f"5 years {direction} ({rel_5y:+.0%}), 12 months {rel_12m:+.0%}"
 
     if sparse:
-        reason += "; dữ liệu thưa (nhiều tuần bằng 0), cần xem biểu đồ bằng mắt"
+        reason += "; sparse data (many zero weeks), check the chart by eye"
     result = {"class": cls, "direction": direction, "reason": reason, "advice": ADVICE[cls], "sparse": sparse, **metrics}
     if cls == SEASONAL:
         result["peak_month"] = peak_month(points_5y)

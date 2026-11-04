@@ -1,12 +1,13 @@
-"""Chấm điểm kênh / video tương tự từ các tín hiệu đã thu thập (không gọi mạng).
+"""Score similar channels / videos from collected signals (no network calls).
 
-Hai thành phần, giống cách TubeBuddy / vidIQ / NexLev xếp hạng "liên quan":
-- Độ giống nội dung: so chữ (TF-IDF trên cụm 4 ký tự, chịu được biến thể từ như "strong"/"stronger"), giữa văn bản
-  nguồn và văn bản ứng viên. Chuẩn hoá theo ứng viên giống nhất, nên con số là tương đối trong một lần tra.
-- Độ đồng xuất hiện: ứng viên lặp lại ở nhiều nguồn (Up next, search video, search kênh) thì nhiều khả năng là đối thủ
-  trực tiếp.
-App không dùng mô hình embedding cục bộ. Để so được khác ngôn ngữ, nguồn có nhiều bản văn bản (bản gốc và bản tiêu đề
-YouTube tự dịch theo từng hl), độ giống của ứng viên là bản giống nhất.
+Two parts, like the way TubeBuddy / vidIQ / NexLev rank "related":
+- Content similarity: text comparison (TF-IDF over 4-character grams, tolerant to word variants such as "strong"/"stronger")
+  between the source text and the candidate text. Normalized by the most similar candidate, so the number is relative
+  within one lookup.
+- Co-occurrence: a candidate that shows up in several sources (Up next, video search, channel search) is more likely a
+  direct competitor.
+The app uses no local embedding model. To compare across languages the source has several text versions (the original
+and the titles YouTube auto-translates per hl); a candidate's similarity is the best of them.
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ def grams(text: str) -> Counter:
 
 
 class Corpus:
-    """TF-IDF trên một tập văn bản; similarity(a, b) là cosine trong [0, 1]."""
+    """TF-IDF over a set of texts; similarity(a, b) is the cosine in [0, 1]."""
 
     def __init__(self, docs: dict[str, str]):
         self._grams = {k: grams(v) for k, v in docs.items()}
@@ -63,21 +64,21 @@ def _relative(values: dict[str, float]) -> dict[str, float]:
 
 
 def cooccur_raw(signals: dict[str, float]) -> float:
-    """Tổng tín hiệu có trọng số, cộng thưởng cho mỗi loại nguồn khác nhau."""
+    """Weighted sum of signals, plus a bonus for every distinct source type."""
     return sum(cfg.SIMILAR_SIGNAL_WEIGHTS.get(k, 1.0) * v for k, v in signals.items()) + 0.5 * sum(
         1 for v in signals.values() if v > 0
     )
 
 
 def _content(source_texts: list[str], docs: dict[str, str]) -> dict[str, float]:
-    """Độ giống của từng ứng viên với bản nguồn giống nhất, chuẩn hoá theo ứng viên giống nhất."""
+    """Similarity of each candidate to its best-matching source text, normalized by the most similar candidate."""
     src = {f"__src{i}__": t for i, t in enumerate(source_texts) if t}
     corpus = Corpus({**src, **docs})
     return _relative({k: max((corpus.similarity(s, k) for s in src), default=0.0) for k in docs})
 
 
 def rank_channels(source_texts: list[str], candidates: list[dict]) -> list[dict]:
-    """candidates: [{channel_id, text, signals: {loại: số lần}, ...}] → thêm content, cooccur, score; đã lọc và sắp."""
+    """candidates: [{channel_id, text, signals: {type: count}, ...}] → adds content, cooccur, score; filtered and sorted."""
     if not candidates:
         return []
     content = _content(source_texts, {c["channel_id"]: c["text"] for c in candidates})
@@ -100,7 +101,7 @@ def rank_channels(source_texts: list[str], candidates: list[dict]) -> list[dict]
 
 
 def rank_videos(source_texts: list[str], candidates: list[dict]) -> list[dict]:
-    """candidates: [{video_id, text, signals, ...}] → thêm content, score; đã lọc và sắp."""
+    """candidates: [{video_id, text, signals, ...}] → adds content, score; filtered and sorted."""
     if not candidates:
         return []
     content = _content(source_texts, {v["video_id"]: v["text"] for v in candidates})
