@@ -1,0 +1,359 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stickman GSAP Scene</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  svg { display: block; }
+  text { font-family: Inter, sans-serif; }
+</style>
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+</head>
+<body>
+<svg id="svg" xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#121834"/><stop offset="1" stop-color="#3d3b69"/>
+    </linearGradient>
+    <radialGradient id="moonGlow"><stop offset="0" stop-color="#f6f0d6" stop-opacity=".45"/><stop offset="1" stop-color="#f6f0d6" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lampGlow"><stop offset="0" stop-color="#ffd98a" stop-opacity=".75"/><stop offset="1" stop-color="#ffd98a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="garageLight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd58a"/><stop offset="1" stop-color="#d98a45"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx=".5" cy=".5" r=".75">
+      <stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#05051a" stop-opacity=".55"/>
+    </radialGradient>
+    <filter id="blur6"><feGaussianBlur stdDeviation="6"/></filter>
+    <filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence id="turb" type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="1"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </defs>
+  <g id="bg"></g>
+  <g id="world"></g>
+  <rect width="1920" height="1080" fill="url(#vignette)"/>
+  <rect width="1920" height="1080" filter="url(#grain)" opacity=".06" style="mix-blend-mode:overlay"/>
+  <rect id="fade" width="1920" height="1080" fill="#000"/>
+</svg>
+<script>
+/*
+ * SVG rig + GSAP timeline.
+ *  - Scene graph built once as SVG (procedural perspective street, characters).
+ *  - Every animated value lives in plain "state" objects; GSAP tweens them on ONE
+ *    paused timeline. apply() writes state -> SVG attributes.
+ *  - Rendering = tl.seek(t) + apply() per frame (deterministic, any FPS).
+ */
+const W = 1920, H = 1080, DURATION = 5, FPS = 30;
+const NS = 'http://www.w3.org/2000/svg';
+const $ = id => document.getElementById(id);
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const deg = r => r * 180 / Math.PI;
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16), c = [n >> 16, n >> 8 & 255, n & 255]
+    .map(v => Math.max(0, Math.min(255, Math.round(f < 1 ? v * f : v + (255 - v) * (f - 1)))));
+  return `rgb(${c.join(',')})`;
+}
+
+// ---------- perspective ----------
+const VPX = 960, HY = 560, CAMH = 1.6, F = 375, D = 1;
+const K = Z => F / (Z + D);
+const P = (X, Y, Z) => { const k = K(Z); return [VPX + X * k, HY + (CAMH - Y) * k]; };
+const pts = a => a.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
+const poly = (g, a, fill, extra = {}) => el('polygon', { points: pts(a), fill, ...extra }, g);
+const sideQuad = (g, X, z0, z1, y0, y1, fill, ex) => poly(g, [P(X, y0, z0), P(X, y0, z1), P(X, y1, z1), P(X, y1, z0)], fill, ex);
+const frontQuad = (g, Z, x0, x1, y0, y1, fill, ex) => poly(g, [P(x0, y0, Z), P(x1, y0, Z), P(x1, y1, Z), P(x0, y1, Z)], fill, ex);
+const groundQuad = (g, x0, x1, z0, z1, fill, ex) => poly(g, [P(x0, 0, z0), P(x1, 0, z0), P(x1, 0, z1), P(x0, 0, z1)], fill, ex);
+
+// ---------- background (sky layer) ----------
+const rnd = mulberry32(11);
+const bg = $('bg'), world = $('world');
+el('rect', { x: -400, y: -300, width: W + 800, height: HY + 360, fill: 'url(#sky)' }, bg);
+for (let i = 0; i < 70; i++) el('circle', { cx: rnd() * W * 1.2 - 100, cy: rnd() * 380 - 60, r: 0.8 + rnd() * 1.6, fill: '#fff', opacity: 0.3 + rnd() * 0.6 }, bg);
+el('circle', { cx: 1480, cy: 150, r: 130, fill: 'url(#moonGlow)' }, bg);
+el('circle', { cx: 1480, cy: 150, r: 40, fill: '#f3eed8' }, bg);
+el('circle', { cx: 1494, cy: 140, r: 36, fill: '#e2dcc0', opacity: .35 }, bg);
+el('ellipse', { cx: 1120, cy: HY + 10, rx: 360, ry: 70, fill: '#2b3152' }, bg);
+el('ellipse', { cx: 860, cy: HY + 12, rx: 280, ry: 52, fill: '#232946' }, bg);
+
+// ---------- world ----------
+const ground = el('g', {}, world);
+groundQuad(ground, -16, 16, 0, 80, '#55535f');
+groundQuad(ground, -3.65, 3.65, 0, 80, '#43424c');
+groundQuad(ground, -3.5, 3.5, 0, 80, '#2b2d37');
+for (let z = 0.2; z < 60; z += 2.6) groundQuad(ground, -0.09, 0.09, z, z + 1.2, '#8f8d86');
+for (let i = 0; i < 8; i++) {
+  let x = -3 + rnd() * 6, z = 0.5 + rnd() * 8; const a = [];
+  for (let j = 0; j < 4; j++) { a.push(P(x, 0, z)); x += (rnd() - .5) * .7; z += .1 + rnd() * .3; }
+  el('polyline', { points: pts(a), fill: 'none', stroke: '#1b1c24', 'stroke-width': 2 }, ground);
+}
+
+const NIGHT = ['#6b5466', '#4f5e70', '#6d5a52', '#55606a', '#7a6352', '#4d5a5e', '#5f5872'];
+function row(side, start, end) {
+  const out = []; let z = start;
+  while (z < end) { const dz = 2.4 + rnd() * 2.6; out.push({ side, z0: z, z1: z + dz, h: 4 + rnd() * 5.5, col: NIGHT[Math.floor(rnd() * NIGHT.length)], tank: rnd() > .4 }); z += dz; }
+  return out;
+}
+const RX = 5.8, LX = -5.6;
+const blds = [...row(1, 4.6, 70), ...row(-1, 0, 70)].sort((a, b) => b.z0 - a.z0);
+const bG = el('g', {}, world);
+for (const b of blds) {
+  const X = b.side > 0 ? RX : LX;
+  frontQuad(bG, b.z0, X, X + b.side * 9, 0, b.h, shade(b.col, 1.1));
+  sideQuad(bG, X, b.z0, b.z1, 0, b.h, b.col);
+  sideQuad(bG, X, b.z0, b.z1, b.h - .18, b.h, shade(b.col, .8));
+  for (let y = 1.4; y < b.h - .9; y += 1.45)
+    for (let z = b.z0 + .45; z < b.z1 - .6; z += 1.05) {
+      const lit = rnd() > .62;
+      sideQuad(bG, X, z, z + .5, y, y + .75, lit ? '#f3c66b' : '#2a3146', { opacity: lit ? .92 : .85 });
+    }
+  if (b.tank) {
+    const zc = b.z0 + .5, k = K(zc), [cx, cy] = P(X + b.side * 1.3, b.h, zc), r = .55 * k, hh = .7 * k;
+    el('rect', { x: cx - r, y: cy - hh, width: 2 * r, height: hh, fill: '#2e4f74' }, bG);
+    el('ellipse', { cx, cy: cy - hh, rx: r, ry: r * .22, fill: '#3b6390' }, bG);
+  }
+}
+// garage on the right with warm light
+const gar = el('g', {}, world);
+sideQuad(gar, RX, 1.2, 4.6, 0, 4.0, '#6c707b');
+sideQuad(gar, RX, 1.2, 4.6, 3.8, 4.0, '#555963');
+sideQuad(gar, RX, 1.7, 4.2, 0, 2.7, 'url(#garageLight)');
+sideQuad(gar, RX, 1.7, 4.2, 2.7, 2.85, '#4a4d55');
+groundQuad(gar, 2.6, RX, 1.6, 4.4, '#ffc977', { opacity: .22, filter: 'url(#blur6)' });
+// silhouettes of people inside the garage
+for (const [z, col] of [[2.4, '#b25a3c'], [3.0, '#3f7a6a'], [3.5, '#6a5a9a']]) {
+  const [x, y] = P(RX - .05, 0, z), k = K(z);
+  el('rect', { x: x - .18 * k, y: y - 1.15 * k, width: .36 * k, height: .75 * k, rx: .08 * k, fill: col, opacity: .85 }, gar);
+  el('circle', { cx: x, cy: y - 1.35 * k, r: .19 * k, fill: '#e9e3d6', opacity: .9 }, gar);
+}
+// lamp post on the left
+const lamp = el('g', {}, world);
+{
+  const z = 3.4, [bx, by] = P(-4.5, 0, z), [tx, ty] = P(-4.5, 5.2, z), [hx, hy] = P(-3.7, 5.1, z), k = K(z);
+  el('ellipse', { cx: P(-3.6, 0, z)[0], cy: by, rx: 1.6 * k, ry: .35 * k, fill: '#ffd98a', opacity: .18, filter: 'url(#blur6)' }, lamp);
+  el('line', { x1: bx, y1: by, x2: tx, y2: ty, stroke: '#3a3d47', 'stroke-width': .14 * k }, lamp);
+  el('line', { x1: tx, y1: ty, x2: hx, y2: hy, stroke: '#3a3d47', 'stroke-width': .09 * k, 'stroke-linecap': 'round' }, lamp);
+  el('circle', { cx: hx, cy: hy + .1 * k, r: 1.1 * k, fill: 'url(#lampGlow)' }, lamp);
+  el('rect', { x: hx - .25 * k, y: hy, width: .5 * k, height: .14 * k, rx: .05 * k, fill: '#fff3c9' }, lamp);
+}
+// parked car (profile) on the right
+{
+  const z = 6, k = K(z), g = el('g', { transform: `translate(${VPX},${HY + CAMH * k}) scale(${k},${-k})` }, world);
+  const X0 = 2.2;
+  el('polygon', { points: pts([[X0, .3], [X0, .75], [X0 + .6, .85], [X0 + 1, 1.28], [X0 + 2.3, 1.28], [X0 + 2.8, .86], [X0 + 3.35, .78], [X0 + 3.4, .3]]), fill: '#e4e2da' }, g);
+  el('rect', { x: X0, y: .3, width: 3.4, height: .14, fill: '#b9b7ae' }, g);
+  el('polygon', { points: pts([[X0 + .75, .88], [X0 + 1.07, 1.2], [X0 + 1.6, 1.2], [X0 + 1.6, .88]]), fill: '#3a4258' }, g);
+  el('polygon', { points: pts([[X0 + 1.7, .88], [X0 + 1.7, 1.2], [X0 + 2.25, 1.2], [X0 + 2.6, .88]]), fill: '#3a4258' }, g);
+  for (const x of [X0 + .75, X0 + 2.65]) { el('circle', { cx: x, cy: .32, r: .33, fill: '#1c1c22' }, g); el('circle', { cx: x, cy: .32, r: .15, fill: '#8d9098' }, g); }
+}
+
+// ---------- character rig ----------
+let uid = 0;
+function makeChar(X, Z, c) {
+  const k = K(Z), [fx, fy] = P(X, 0, Z), id = 'c' + (uid++);
+  const root = el('g', { transform: `translate(${fx.toFixed(1)},${fy.toFixed(1)}) scale(${(k / 100).toFixed(4)})` }, world);
+  el('ellipse', { cx: 2, cy: 1, rx: 27, ry: 5.5, fill: '#000', opacity: .28 }, root);
+  for (const s of [-1, 1]) {
+    el('rect', { x: s * 7.5 - 6, y: -86, width: 12, height: 82, rx: 4, fill: c.pants }, root);
+    el('rect', { x: s * 7.5 - 5, y: -84, width: 2.5, height: 76, fill: shade(c.pants, 1.15) }, root);
+    el('rect', { x: s * 7 - 7 + s * 1.5, y: -7, width: 14, height: 7.5, rx: 3.6, fill: '#e9e9ef' }, root);
+  }
+  const upper = el('g', {}, root);
+  el('path', { d: 'M-15,-82 L-18.5,-126 Q-18.5,-134 -10,-134 L10,-134 Q18.5,-134 18.5,-126 L15,-82 Z', fill: c.top }, upper);
+  el('rect', { x: -15.5, y: -128, width: 4, height: 44, fill: shade(c.top, 1.18) }, upper);
+  if (c.jacket) {
+    el('path', { d: 'M-4,-134 L4,-134 L3,-82 L-3,-82 Z', fill: c.jacket }, upper);
+    el('path', { d: 'M-4,-134 L-7,-118 M4,-134 L7,-118', stroke: shade(c.top, .7), 'stroke-width': 1.2, fill: 'none' }, upper);
+  }
+  const arms = {};
+  for (const side of [-1, 1]) {
+    const sh = el('g', {}, upper);
+    el('line', { x1: 0, y1: 0, x2: 0, y2: 30, stroke: c.top, 'stroke-width': 11, 'stroke-linecap': 'round' }, sh);
+    const fore = el('g', {}, sh);
+    el('line', { x1: 0, y1: 0, x2: 0, y2: 27, stroke: c.top, 'stroke-width': 10, 'stroke-linecap': 'round' }, fore);
+    const open = el('g', {}, fore);
+    el('circle', { cx: 0, cy: 30, r: 6, fill: '#f0f0f4' }, open);
+    el('circle', { cx: side * 1.5, cy: 31.5, r: 3.2, fill: '#cdcdd8' }, open);
+    const point = el('g', {}, fore);
+    el('line', { x1: 0, y1: 30, x2: 0, y2: 42, stroke: '#f0f0f4', 'stroke-width': 3.6, 'stroke-linecap': 'round' }, point);
+    el('circle', { cx: 0, cy: 28.5, r: 5.6, fill: '#f0f0f4' }, point);
+    arms[side] = { sh, fore, open, point };
+  }
+  el('line', { x1: 0, y1: -132, x2: 0, y2: -140, stroke: '#d6d6e0', 'stroke-width': 3 }, upper);
+  const headPos = el('g', { transform: 'translate(0,-159)' }, upper);
+  const head = el('g', {}, headPos);
+  const clip = el('clipPath', { id: id + 'h' }, head); el('circle', { r: 20 }, clip);
+  el('circle', { r: 20, fill: '#c4c4d3' }, head);
+  const light = el('circle', { cx: -3, cy: -3, r: 19.5, fill: '#e9e9f0', 'clip-path': `url(#${id}h)` }, head);
+  const face = el('g', {}, head);
+  const eyes = {};
+  for (const s of [-1, 1]) {
+    const ex = s * 7, ey = 1, cp = el('clipPath', { id: id + 'e' + s }, face);
+    const shape = el('ellipse', { cx: ex, cy: ey, rx: 3.4, ry: 4.8 }, cp);
+    const g = el('g', { 'clip-path': `url(#${id}e${s})` }, face);
+    el('rect', { x: ex - 4, y: ey - 6, width: 8, height: 12, fill: '#15151a' }, g);
+    const lid = el('rect', { x: ex - 4, y: ey - 6, width: 8, height: 1, fill: '#d8d8e3' }, g);
+    const lidLine = el('line', { x1: ex - 3.6, x2: ex + 3.6, stroke: '#2a2a30', 'stroke-width': 1.3 }, face);
+    const brow = el('line', { stroke: '#2a2a30', 'stroke-width': 1.9, 'stroke-linecap': 'round' }, face);
+    eyes[s] = { ex, ey, shape, lid, lidLine, brow };
+  }
+  const mouthO = el('ellipse', { cx: 0, cy: 10.5, fill: '#3b2a2c' }, face);
+  const mouthL = el('path', { fill: 'none', stroke: '#3b2a2c', 'stroke-width': 1.5, 'stroke-linecap': 'round' }, face);
+  const sweat = el('path', { d: 'M0,-5 Q4,1 0,4 Q-4,1 0,-5 Z', fill: '#9fd3f2', opacity: 0 }, head);
+  if (c.cap) {
+    el('path', { d: 'M-20.6,-3 A20.6,20.6 0 0 1 20.6,-3 Z', fill: c.cap }, head);
+    el('rect', { x: -2, y: -6, width: 26, height: 3.5, fill: c.cap }, head);
+  }
+  if (c.hair) el('path', { d: 'M-19.5,-7 A20.4,20.4 0 0 1 19.5,-7 Q0,-13 -19.5,-7 Z', fill: c.hair }, head);
+  const s = {
+    turn: 0, tilt: 0, blink: 0, lidL: .25, lidR: .25, browL: 0, browR: 0, frown: 0,
+    mouth: 0, smile: 0, br: 0, lean: 0, sweat: 0, sweatY: 0,
+    aL1: .1, aL2: .06, aR1: .08, aR2: .05, point: 0,
+  };
+  return { s, upper, arms, head, light, face, eyes, mouthO, mouthL, sweat };
+}
+function applyChar(r) {
+  const s = r.s;
+  r.upper.setAttribute('transform', `translate(0,-84) rotate(${deg(s.lean).toFixed(2)}) translate(0,${(84 - s.br).toFixed(2)})`);
+  for (const side of [-1, 1]) {
+    const a = r.arms[side], a1 = side < 0 ? s.aL1 : s.aR1, a2 = side < 0 ? s.aL2 : s.aR2;
+    a.sh.setAttribute('transform', `translate(${side * 15.5},-127) rotate(${(-side * deg(a1)).toFixed(2)})`);
+    a.fore.setAttribute('transform', `translate(0,30) rotate(${(-side * deg(a2)).toFixed(2)})`);
+    const pt = side > 0 && s.point > .5;
+    a.open.setAttribute('display', pt ? 'none' : 'inline');
+    a.point.setAttribute('display', pt ? 'inline' : 'none');
+  }
+  r.head.setAttribute('transform', `rotate(${deg(s.tilt).toFixed(2)})`);
+  r.light.setAttribute('cx', (-3 + s.turn * 2).toFixed(2));
+  r.face.setAttribute('transform', `translate(${(s.turn * 6.5).toFixed(2)},0)`);
+  for (const side of [-1, 1]) {
+    const e = r.eyes[side], lid = side < 0 ? s.lidL : s.lidR, raise = side < 0 ? s.browL : s.browR;
+    e.shape.setAttribute('ry', Math.max(.5, 4.8 * (1 - s.blink)).toFixed(2));
+    e.lid.setAttribute('height', (1 + lid * 6).toFixed(2));
+    const ly = e.ey - 5 + lid * 6;
+    e.lidLine.setAttribute('y1', ly.toFixed(2)); e.lidLine.setAttribute('y2', ly.toFixed(2));
+    e.lidLine.setAttribute('opacity', lid > .05 && s.blink < .5 ? 1 : 0);
+    const by = e.ey - 9.5 - raise * 3, t = s.frown;
+    e.brow.setAttribute('x1', e.ex - side * 4); e.brow.setAttribute('y1', (by + t * 1.8).toFixed(2));
+    e.brow.setAttribute('x2', e.ex + side * 4); e.brow.setAttribute('y2', (by - t * 1.8).toFixed(2));
+  }
+  const open = s.mouth > .06;
+  r.mouthO.setAttribute('display', open ? 'inline' : 'none');
+  r.mouthL.setAttribute('display', open ? 'none' : 'inline');
+  r.mouthO.setAttribute('rx', (2.6 + s.mouth * 1.6).toFixed(2));
+  r.mouthO.setAttribute('ry', (.8 + s.mouth * 3.4).toFixed(2));
+  const sm = s.smile;
+  r.mouthL.setAttribute('d', `M-3.2,${(10.5 - sm * .6).toFixed(2)} Q0,${(10.5 + sm * 2.2).toFixed(2)} 3.2,${(10.5 - sm * 1.4).toFixed(2)}`);
+  r.sweat.setAttribute('opacity', s.sweat.toFixed(2));
+  r.sweat.setAttribute('transform', `translate(${(17 + s.turn * 3).toFixed(1)},${(-8 + s.sweatY).toFixed(1)})`);
+}
+
+// cast: queue (back -> front), hero last
+const queue = [
+  makeChar(-3.4, 3.3, { top: '#3d8a86', pants: '#262a36', cap: '#2a2a33' }),
+  makeChar(-2.5, 2.6, { top: '#c46c88', pants: '#2b2633', hair: '#8b8b93' }),
+  makeChar(-1.6, 2.0, { top: '#d4a12b', pants: '#2a2a30', hair: '#1f1f25' }),
+  makeChar(-0.75, 1.5, { top: '#4c6fb0', pants: '#23283a', hair: '#c9a43a' }),
+];
+const hero = makeChar(0.35, 1.0, { top: '#2f56bb', pants: '#232a3d', jacket: '#1d2232' });
+const cast = [...queue, hero];
+queue.forEach((q, i) => Object.assign(q.s, { turn: -0.15 + i * .05, lidL: .3 + (i % 2) * .15, lidR: .3 + (i % 2) * .15, smile: i % 2 ? .2 : -.1 }));
+Object.assign(hero.s, { turn: .1, lidL: .3, lidR: .3, smile: .5 });
+
+// ---------- overlays ----------
+const overlay = el('g', {}, world);
+const [lx, ly] = P(0.35, 2.12, 1.0);
+const counterG = el('g', {}, overlay);
+const counterBg = el('rect', { x: -78, y: -32, width: 156, height: 64, rx: 13, fill: '#16161a', opacity: .9 }, counterG);
+const counterT = el('text', { x: 0, y: 2, 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-size': 44, 'font-weight': 800, fill: '#fff' }, counterG);
+const plusT = el('text', { x: 100, y: -18, 'text-anchor': 'middle', 'font-size': 32, 'font-weight': 800, fill: '#ff6b5e', opacity: 0 }, overlay);
+plusT.textContent = '+1';
+const bubbleG = el('g', {}, overlay);
+el('rect', { x: -170, y: -34, width: 340, height: 68, rx: 28, fill: '#fff' }, bubbleG);
+el('polygon', { points: '-120,28 -150,72 -80,30', fill: '#fff' }, bubbleG);
+const bubbleT = el('text', { x: 0, y: 2, 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-size': 36, 'font-weight': 700, fill: '#1e1f26' }, bubbleG);
+bubbleT.textContent = 'Eu nunca menti.';
+
+const ui = { show: 0, val: 12, pop: 0, flash: 0, plus: 0, bubble: 0 };
+const cam = { z: 1.3, x: 25, punch: 0 }, fx = { fade: 1 };
+
+function applyAll(frame) {
+  cast.forEach(applyChar);
+  const z = cam.z + cam.punch;
+  world.setAttribute('transform', `translate(${W / 2},${H * .66}) scale(${z.toFixed(4)}) translate(${(-W / 2 + cam.x).toFixed(2)},${-H * .66})`);
+  const zb = 1 + (z - 1) * .5;
+  bg.setAttribute('transform', `translate(${W / 2},${H * .66}) scale(${zb.toFixed(4)}) translate(${(-W / 2 + cam.x * .3).toFixed(2)},${-H * .66})`);
+  const cs = ui.show * (1 + .28 * ui.pop);
+  counterG.setAttribute('transform', `translate(${lx - 10},${ly}) scale(${cs.toFixed(3)})`);
+  counterT.textContent = String(Math.round(ui.val));
+  const f = ui.flash;
+  counterBg.setAttribute('fill', `rgb(${Math.round(22 + 192 * f)},${Math.round(22 + 37 * f)},${Math.round(26 + 33 * f)})`);
+  plusT.setAttribute('opacity', ui.plus > 0 && ui.plus < 1 ? (1 - ui.plus).toFixed(2) : 0);
+  plusT.setAttribute('transform', `translate(${lx - 10},${ly - ui.plus * 45})`);
+  bubbleG.setAttribute('transform', `translate(${lx + 230},${ly - 110}) scale(${ui.bubble.toFixed(3)})`);
+  bubbleG.setAttribute('opacity', Math.min(1, ui.bubble * 1.5).toFixed(2));
+  $('fade').setAttribute('opacity', fx.fade.toFixed(3));
+  $('turb').setAttribute('seed', (frame % 6) + 1);
+}
+
+// ---------- GSAP timeline ----------
+const tl = gsap.timeline({ paused: true });
+const hs = hero.s;
+// camera + fades
+tl.to(cam, { z: 1.4, x: -10, duration: DURATION, ease: 'sine.inOut' }, 0)
+  .to(fx, { fade: 0, duration: .35, ease: 'power1.out' }, 0)
+  .to(fx, { fade: 1, duration: .4, ease: 'power1.in' }, DURATION - .4);
+// idle breathing for everyone (offset per character)
+cast.forEach((c, i) => tl.to(c.s, { br: 1.6, duration: 1.1 + i * .07, ease: 'sine.inOut', yoyo: true, repeat: 3 }, i * .15));
+// counter appears
+tl.to(ui, { show: 1, duration: .45, ease: 'back.out(2)' }, .35);
+// hero raises the finger
+tl.to(hs, { aR1: .95, aR2: 2.2, duration: .5, ease: 'power2.inOut' }, .75)
+  .to(hs, { point: 1, duration: .01 }, .95)
+  .to(hs, { turn: 0, browL: .6, browR: .6, duration: .35, ease: 'power2.out' }, .8);
+// says the line
+tl.to(ui, { bubble: 1, duration: .35, ease: 'back.out(2.2)' }, 1.15)
+  .to(hs, { mouth: .9, duration: .085, ease: 'sine.inOut', yoyo: true, repeat: 13 }, 1.2)
+  .to(ui, { bubble: 0, duration: .2, ease: 'power2.in' }, 2.45);
+// the counter betrays him
+tl.to(ui, { val: 13, duration: .01 }, 2.55)
+  .to(ui, { pop: 1, duration: .16, ease: 'power2.out', yoyo: true, repeat: 1 }, 2.55)
+  .fromTo(ui, { flash: 1 }, { flash: 0, duration: .7, ease: 'power1.out', immediateRender: false }, 2.55)
+  .fromTo(ui, { plus: 0 }, { plus: 1, duration: .7, ease: 'power1.out', immediateRender: false }, 2.55)
+  .to(cam, { punch: .03, duration: .12, ease: 'power2.out', yoyo: true, repeat: 1 }, 2.55);
+// the queue turns to look at him, one after another (stagger)
+queue.slice().reverse().forEach((q, i) => {
+  const at = 2.75 + i * .13;
+  tl.to(q.s, { turn: .65, browL: 1.1, browR: 1.1, lidL: .05, lidR: .05, duration: .3, ease: 'power3.out' }, at)
+    .to(q.s, { lidL: .45, lidR: .45, browL: -.2, browR: .9, frown: .5, smile: i % 2 ? -.4 : .6, duration: .35, ease: 'power2.inOut' }, at + .55)
+    .to(q.s, { blink: 1, duration: .06, yoyo: true, repeat: 1 }, at + 1.1);
+});
+// hero panics a little
+tl.to(hs, { turn: -.4, frown: -.7, browL: 1, browR: 1, smile: -.6, lidL: .05, lidR: .05, duration: .3, ease: 'power2.out' }, 3.05)
+  .to(hs, { sweat: 1, duration: .15 }, 3.2)
+  .to(hs, { sweatY: 22, duration: 1, ease: 'power1.in' }, 3.2)
+  .to(hs, { sweat: 0, duration: .25 }, 4.0)
+  .to(hs, { blink: 1, duration: .06, yoyo: true, repeat: 1 }, 3.5)
+  .to(hs, { aR1: .08, aR2: .05, tilt: -.06, duration: .5, ease: 'power2.inOut' }, 3.6)
+  .to(hs, { point: 0, duration: .01 }, 3.8)
+  .to(hs, { turn: .05, duration: .4, ease: 'power2.inOut' }, 4.2);
+// blinks
+tl.to(hs, { blink: 1, duration: .06, yoyo: true, repeat: 1 }, .55);
+queue.forEach((q, i) => tl.to(q.s, { blink: 1, duration: .06, yoyo: true, repeat: 1 }, .4 + i * .37));
+
+window.renderFrame = t => { tl.seek(t, false); applyAll(Math.round(t * FPS)); };
+window.DURATION = DURATION; window.FPS = FPS;
+document.fonts.load('800 44px Inter').then(() => {
+  renderFrame(0); window.READY = true;
+  if (!navigator.webdriver) { tl.eventCallback('onUpdate', () => applyAll(Math.round(tl.time() * FPS))); tl.repeat(-1).play(); }
+});
+</script>
+</body>
+</html>
