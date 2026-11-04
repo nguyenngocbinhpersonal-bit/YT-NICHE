@@ -363,7 +363,7 @@ with tab_kw:
                     "Competition": k["competition"],
                     "Results": k["n"],
                     "Pick to dig": k["picked"],
-                    "Dug": f"#{k['run_id']}" if k["run_id"] else "",
+                    "Dig #": f"#{k['run_id']}" if k["run_id"] else "",
                 }
                 for k in kws
             ]
@@ -372,7 +372,7 @@ with tab_kw:
             df,
             hide_index=True,
             width="stretch",
-            disabled=["Keyword", "Type", "Score", "Label", "Demand", "Competition", "Results", "Dug"],
+            disabled=["Keyword", "Type", "Score", "Label", "Demand", "Competition", "Results", "Dig #"],
             column_config={
                 "Score": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f"),
                 "Demand": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f"),

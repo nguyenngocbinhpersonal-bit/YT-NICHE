@@ -59,7 +59,7 @@ table = pd.DataFrame(
             "Market": market_label(r["region"]),
             "Format": FMT_LABEL[r["fmt"]],
             "Window": f"{r['window_days']} days",
-            "Dug": r["created_at"][:10],
+            "Date": r["created_at"][:10],
             "Score": round(r["score"]),
             "Label": with_icon(LABEL_ICON, r["label"]),
             "Confidence": with_icon(CONFIDENCE_ICON, r["confidence"]),

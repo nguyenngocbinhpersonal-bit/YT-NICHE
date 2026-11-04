@@ -163,7 +163,7 @@ with tab_plan:
         st.caption("Lesson 2.5: pick ten topics from the long-tail keyword list and the outperformer videos; put the main keyword first in the title.")
         if ideas:
             st.dataframe(
-                pd.DataFrame([{"Long-tail keyword": k["keyword"], "Score": round(k["score"]), "Dug": "⭐" if k["picked"] else ""} for k in ideas]),
+                pd.DataFrame([{"Long-tail keyword": k["keyword"], "Score": round(k["score"]), "Picked": "⭐" if k["picked"] else ""} for k in ideas]),
                 hide_index=True,
                 width="stretch",
                 column_config={"Score": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d")},

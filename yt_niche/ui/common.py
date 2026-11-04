@@ -535,7 +535,7 @@ def _render_format_redig(run: dict, key: str) -> None:
                         "Format": report.FMT_LABEL[f],
                         "Score": round(v["score"]),
                         "Confidence": with_icon(CONFIDENCE_ICON, v["confidence"]),
-                        "Dug": v["created_at"][:10],
+                        "Date": v["created_at"][:10],
                         "#": v["id"],
                     }
                     for f, v in latest.items()
