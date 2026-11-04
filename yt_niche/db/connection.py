@@ -262,6 +262,69 @@ CREATE TABLE IF NOT EXISTS similar_run (
     n_videos    INTEGER NOT NULL,
     result_json TEXT NOT NULL
 );
+
+-- Bản đồ ngách (docs/NICHE_MAP_MCP_PLAN.md): cây ngách do Claude dựng qua MCP, số liệu lấy từ các bảng cũ.
+CREATE TABLE IF NOT EXISTS niche (
+    id                   INTEGER PRIMARY KEY,
+    name                 TEXT NOT NULL,
+    parent_id            INTEGER REFERENCES niche(id) ON DELETE SET NULL,
+    motivation           TEXT,                           -- động cơ chính (services/niche_map.MOTIVATIONS)
+    motivation_secondary TEXT,
+    status               TEXT NOT NULL DEFAULT 'draft',  -- draft | active | merged | dropped
+    merged_into          INTEGER REFERENCES niche(id) ON DELETE SET NULL,
+    potential            REAL,                           -- 0–100, Claude xếp sau khi đọc số thật
+    potential_rationale  TEXT NOT NULL DEFAULT '',
+    basis_json           TEXT,                           -- ảnh chụp số liệu lúc xếp hạng (để biết hạng đã cũ)
+    ranked_at            TEXT,
+    summary              TEXT NOT NULL DEFAULT '',       -- 2–3 câu: khán giả, vấn đề, góc kể
+    created_at           TEXT NOT NULL,
+    updated_at           TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_niche_parent ON niche(parent_id);
+
+CREATE TABLE IF NOT EXISTS niche_keyword (
+    niche_id    INTEGER NOT NULL REFERENCES niche(id) ON DELETE CASCADE,
+    region      TEXT NOT NULL,
+    keyword     TEXT NOT NULL,
+    kind        TEXT NOT NULL,                           -- main | related | longtail | trend
+    source      TEXT NOT NULL DEFAULT 'claude',
+    demand      REAL,                                    -- copy từ keyword / radar_keyword lúc gắn
+    competition REAL,
+    score       REAL,
+    n           INTEGER,
+    scored_at   TEXT,
+    trend_class TEXT,
+    added_at    TEXT NOT NULL,
+    PRIMARY KEY (niche_id, region, keyword)
+);
+
+CREATE TABLE IF NOT EXISTS niche_run (
+    niche_id INTEGER NOT NULL REFERENCES niche(id) ON DELETE CASCADE,
+    run_id   INTEGER NOT NULL REFERENCES dig_run(id) ON DELETE CASCADE,
+    added_at TEXT NOT NULL,
+    PRIMARY KEY (niche_id, run_id)
+);
+
+CREATE TABLE IF NOT EXISTS niche_channel (
+    niche_id   INTEGER NOT NULL REFERENCES niche(id) ON DELETE CASCADE,
+    channel_id TEXT NOT NULL,
+    role       TEXT NOT NULL DEFAULT 'leader',           -- leader | rising | fallen
+    note       TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (niche_id, channel_id)
+);
+
+-- Nhật ký quyết định: mọi thay đổi do Claude hay người dùng đều có lý do, đọc lại được.
+CREATE TABLE IF NOT EXISTS niche_event (
+    id           INTEGER PRIMARY KEY,
+    niche_id     INTEGER REFERENCES niche(id) ON DELETE CASCADE,
+    kind         TEXT NOT NULL,                          -- create | rename | move | merge | unmerge | motivation | rank | keywords | run | channels | drop
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    rationale    TEXT NOT NULL DEFAULT '',
+    actor        TEXT NOT NULL DEFAULT 'claude',
+    created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_niche_event_niche ON niche_event(niche_id, id);
 """
 
 # Cột thêm sau khi DB đã có dữ liệu (CREATE TABLE IF NOT EXISTS không tự thêm cột).
@@ -302,6 +365,8 @@ def connect(path: Path | str = DB_PATH) -> sqlite3.Connection:
     conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    # MCP server (Claude) và Streamlit ghi cùng lúc: chờ thay vì báo "database is locked".
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
     _migrate(conn)

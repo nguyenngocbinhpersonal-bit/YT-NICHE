@@ -1,6 +1,6 @@
 # Bản đồ ngách — Claude điều khiển app qua MCP
 
-> Trạng thái: **đề xuất, chưa code**. Mục đích: chốt kiến trúc, phân vai app / Claude, lược đồ dữ liệu và các câu hỏi
+> Trạng thái: **bước 1–2 đã code** (bảng, `services/niche_map.py`, `yt_niche/mcp/server.py`, skill). Còn UI và chế độ refresh. Mục đích: chốt kiến trúc, phân vai app / Claude, lược đồ dữ liệu và các câu hỏi
 > còn mở trước khi viết dòng code đầu tiên.
 >
 > Bối cảnh pháp lý: token OAuth của gói Pro/Max không được dùng trong ứng dụng bên thứ ba. Hướng này giữ Claude ở trong
@@ -15,7 +15,7 @@
 |---|---|---|
 | Lấy dữ liệu YouTube / gợi ý tìm kiếm / Trends, cache, đếm quota | **App** | Đã có: `sources/`, `services/fetch.py`, `services/keywords.py`, `services/similar.py`, `services/radar.py` |
 | Tính điểm ngách, điểm từ khoá, outlier, 3 tầng | **App** | Công thức cố định, test được (`core/`) |
-| Tính **tiềm năng** của một ngách trên bản đồ | **App** (công thức) + Claude được ghi đè **kèm lý do** | Bản đồ phải tái lập được; nếu chỉ dựa cảm nhận của Claude thì không so sánh được giữa hai lần chạy |
+| Xếp **tiềm năng** của các ngách trên bản đồ | **Claude**, sau khi đọc bảng số thật (`map_compare`) | Số đã nằm trong DB; Claude so và xếp. App lưu kèm **ảnh chụp số liệu** lúc xếp để gắn cờ `stale` khi số đổi |
 | Lưu trữ, lịch sử, vẽ bản đồ | **App** | Streamlit đọc cùng file SQLite |
 | Từ entry (từ khoá / kênh / URL / ngữ cảnh) suy ra từ khoá chính, liên quan, đuôi dài, trend | **Claude** đề xuất → **App** kiểm bằng dữ liệu thật → Claude chốt | Claude giỏi mở rộng ngữ nghĩa; số liệu thật quyết định giữ hay bỏ |
 | Đặt tên ngách, dựng taxonomy mẹ → con, gán động cơ khán giả, gộp ngách gần nhau | **Claude** (ghi vào DB kèm lý do) | Việc phân loại và đặt tên là phán đoán |
@@ -59,7 +59,7 @@ niche (
   motivation_primary, motivation_secondary, -- 1 trong 10 động cơ, phụ có thể NULL
   status,                                 -- draft | active | merged | dropped
   merged_into,                            -- niche.id khi status = merged (gộp mềm, mở lại được)
-  potential_auto, potential_override, override_reason,
+  potential, potential_rationale, basis_json, ranked_at,  -- Claude xếp qua niche_rank; basis = ảnh chụp số lúc xếp
   summary,                                -- 2–3 câu Claude viết: khán giả, vấn đề, góc kể
   created_at, updated_at
 )
@@ -78,17 +78,10 @@ niche_event (
 )
 ```
 
-**Tiềm năng tự động** (đề xuất, chỉnh trong `config.py`):
-
-```
-potential_auto = 0.4 · trung bình score của các dig_run gắn vào ngách (90 ngày gần nhất)
-               + 0.3 · demand trung bình có trọng số của từ khoá main + related
-               + 0.2 · (100 − competition trung bình)
-               + 0.1 · điểm trend (từ Trends: bền 100, theo mùa 60, trào lưu 40, đang rơi 0)
-```
-
-Ngách chưa có dữ liệu nào thì `potential_auto = NULL` và vẽ nhỏ, mờ. Claude ghi đè được nhưng phải có `override_reason`
-và sự kiện `override`.
+**Tiềm năng** (`niche.potential`, 0–100) do Claude xếp qua `niche_rank` sau khi đọc `map_compare`. App không có công
+thức; thay vào đó lưu `basis_json` (ảnh chụp `signals` lúc xếp) và `ranked_at`. Khi thêm lần đào, hoặc điểm đào / nhu cầu
+từ khoá main lệch quá 10 điểm so với ảnh chụp, ngách được gắn cờ `stale` và skill phải xếp lại. Ngách chưa có số
+(`n_main_scored = 0` và `n_runs = 0`) không được xếp và vẽ nhỏ, mờ.
 
 ---
 
@@ -153,8 +146,7 @@ giữ lại 1.500 unit cho Streamlit) trừ khi gọi với `force=true`.
 ```
 
 Cập nhật định kỳ ("cập nhật ngách"): skill có chế độ `refresh` — với mỗi ngách active, chạy `competitors_refresh`, chấm lại
-từ khoá main quá 30 ngày, tính lại `potential_auto`, và chỉ gọi Claude phán đoán khi có thay đổi lớn (potential lệch
-> 15 điểm hoặc có kênh nhỏ mới nổ).
+từ khoá main quá 30 ngày, `niche_refresh_numbers`, rồi `map_compare` và chỉ xếp lại ngách có cờ `stale`.
 
 ---
 
@@ -180,24 +172,38 @@ improve (thói quen tốt) tuỳ từ khoá thắng. Khi 2 động cơ ngang nha
 
 ## 7. Trang Bản đồ ngách (Streamlit)
 
-- Treemap Plotly 3 tầng: **động cơ → ngách lớn → ngách con**. Diện tích = `potential` (override nếu có, không thì auto).
-  Màu = độ tin cậy (ngách nhiều run, từ khoá chấm mới thì đậm). Ngách `merged` ẩn, có ô tick để hiện.
-- Click một ô → bảng bên: tóm tắt, 4 cột từ khoá (main / related / longtail / trend) kèm demand, competition, ngày chấm;
-  kênh dẫn đầu / đang nổ / đã rơi; 10 sự kiện gần nhất (ai quyết định, lý do).
-- Bộ lọc: thị trường, động cơ, ngưỡng potential, chỉ hiện ngách có dữ liệu < 30 ngày.
-- Chế độ bubble (x = demand, y = 100 − competition, size = potential) để nhìn góc "cầu cao, cung yếu".
+Một treemap Plotly, **nhiều chế độ nhóm** chọn bằng ô radio; diện tích luôn = `potential`, ngách chưa xếp vẽ mờ:
+
+| Chế độ | Tầng 1 | Tầng 2 | Tầng 3 | Dùng để |
+|---|---|---|---|---|
+| Động cơ | động cơ chính | ngách lớn | ngách con | thấy mình đang thiên về loại nhu cầu nào |
+| Mức tiềm năng | ≥ 70 / 50–69 / < 50 / chưa xếp | ngách | | chọn ngách để thử tiếp |
+| Cây ngách | ngách gốc | con | cháu | nhìn taxonomy đã dựng |
+| Thị trường | region | ngách | | so cùng ngách ở các thị trường |
+| Trend | bền / theo mùa / trào lưu / đang rơi / chưa có | ngách | | lọc ngách đang rơi |
+
+Màu = độ mới của dữ liệu (số liệu < 30 ngày đậm, cũ nhạt); viền đỏ = `stale` (cần xếp lại). Ngách `merged` ẩn, có ô
+tick để hiện.
+
+Click một ô → bảng bên: tóm tắt, 4 cột từ khoá (main / related / longtail / trend) kèm demand, competition, ngày chấm;
+kênh leader / rising / fallen; 10 sự kiện gần nhất (ai quyết định, lý do); nút "Tách lại" cho ngách đã gộp.
+
+Chế độ bubble (x = demand, y = 100 − competition, size = potential, màu = động cơ) để nhìn góc "cầu cao, cung yếu".
 
 ---
 
 ## 8. Phản biện ý tưởng (những chỗ tôi nghĩ bạn nên cân nhắc lại)
 
-1. **"Xây dựng, quyết định, phân loại đều do Claude chỉ đạo"** — đồng ý cho phân loại và đặt tên, nhưng **tiềm năng** phải
-   có công thức. Nếu Claude vừa chọn từ khoá, vừa chấm tiềm năng, vừa vẽ to nhỏ, bản đồ sẽ phản ánh ý kiến của Claude
-   hôm đó chứ không phải thị trường. Giải pháp ở mục 3: auto + override có lý do.
+1. **Tiềm năng do Claude xếp** (đã chốt với người dùng): chấp nhận vì Claude xếp trên số thật đã nằm trong DB, không
+   bịa. Điều kiện đi kèm để bản đồ vẫn tái lập được: mỗi lần xếp lưu ảnh chụp số liệu + lý do nêu con số; số đổi thì
+   cờ `stale`; ngách không có số thì không xếp. Thang 0–100 là tương đối giữa các ngách, nên khi thêm ngách mới nên
+   xếp lại cả bảng chứ không chỉ ngách mới.
 2. **Quota là nút thắt thật.** Một ngách "đầy đủ" (10 từ chấm + 2 lần đào) ≈ 1.600 unit. Quota 10.000/ngày → **~6 ngách/ngày**.
    Bản đồ 50 ngách mất hơn một tuần, và cập nhật toàn bộ cũng mất chừng đó. Skill phải ưu tiên: chỉ chấm từ khoá main,
-   dùng gợi ý tìm kiếm (0 unit) cho related/longtail, dùng radar cho trend. Nếu bạn muốn nhanh hơn, cần API key thứ hai
-   hoặc DataForSEO (đã có adapter) cho phần từ khoá.
+   dùng gợi ý tìm kiếm (0 unit) cho related/longtail, dùng radar cho trend. **Người dùng đã có Apify key** (thư mục
+   `.secrets/`, không commit): bước sau thêm `sources/apify.py` làm nguồn thay thế cho search / chi tiết kênh khi quota
+   YouTube cạn, tool lấy dữ liệu nhận tham số `source="youtube"|"apify"`. Cần biết actor Apify nào đang dùng để viết
+   adapter đúng đầu ra.
 3. **Gộp ngách là quyết định dễ sai, khó nhìn thấy.** Vì vậy gộp mềm (`merged_into`), có sự kiện, có nút tách lại trong UI.
    Không bao giờ xoá dòng.
 4. **Mười động cơ không loại trừ nhau.** Ngách "đầu tư crypto cho người mới" vừa earn vừa learn. Cho phép 1 chính + 1 phụ,
@@ -213,22 +219,34 @@ improve (thói quen tốt) tuỳ từ khoá thắng. Khi 2 động cơ ngang nha
 
 | Bước | Nội dung | Ước lượng |
 |---|---|---|
-| 1 | Bảng mới + `services/niche_map.py` (CRUD, merge mềm, potential_auto, event log) + test | 1 buổi |
-| 2 | `yt_niche/mcp/server.py` với nhóm đọc + nhóm ghi + `quota_status`; `.mcp.json` | 1 buổi |
-| 3 | Bọc nhóm lấy dữ liệu thật (suggest, score, dig, similar, trends) kèm chặn quota | nửa buổi |
-| 4 | `SKILL.md` + thử 3 entry thật (từ khoá, kênh, URL) trong Claude Code, chỉnh skill theo lỗi gặp | 1 buổi |
-| 5 | Trang Bản đồ ngách (treemap + bảng chi tiết + sự kiện) | 1 buổi |
-| 6 | Chế độ `refresh` + `competitors_refresh` | nửa buổi |
+| 1 | ✅ Bảng mới + `services/niche_map.py` (CRUD, merge mềm, signals, rank + stale, event log) + 7 test | xong |
+| 2 | ✅ `yt_niche/mcp/server.py` (28 tool: đọc, lấy dữ liệu có chặn quota, ghi) + `.mcp.json` | xong |
+| 3 | ✅ Bọc suggest / score / dig / similar / competitors_refresh kèm chặn quota (gộp vào bước 2) | xong |
+| 4 | ✅ `.claude/skills/yt-niche/SKILL.md` (bản 1) · ⏳ thử 3 entry thật trong Claude Code, chỉnh skill theo lỗi gặp | 1 buổi |
+| 5 | Trang Bản đồ ngách (treemap nhiều chế độ + bảng chi tiết + sự kiện + tách lại) | 1 buổi |
+| 6 | Chế độ `refresh` trong skill (đã viết) chạy thử; `sources/apify.py` khi quota là vấn đề | nửa buổi |
 
 Bước 1–2 chạy được là đã thử được ý tưởng cốt lõi với Claude Code mà chưa cần UI.
 
 ---
 
-## 10. Câu hỏi cần bạn chốt trước khi code
+## 10. Quyết định đã chốt / mặc định đang dùng
 
-1. **Thị trường**: bản đồ theo từng thị trường riêng (VN một bản đồ, US một bản đồ) hay một bản đồ chung và từ khoá gắn
-   region? Tôi đề xuất **một cây ngách chung, từ khoá có region**, vì cùng một ngách ở hai thị trường chỉ khác từ khoá.
-2. **Công thức potential** ở mục 3: chấp nhận bộ trọng số 0.4 / 0.3 / 0.2 / 0.1 làm điểm xuất phát không?
-3. **Độ sâu cây**: tối đa 3 tầng (động cơ → ngách lớn → ngách con) hay cho phép sâu hơn? Treemap đọc được tới 3.
-4. **Quota**: chấp nhận ~6 ngách/ngày, hay sẵn sàng bật DataForSEO / thêm key để chấm từ khoá?
-5. **Skill để ở repo** (`.claude/skills/`, đi theo dự án) hay ở máy (`~/.claude/skills/`, dùng chung nhiều dự án)? Đề xuất repo.
+| Câu hỏi | Quyết định |
+|---|---|
+| Tiềm năng | **Claude xếp** trên số thật (người dùng chốt). App lưu ảnh chụp + cờ stale |
+| Thị trường | Mặc định: **một cây chung, từ khoá và run có region**. Đổi được nếu người dùng muốn mỗi thị trường một bản đồ |
+| Độ sâu cây | Không giới hạn trong DB; treemap vẽ 3 tầng (tầng sâu hơn gộp vào tầng 3) |
+| Quota | Giữ 1.500 unit cho giao diện (`config.MCP_QUOTA_RESERVE`); Apify là nguồn dự phòng ở bước sau |
+| Vị trí skill | **Trong repo** `.claude/skills/yt-niche/` (`.gitignore` đã mở cho thư mục này; phần còn lại của `.claude/` vẫn bỏ qua) |
+| Thư viện MCP | `mcp>=2,<3` (API `MCPServer`), cài bằng `pip install -e ".[mcp]"` |
+
+## 11. Cách chạy thử bước 1–2
+
+```bash
+pip install -e ".[dev,mcp]"
+python -m pytest -q tests/test_niche_map.py
+```
+
+Mở Claude Code trong thư mục repo: `.mcp.json` bật server `yt-niche`, skill `yt-niche` tự nạp. Thử:
+"dùng skill yt-niche, xây ngách từ từ khoá 'tâm lý học' thị trường VN".

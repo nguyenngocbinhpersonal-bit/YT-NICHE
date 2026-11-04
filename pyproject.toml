@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+mcp = ["mcp>=2,<3"]  # python -m yt_niche.mcp: Claude Code điều khiển app
 
 [build-system]
 requires = ["setuptools>=68"]

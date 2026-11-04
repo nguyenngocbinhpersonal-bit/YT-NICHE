@@ -33,6 +33,10 @@ def save_api_key(key: str) -> None:
 AI_BASE_URL = "https://api.commandcode.ai/provider/v1"
 AI_MAX_REQUESTS_PER_DAY = 200
 
+# MCP (Claude Code điều khiển app, docs/NICHE_MAP_MCP_PLAN.md): số unit YouTube giữ lại cho giao diện;
+# tool tốn quota từ chối chạy nếu sẽ ăn vào phần này (trừ khi force=true).
+MCP_QUOTA_RESERVE = 1_500
+
 
 # Thị trường: mã → (relevanceLanguage, tên hiển thị). Đây chỉ là bộ mặc định (17 thị trường, 4 nhóm như bài 2.4);
 # danh sách thật nằm ở bảng `market` trong DB, sửa ở Cài đặt → Thị trường, và được nạp vào MARKETS / ENABLED_MARKETS /

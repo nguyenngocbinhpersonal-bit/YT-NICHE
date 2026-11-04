@@ -9,5 +9,7 @@ youtube.env
 data/*.db-*
 data/streamlit.log
 yt_niche.egg-info/
-.claude/
+.claude/*
+!.claude/skills/
+.secrets/
 data/radar_errors.log

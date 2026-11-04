@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "yt-niche": {
+      "command": "python",
+      "args": ["-m", "yt_niche.mcp"],
+      "env": {}
+    }
+  }
+}
