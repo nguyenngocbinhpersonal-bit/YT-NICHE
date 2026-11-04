@@ -13,6 +13,7 @@ pages = st.navigation(
         st.Page("pages/dig.py", title="Đào ngách", icon="⛏️", default=True),
         st.Page("pages/saved.py", title="Ngách đã lưu", icon="🗂️"),
         st.Page("pages/subniche_page.py", title="Ngách con & từ khoá", icon="🌿"),
+        st.Page("pages/niche_map_page.py", title="Niche map", icon="🗺️"),
         st.Page("pages/similar_page.py", title="Video & kênh tương tự", icon="🔗"),
         st.Page("pages/compare_page.py", title="So sánh", icon="🌍"),
         st.Page("pages/scorecard_page.py", title="Bảng chấm", icon="⚖️"),

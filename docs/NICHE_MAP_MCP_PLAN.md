@@ -1,6 +1,6 @@
 # Bản đồ ngách — Claude điều khiển app qua MCP
 
-> Trạng thái: **bước 1–2 đã code** (bảng, `services/niche_map.py`, `yt_niche/mcp/server.py`, skill). Còn UI và chế độ refresh. Mục đích: chốt kiến trúc, phân vai app / Claude, lược đồ dữ liệu và các câu hỏi
+> Trạng thái: **đã code xong bước 1–6** trừ hai việc cần máy người dùng: chạy thử 3 entry thật trong Claude Code (cần YouTube API key) và adapter Apify (cần tên actor). Mục đích: chốt kiến trúc, phân vai app / Claude, lược đồ dữ liệu và các câu hỏi
 > còn mở trước khi viết dòng code đầu tiên.
 >
 > Bối cảnh pháp lý: token OAuth của gói Pro/Max không được dùng trong ứng dụng bên thứ ba. Hướng này giữ Claude ở trong
@@ -174,25 +174,24 @@ improve (thói quen tốt) tuỳ từ khoá thắng. Khi 2 động cơ ngang nha
 
 ---
 
-## 7. Trang Bản đồ ngách (Streamlit)
+## 7. Trang Bản đồ ngách (Streamlit) — đã làm, giao diện tiếng Anh
 
-Một treemap Plotly, **nhiều chế độ nhóm** chọn bằng ô radio; diện tích luôn = `potential`, ngách chưa xếp vẽ mờ:
+Mã hoá theo quy tắc dữ liệu-hình (một biến một kênh; treemap là dạng mọi ô kề nhau nên không dùng 10 màu động cơ):
 
-| Chế độ | Tầng 1 | Tầng 2 | Tầng 3 | Dùng để |
-|---|---|---|---|---|
-| Động cơ | động cơ chính | ngách lớn | ngách con | thấy mình đang thiên về loại nhu cầu nào |
-| Mức tiềm năng | ≥ 70 / 50–69 / < 50 / chưa xếp | ngách | | chọn ngách để thử tiếp |
-| Cây ngách | ngách gốc | con | cháu | nhìn taxonomy đã dựng |
-| Ngôn ngữ | language | ngách | ngách con | so cùng chủ đề giữa vi / en / ja |
-| Trend | bền / theo mùa / trào lưu / đang rơi / chưa có | ngách | | lọc ngách đang rơi |
+| Kênh | Mang gì |
+|---|---|
+| Diện tích | tiềm năng Claude xếp; chưa xếp → ô nhỏ, xám |
+| Màu (chọn được) | **Opportunity** = nhu cầu − cạnh tranh, thang phân kỳ đỏ ↔ xám ↔ xanh (mặc định) · **Demand** xanh nhạt → đậm · **Data freshness** xanh cũ → mới |
+| Viền đỏ + ⚠ | số liệu đã đổi so với lúc xếp (stale) |
+| Nhóm (chọn được) | Motivation · Potential band · Niche tree · Language · Trend |
 
-Màu = độ mới của dữ liệu (số liệu < 30 ngày đậm, cũ nhạt); viền đỏ = `stale` (cần xếp lại). Ngách `merged` ẩn, có ô
-tick để hiện.
+Bố cục: 5 thẻ số (số ngách, tiềm năng cao nhất, cần xếp lại, ngôn ngữ, độ mới), hai hàng bộ lọc, treemap bo góc với
+nhãn thống nhất (tên, số tiềm năng lớn, động cơ · ngôn ngữ · opp), chú giải dưới biểu đồ, bảng chi tiết trong khung
+(huy hiệu ngôn ngữ / động cơ / trạng thái, 5 số đo, lý do xếp hạng, 4 tab: Keywords với thanh tiến trình, Competitors,
+Digs, Decision log), nút Unmerge cho ngách đã gộp, và bubble view (x = demand, y = 100 − competition, cỡ = tiềm năng,
+màu = ngôn ngữ, tối đa 3 ngôn ngữ theo bảng màu phân loại đã kiểm). Theme app trong `.streamlit/config.toml`.
 
-Click một ô → bảng bên: tóm tắt, 4 cột từ khoá (main / related / longtail / trend) kèm demand, competition, ngày chấm;
-kênh leader / rising / fallen; 10 sự kiện gần nhất (ai quyết định, lý do); nút "Tách lại" cho ngách đã gộp.
-
-Chế độ bubble (x = demand, y = 100 − competition, size = potential, màu = động cơ) để nhìn góc "cầu cao, cung yếu".
+Chỉ trang này tiếng Anh; các trang còn lại của app vẫn tiếng Việt (việc dịch toàn app là bước riêng, chưa làm).
 
 ---
 
@@ -227,8 +226,8 @@ Chế độ bubble (x = demand, y = 100 − competition, size = potential, màu 
 | 2 | ✅ `yt_niche/mcp/server.py` (28 tool: đọc, lấy dữ liệu có chặn quota, ghi) + `.mcp.json` | xong |
 | 3 | ✅ Bọc suggest / score / dig / similar / competitors_refresh kèm chặn quota (gộp vào bước 2) | xong |
 | 4 | ✅ `.claude/skills/yt-niche/SKILL.md` (bản 1) · ⏳ thử 3 entry thật trong Claude Code, chỉnh skill theo lỗi gặp | 1 buổi |
-| 5 | Trang Bản đồ ngách (treemap nhiều chế độ + bảng chi tiết + sự kiện + tách lại) | 1 buổi |
-| 6 | Chế độ `refresh` trong skill (đã viết) chạy thử; `sources/apify.py` khi quota là vấn đề | nửa buổi |
+| 5 | ✅ Trang Bản đồ ngách: treemap 5 chế độ, bộ lọc, viền đỏ stale, chi tiết 4 tab, tách lại, bubble; 2 test UI | xong |
+| 6 | ✅ Chế độ `refresh` trong skill · ⏳ chạy thử với API key thật trên máy người dùng · ⏳ `sources/apify.py` (cần tên actor + mẫu đầu ra) | nửa buổi |
 
 Bước 1–2 chạy được là đã thử được ý tưởng cốt lõi với Claude Code mà chưa cần UI.
 

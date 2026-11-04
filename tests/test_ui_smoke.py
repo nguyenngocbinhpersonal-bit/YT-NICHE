@@ -25,6 +25,9 @@ def app_db(tmp_path, monkeypatch):
     monkeypatch.delenv("DATAFORSEO_PASSWORD", raising=False)
     db = connect(tmp_path / "app.db")
     common.get_conn.clear()
+    import streamlit as st
+
+    st.cache_data.clear()  # cache 10 giây của trang Bản đồ ngách không được lọt sang test sau
     monkeypatch.setattr(common, "connect", lambda: db)
     raw = json.loads(FIXTURE.read_text(encoding="utf-8"))
     run_id = run_repo.insert(db, raw=raw, result=_analyze(raw, "Lịch sử", []), category="Lịch sử", affiliates=[])
@@ -246,3 +249,33 @@ def test_similar_page_empty_and_with_run(app_db):
     assert any("What if you were 10 times stronger" in s.value for s in at.subheader)
     assert any(m.label == "Kênh tương tự" and m.value == "2" for m in at.metric)
     assert len(at.dataframe) == 2  # bảng kênh và bảng video
+
+
+def test_niche_map_page_empty(app_db):
+    at = _run("niche_map_page.py")
+    assert any("The map is empty" in i.value for i in at.info)
+
+
+def test_niche_map_page_with_niches(app_db):
+    from yt_niche.services import niche_map as nm
+    from yt_niche.ui import common
+
+    db = common.get_conn()
+    root = nm.create(db, "Lịch sử kể chuyện", language="vi", motivation="learn", rationale="ngách gốc thử")
+    nm.attach_run(db, root, app_db)
+    child = nm.create(db, "Lịch sử Việt Nam", language="vi", parent_id=root, motivation="learn", motivation_secondary="inspired")
+    nm.attach_keywords(db, child, [{"keyword": "lịch sử việt nam", "region": "VN", "kind": "related"}], rationale="từ khoá thử")
+    nm.rank(db, [{"niche_id": root, "potential": 72, "rationale": "điểm đào tốt, 1 lần đào, trend bền"}])
+    at = _run("niche_map_page.py")
+    assert [e for e in at.main if getattr(e, "type", "") == "plotly_chart"]
+    assert any("### Lịch sử kể chuyện" in m.value for m in at.markdown)
+    assert any(m.label == "Potential" and m.value == "72" for m in at.metric)
+    assert any(m.label == "Top potential" and m.value == "72" for m in at.metric)  # thẻ số đầu trang
+    for mode in ("Potential band", "Niche tree", "Language", "Trend"):
+        at.radio(key="map_mode").set_value(mode).run()
+        assert not at.exception, [e.value for e in at.exception]
+    for color in ("Demand of main keywords", "Data freshness"):
+        at.radio(key="map_color").set_value(color).run()
+        assert not at.exception, [e.value for e in at.exception]
+    at.selectbox(key="map_pick").set_value(child).run()
+    assert any("### Lịch sử Việt Nam" in m.value for m in at.markdown)

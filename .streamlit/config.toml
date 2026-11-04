@@ -5,3 +5,12 @@ headless = true
 
 [browser]
 gatherUsageStats = false
+
+# Bảng màu theo docs/NICHE_MAP_MCP_PLAN.md §7: nền ấm nhẹ, chữ đậm, màu nhấn xanh (slot 1 của bảng màu biểu đồ).
+[theme]
+base = "light"
+primaryColor = "#2a78d6"
+backgroundColor = "#fcfcfb"
+secondaryBackgroundColor = "#f3f2ee"
+textColor = "#0b0b0b"
+font = "sans serif"
