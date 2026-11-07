@@ -244,3 +244,9 @@ YT_WF_ROOT = Path(os.getenv("YT_NICHE_YT_WF_ROOT") or r"D:\SOFTWARE\LOCAL_APP\YT
 YT_WF_PYTHON = Path(os.getenv("YT_NICHE_YT_WF_PYTHON") or (YT_WF_ROOT / ".env" / "Scripts" / "python.exe"))
 PIPECTL_PATH = Path(os.getenv("YT_NICHE_PIPECTL_PATH") or (YT_WF_ROOT / "shared" / "pipeline" / "pipectl.py"))
 UPLOAD_EXCLUDED_DIRS = {"__PROJECT-OLD"}
+
+# Kênh chỉ đăng Facebook: slug → URL trang (để trống nếu chưa có). Dòng trong bảng upload_platform thắng giá trị này.
+UPLOAD_FACEBOOK_CHANNELS = {
+    "nhu-vay-toi-nghe": "https://www.facebook.com/CoNhanChiThuat/",
+    "thau": "",
+}

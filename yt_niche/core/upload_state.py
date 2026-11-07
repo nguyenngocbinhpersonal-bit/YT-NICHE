@@ -1,7 +1,8 @@
 """Trạng thái của một video trên trang Upload. Hàm thuần, không IO.
 
 Thứ tự ưu tiên (cái đứng trước thắng):
-dang_san_xuat > ghi_thieu > xong > can_xac_nhan > da_dang_chua_link > cho_public > thieu_do > san_sang
+dang_san_xuat > ghi_thieu > xong > can_xac_nhan > cho_ghi > da_dang_chua_link > cho_public > thieu_do > san_sang
+Kênh YouTube: «xong» đòi có link, kể cả sau khi đánh dấu tay. Kênh Facebook: pipeline `published` là «xong», không đòi link.
 Video cũ không có trường mô tả nên không xét thieu_do; không có đề xuất thì là `chua_doi_chieu`.
 """
 
@@ -12,6 +13,7 @@ GHI_THIEU = "ghi_thieu"
 XONG = "xong"
 CAN_XAC_NHAN = "can_xac_nhan"
 DA_DANG_CHUA_LINK = "da_dang_chua_link"  # run đã published nhưng chưa có link và chưa có đề xuất
+CHO_GHI = "cho_ghi"  # đã bấm «Đã đăng, đổi tên sau 1 giờ», chờ tới giờ
 CHO_PUBLIC = "cho_public"
 THIEU_DO = "thieu_do"
 SAN_SANG = "san_sang"
@@ -23,6 +25,7 @@ LABELS = {
     XONG: "Xong",
     CAN_XAC_NHAN: "Cần xác nhận",
     DA_DANG_CHUA_LINK: "Đã đăng, chưa có link",
+    CHO_GHI: "Đã đánh dấu, chờ đổi tên",
     CHO_PUBLIC: "Đã upload, chờ public",
     THIEU_DO: "Thiếu đồ",
     SAN_SANG: "Sẵn sàng upload",
@@ -30,10 +33,16 @@ LABELS = {
 }
 ICONS = {
     DANG_SAN_XUAT: "🏗️", GHI_THIEU: "⚠️", XONG: "✅", CAN_XAC_NHAN: "🔔", DA_DANG_CHUA_LINK: "🔗",
-    CHO_PUBLIC: "⏳", THIEU_DO: "📦", SAN_SANG: "📤", CHUA_DOI_CHIEU: "▫️",
+    CHO_GHI: "🕐", CHO_PUBLIC: "⏳", THIEU_DO: "📦", SAN_SANG: "📤", CHUA_DOI_CHIEU: "▫️",
 }
 # Việc owner cần làm, theo thứ tự hiện.
-TODO_ORDER = (CAN_XAC_NHAN, GHI_THIEU, SAN_SANG, THIEU_DO, DA_DANG_CHUA_LINK, CHO_PUBLIC)
+TODO_ORDER = (CAN_XAC_NHAN, GHI_THIEU, CHO_GHI, SAN_SANG, THIEU_DO, DA_DANG_CHUA_LINK, CHO_PUBLIC)
+
+YOUTUBE = "youtube"
+FACEBOOK = "facebook"
+MANUAL_WAITING_UPLOAD = "waiting_upload"  # manual_state: đã đánh dấu tay, đợi due_at để đổi tên
+MANUAL_FB_DONE = "fb_done"  # manual_state: video cũ của kênh Facebook đã bấm đánh dấu (chỉ ghi DB app)
+UNLINKED_WARN_HOURS = 24  # giả thuyết, chỉnh sau khi dùng
 
 _DONE_RUN_STATES = {"complete", "published"}
 _LIVE_LIFECYCLES = {"active", "published"}
@@ -65,13 +74,15 @@ def video_status(
     has_title: bool = True,
     has_description: bool = True,
     has_thumb_candidates: bool = True,
+    platform: str = YOUTUBE,
 ) -> str:
+    fb = platform == FACEBOOK
     if kind == "old":
-        if has_link:
+        if has_link or (fb and manual_state == MANUAL_FB_DONE):
             return XONG
         if has_proposal:
             return CAN_XAC_NHAN
-        if manual_state:
+        if manual_state and manual_state != MANUAL_FB_DONE:
             return CHO_PUBLIC
         return CHUA_DOI_CHIEU
 
@@ -80,10 +91,12 @@ def video_status(
     if catalog_pending:
         return GHI_THIEU
     published = run_state == "published"
-    if published and has_link:
+    if published and (has_link or fb):
         return XONG
-    if has_proposal:
+    if has_proposal and not fb:
         return CAN_XAC_NHAN
+    if manual_state == MANUAL_WAITING_UPLOAD:
+        return CHO_GHI
     if published:
         return DA_DANG_CHUA_LINK
     if manual_state:
@@ -95,7 +108,7 @@ def video_status(
     return SAN_SANG
 
 
-def status_for(item, db_state: dict | None, has_proposal: bool) -> str:
+def status_for(item, db_state: dict | None, has_proposal: bool, platform: str = YOUTUBE) -> str:
     """Ghép từ `upload_scan.VideoItem` + dòng `upload_video_state` (hoặc None) + có đề xuất hay không."""
     st = db_state or {}
     if item.kind == "old":
@@ -114,7 +127,24 @@ def status_for(item, db_state: dict | None, has_proposal: bool) -> str:
         has_title=bool(item.title),
         has_description=bool(item.description),
         has_thumb_candidates=bool(item.thumbnails),
+        platform=platform,
     )
+
+
+def can_mark_later(status: str, kind: str) -> bool:
+    """Nút «Đã đăng, đổi tên sau 1 giờ» chỉ cho video pipeline chưa published và chưa chờ."""
+    return kind == "pipeline" and status in (SAN_SANG, THIEU_DO, CHO_PUBLIC, CAN_XAC_NHAN)
+
+
+def unlinked_overdue(marked_at: str | None, now, hours: int = UNLINKED_WARN_HOURS) -> bool:
+    """YouTube đã đánh dấu tay mà quá `hours` giờ chưa có link/đề xuất: nhắc kiểm đăng nhầm kênh hoặc còn private."""
+    from datetime import datetime, timedelta, timezone
+
+    try:
+        t = datetime.strptime(marked_at or "", "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return False
+    return now - t >= timedelta(hours=hours)
 
 
 # ---------------------------------------------------------------------------

@@ -364,6 +364,14 @@ CREATE TABLE IF NOT EXISTS upload_video_state (
     PRIMARY KEY (channel_slug, number)
 );
 
+-- Nền tảng đăng của từng kênh local. Không có dòng nghĩa là YouTube; kênh Facebook KHÔNG vào upload_channel.
+CREATE TABLE IF NOT EXISTS upload_platform (
+    channel_slug TEXT PRIMARY KEY,
+    platform     TEXT NOT NULL CHECK (platform IN ('youtube', 'facebook')),
+    page_url     TEXT NOT NULL DEFAULT '',
+    updated_at   TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS upload_match_rejected (
     channel_slug TEXT NOT NULL,
     number       INTEGER NOT NULL,
@@ -382,6 +390,8 @@ MIGRATIONS = {
         # lesson 2.2: notes on small booming channels that were opened, JSON {channel_id: {"note": "...", "reup": bool}}
         "channel_notes": "TEXT NOT NULL DEFAULT '{}'",
     },
+    # đánh dấu đã đăng tay, đổi tên sau 1 giờ (due_at); link Facebook chỉ nằm ở DB app (fb_url)
+    "upload_video_state": {"due_at": "TEXT", "fb_url": "TEXT", "next_try_at": "TEXT", "try_error": "TEXT"},
     "radar_source": {"scans": "INTEGER NOT NULL DEFAULT 0"},  # number of scans of this pair
     # number of 429s in a tick that passed on retry with a fresh cookie
     "radar_pace_log": {"rescued": "INTEGER NOT NULL DEFAULT 0"},

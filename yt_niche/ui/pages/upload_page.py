@@ -13,6 +13,7 @@ import httpx
 import streamlit as st
 
 from yt_niche import config as cfg
+from yt_niche.core import upload_facebook as fbm
 from yt_niche.core import upload_match as um
 from yt_niche.core import upload_state as us
 from yt_niche.db import uploads as repo
@@ -180,6 +181,46 @@ def _cb_select_all_rename(keys: list):
         S[k] = True
 
 
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _vn_time(iso: str | None) -> str:
+    t = fbm.parse_iso(iso)
+    if t is None:
+        return "?"
+    t = t.astimezone(fbm.VN_TZ)
+    day = "" if t.date() == _now().astimezone(fbm.VN_TZ).date() else t.strftime("%d/%m ")
+    return f"{day}{t.strftime('%H:%M')}"
+
+
+def _fb_inputs(slug: str, number: int) -> tuple[str, str, str]:
+    """Link + ngày tùy chọn đang nhập trên thẻ Facebook → (link, iso ngày hoặc '', lỗi ngày)."""
+    link = (S.get(f"fbl_{slug}_{number}") or "").strip()
+    if not S.get(f"fbd_on_{slug}_{number}"):
+        return link, "", ""
+    d = S.get(f"fbd_{slug}_{number}")
+    try:
+        return link, fbm.date_to_iso(d, _now()), ""
+    except (ValueError, TypeError) as e:
+        return link, "", str(e) or "Ngày không hợp lệ."
+
+
+def _cb_mark_stage(slug: str, number: int, name: str, run_state: str, plat: str):
+    """Mở hộp xác nhận «Đã đăng, đổi tên sau 1 giờ». Chưa ghi gì."""
+    link, iso, err = _fb_inputs(slug, number) if plat == us.FACEBOOK else ("", "", "")
+    S["up_mark"] = {"slug": slug, "number": number, "name": name, "run_state": run_state, "plat": plat,
+                    "fb_url": link, "published_at": iso, "error": err}
+
+
+def _cb_cancel_mark_dialog():
+    S.pop("up_mark", None)
+
+
+def _cb_cancel_waiting(slug: str, number: int):
+    upl.cancel_mark(conn, slug, number)
+
+
 # ---------------------------------------------------------------------------
 # Khai kênh
 # ---------------------------------------------------------------------------
@@ -327,9 +368,103 @@ def _open_folder_button(v) -> None:
             st.error(f"Không mở được thư mục: {e}")
 
 
+def _fb_optional_inputs(slug: str, number: int, page_url: str) -> None:
+    """Link Facebook và ngày đăng: tùy chọn, bấm đánh dấu là đủ."""
+    with st.expander("Thêm link, đổi ngày (tùy chọn)"):
+        link = st.text_input("Link video Facebook (không bắt buộc)", key=f"fbl_{slug}_{number}")
+        if link.strip():
+            chk = upl.fb_link_check(conn, slug, link)
+            if not chk.ok:
+                st.error(chk.error)
+            for m in chk.red:
+                st.error(m)
+            for m in chk.warnings:
+                st.warning(m)
+        today = _now().astimezone(fbm.VN_TZ).date()
+        st.checkbox("Nhập ngày đăng (không chọn thì lấy lúc bấm + 1 giờ)", key=f"fbd_on_{slug}_{number}")
+        if S.get(f"fbd_on_{slug}_{number}"):
+            st.date_input("Ngày đăng (lưu lúc 12:00 giờ VN)", value=today, max_value=today, key=f"fbd_{slug}_{number}")
+
+
+def _mark_block(slug: str, v, status: str, plat: str) -> None:
+    """Nút chính «Đã đăng, đổi tên sau 1 giờ». Từng video, không vào hàng loạt."""
+    if plat == us.FACEBOOK:
+        _fb_optional_inputs(slug, v.number, upl.page_url_of(conn, slug))
+    st.button("Đã đăng, đổi tên sau 1 giờ", key=f"mark_{slug}_{v.number}", type="primary", on_click=_cb_mark_stage,
+              args=(slug, v.number, v.name, v.state or "", plat))
+    if plat == us.YOUTUBE:
+        st.caption("«Đã đăng, đổi tên sau 1 giờ»: đổi folder ngay cả khi app chưa kiểm được video. "
+                   "«Đã upload, chờ public»: chỉ nhớ trong app, không đổi folder.")
+
+
+def _waiting_block(slug: str, v, st_row: dict) -> None:
+    st.info(f"🕐 Sẽ đổi tên lúc {_vn_time(st_row.get('due_at'))} (giờ VN). Trong lúc chờ vẫn huỷ được; đã đổi tên thì không có lệnh huỷ.")
+    if st_row.get("try_error"):
+        retry = f" Sẽ thử lại lúc {_vn_time(st_row['next_try_at'])}." if st_row.get("next_try_at") else ""
+        st.warning(f"Chưa đổi tên được: {st_row['try_error']}.{retry}")
+    c1, c2 = st.columns(2)
+    if c1.button("Ghi ngay", key=f"now_{slug}_{v.number}"):
+        with st.spinner("Đang ghi…"):
+            r = upl.run_now(conn, cfg.SOCIAL_MEDIA_ROOT, slug, v.number)
+        _scan_cached.clear()
+        label = f"{slug} {v.number:03d}"
+        S["up_result"] = ([f"{label}: đã đổi tên."], []) if r.resolved else ([], [f"{label}: {r.message}"])
+        st.rerun()
+    c2.button("Huỷ", key=f"cancelmark_{slug}_{v.number}", on_click=_cb_cancel_waiting, args=(slug, v.number))
+
+
+def _fb_done_block(slug: str, v, st_row: dict) -> None:
+    """Video Facebook đã «Xong» (app không thấy video): thêm/sửa link (chỉ DB app) và sửa ngày (ghi lại qua dịch vụ upload)."""
+    with st.expander("Link, ngày đăng"):
+        cur = st_row.get("fb_url") or ""
+        st.caption(f"Ngày đã lưu: {_fmt_date(v.published_at or st_row.get('published_at'))}")
+        link = st.text_input("Link video Facebook", value=cur, key=f"fbe_link_{slug}_{v.number}")
+        if st.button("Lưu link", key=f"fbe_save_{slug}_{v.number}"):
+            try:
+                upl.set_fb_link(conn, slug, v.number, link)
+            except upl.UploadError as e:
+                st.error(str(e))
+            else:
+                st.success("Đã lưu link (chỉ trong app).")
+        if link.strip():
+            chk = upl.fb_link_check(conn, slug, link)
+            for m in [*chk.red, *chk.warnings]:
+                st.warning(m)
+        today = _now().astimezone(fbm.VN_TZ).date()
+        d = st.date_input("Sửa ngày (lưu lúc 12:00 giờ VN)", value=today, max_value=today, key=f"fbe_date_{slug}_{v.number}")
+        if st.button("Sửa ngày", key=f"fbe_date_go_{slug}_{v.number}"):
+            try:
+                iso = fbm.date_to_iso(d, _now())
+            except ValueError as e:
+                st.error(str(e))
+            else:
+                r = upl.set_fb_date(conn, slug, v.number, iso, cfg.SOCIAL_MEDIA_ROOT)
+                _scan_cached.clear()
+                S["up_result"] = ([f"{slug} {v.number:03d}: đã sửa ngày."], []) if r.ok else ([], [f"{slug} {v.number:03d}: {r.message}"])
+                st.rerun()
+
+
+def _fb_page_ui(slug: str, info) -> None:
+    """Kênh Facebook: khai URL trang (Thấu cần). Không có URL thì chỉ ẩn nút mở trang."""
+    url = upl.page_url_of(conn, slug)
+    with st.expander("URL trang Facebook", expanded=False):
+        new = st.text_input("URL trang", value=url, key=f"fbpage_{slug}")
+        if st.button("Lưu URL trang", key=f"fbpage_save_{slug}"):
+            try:
+                upl.set_page_url(conn, slug, new)
+            except upl.UploadError as e:
+                st.error(str(e))
+            else:
+                st.rerun()
+        if not url:
+            st.caption("Chưa có URL trang: vẫn dùng bình thường, chỉ không có nút mở trang.")
+
+
 def _card_pipeline(slug: str, v, status: str, st_row: dict, props: list, remotes: dict, ch_scan, bound) -> None:
     info = ch_scan.info
     number = v.number
+    plat = upl.platform_of(conn, slug)
+    is_fb = plat == us.FACEBOOK
     real = bound["title"] if bound else ""
     head = st.columns([1, 6, 2])
     logo = ch_scan.brand[0].logo if ch_scan.brand else None
@@ -337,9 +472,23 @@ def _card_pipeline(slug: str, v, status: str, st_row: dict, props: list, remotes
         with head[0]:
             _image(ch_scan.brand[0].path / logo, width=56)
     head[1].markdown(f"### {real or info.name or slug}  \n{info.language or '?'} · video {number:03d} · {us.ICONS[status]} {us.LABELS[status]}")
-    head[2].link_button("Mở Studio", _studio_url(bound))
-    if not bound:
+    if is_fb:
+        page = upl.page_url_of(conn, slug)
+        if page:
+            head[2].link_button("Mở trang Facebook", page)
+    else:
+        head[2].link_button("Mở Studio", _studio_url(bound))
+    if not bound and not is_fb:
         st.warning("Kênh chưa khai URL: chưa chắc đang đứng trên đúng kênh trong Studio.")
+    if is_fb and v.description and "#shorts" in v.description.lower():
+        st.warning("Mô tả có #Shorts (Facebook không dùng). Kiểm lại trước khi dán.")
+    if status == us.DA_DANG_CHUA_LINK and not is_fb and us.unlinked_overdue(st_row.get("due_at"), _now()):
+        st.warning("YouTube chưa thấy video trên kênh đã gán, kiểm xem có đăng nhầm kênh hoặc còn private.")
+    waiting = st_row.get("manual_state") == us.MANUAL_WAITING_UPLOAD
+    if waiting:  # theo trạng thái chờ thật, không theo trạng thái hiện (có đề xuất thì status là can_xac_nhan)
+        _waiting_block(slug, v, st_row)
+    if is_fb and status == us.XONG:
+        _fb_done_block(slug, v, st_row)
     if v.title_en:
         st.caption(f"EN: {v.title_en}")
     if status == us.DANG_SAN_XUAT:
@@ -400,13 +549,39 @@ def _card_pipeline(slug: str, v, status: str, st_row: dict, props: list, remotes
     if bound and status in (us.CAN_XAC_NHAN, us.SAN_SANG, us.THIEU_DO, us.CHO_PUBLIC, us.DA_DANG_CHUA_LINK):
         _manual_block(slug, v, bound)
     c1, c2 = st.columns(2)
-    if st_row.get("manual_state") == WAIT_PUBLIC:
+    if is_fb:
+        pass  # Facebook không có «chờ public»: đánh dấu đã đăng là đủ
+    elif st_row.get("manual_state") == WAIT_PUBLIC:
         c1.button("Bỏ đánh dấu chờ public", key=f"unwait_{slug}_{number}", on_click=_cb_wait, args=(slug, number, False))
     elif status in (us.SAN_SANG, us.THIEU_DO):
         c1.button("Đã upload, chờ public", key=f"wait_{slug}_{number}", on_click=_cb_wait, args=(slug, number, True))
     with c2:
         _open_folder_button(v)
+    if us.can_mark_later(status, v.kind) and not waiting:
+        _mark_block(slug, v, status, plat)
     _extras(v)
+
+
+def _fb_old_block(slug: str, v, status: str, st_row: dict) -> None:
+    """Video cũ của kênh Facebook: bấm là chỉ ghi DB app (không pipectl, không đổi folder), sửa được."""
+    if status == us.XONG:
+        if st_row.get("fb_url"):
+            st.success(f"Link Facebook: {st_row['fb_url']}")
+        st.caption(f"Đã đánh dấu đã đăng · ngày {_fmt_date(st_row.get('published_at'))} (chỉ trong app)")
+        st.button("Bỏ đánh dấu", key=f"fbold_un_{slug}_{v.number}",
+                  on_click=lambda: upl.unconfirm_facebook_old(conn, slug, v.number))
+        return
+    _fb_optional_inputs(slug, v.number, upl.page_url_of(conn, slug))
+    if st.button("Đã đăng (chỉ ghi vào app)", key=f"fbold_{slug}_{v.number}", type="primary"):
+        link, iso, err = _fb_inputs(slug, v.number)
+        try:
+            if err:
+                raise upl.UploadError(err)
+            upl.confirm_facebook_old(conn, slug, v.number, fb_url=link, published_at=iso or None)
+        except upl.UploadError as e:
+            st.error(str(e))
+        else:
+            st.rerun()
 
 
 def _card_old(slug: str, v, status: str, st_row: dict, props: list, remotes: dict, ch_scan, bound) -> None:
@@ -423,6 +598,10 @@ def _card_old(slug: str, v, status: str, st_row: dict, props: list, remotes: dic
         _code(text)
     else:
         st.caption("Folder này không có file mô tả.")
+    if upl.platform_of(conn, slug) == us.FACEBOOK:
+        _fb_old_block(slug, v, status, st_row)
+        _open_folder_button(v)
+        return
     _proposal_block(slug, v, props, remotes, status)
     if st_row.get("video_url"):
         st.button("Bỏ xác nhận", key=f"unconf_{slug}_{v.number}", on_click=_cb_unconfirm, args=(slug, v.number))
@@ -522,6 +701,40 @@ def _confirm_dialog(batch: dict, ch_scan, bound: dict | None) -> None:
     st.rerun()
 
 
+@st.dialog("Đã đăng, đổi tên sau 1 giờ", width="large", on_dismiss=_cb_cancel_mark_dialog)
+def _mark_dialog(m: dict) -> None:
+    """Xác nhận đánh dấu tay. Bấm «Đánh dấu» chỉ ghi DB app; folder đổi tên khi tới giờ."""
+    slug, number, plat = m["slug"], m["number"], m["plat"]
+    now = _now()
+    due = fbm.to_iso(now + upl.MARK_DELAY)
+    st.markdown(f"**Folder:** `{m['name']}`")
+    st.markdown(f"**Sẽ đổi tên lúc:** {_vn_time(due)} (giờ VN), sang `__PUBLISHED`.")
+    st.markdown(f"**Ngày đăng ghi vào:** {_fmt_date(m['published_at'] or due)}" + ("" if m["published_at"] else " (lúc bấm + 1 giờ)"))
+    if plat == us.FACEBOOK and m["fb_url"]:
+        st.markdown(f"**Link Facebook (chỉ lưu trong app):** {m['fb_url']}")
+    st.warning("Trong lúc chờ còn nút «Huỷ». Khi đã đổi tên thì KHÔNG có lệnh huỷ, và draft CapCut mất liên kết với folder cũ.")
+    if plat == us.YOUTUBE:
+        st.error("App chưa kiểm được video này thuộc đúng kênh. Khi YouTube đọc được, app sẽ đề xuất bổ sung link và ngày thật.")
+    if m["error"]:
+        st.error(m["error"])
+    c1, c2 = st.columns(2)
+    go = c1.button("Đánh dấu", key=f"mark_run_{slug}", type="primary", disabled=bool(m["error"]))
+    if c2.button("Huỷ", key=f"mark_cancel_{slug}"):
+        S.pop("up_mark", None)
+        st.rerun()
+    if not go:
+        return
+    try:
+        due = upl.mark_later(conn, slug, number, fb_url=m["fb_url"] or None, published_at=m["published_at"] or None,
+                             now=now, run_state=m["run_state"])
+    except upl.UploadError as e:
+        st.error(str(e))
+        return
+    S.pop("up_mark", None)
+    S["up_result"] = ([f"{slug} {number:03d}: đã đánh dấu, sẽ đổi tên lúc {_vn_time(due)} (giờ VN)."], [])
+    st.rerun()
+
+
 @st.dialog("Kết quả ghi", width="large")
 def _result_dialog(done: list, errs: list) -> None:
     """Kết quả (nhất là lỗi) nằm trong hộp thoại cho tới khi owner bấm Đóng; không tự tắt."""
@@ -547,6 +760,7 @@ def _queue_row(slug: str, v, status: str, selected: bool) -> None:
 def _render_channel(slug: str, ch_scan, bound: dict | None, token: float, cross: list) -> None:
     info = ch_scan.info
     states = {s["number"]: s for s in repo.list_states(conn, slug)}
+    plat = upl.platform_of(conn, slug)
     res = _propose(slug, ch_scan, bound, token)
     remotes = {r.video_id: r for r in _remotes(bound)}
     props_by_key = {}
@@ -556,7 +770,7 @@ def _render_channel(slug: str, ch_scan, bound: dict | None, token: float, cross:
     status = {}
     for v in ch_scan.videos:
         props = props_by_key[v.key]
-        status[v.number] = us.status_for(v, states.get(v.number), bool(props))
+        status[v.number] = us.status_for(v, states.get(v.number), bool(props), plat)
 
     st.subheader(f"{(bound or {}).get('title') or info.name or slug}")
     st.caption(f"{info.language or '?'} · folder `{slug}`" + (f" · cập nhật YouTube lúc {_fmt_date(bound.get('last_refresh_at'))}" if bound else ""))
@@ -565,12 +779,16 @@ def _render_channel(slug: str, ch_scan, bound: dict | None, token: float, cross:
     for w in cross:
         if w.channel_slug == slug:
             st.error(f"Khớp chéo: tiêu đề video {w.number:03d} của kênh này đang xuất hiện trên kênh «{w.other_slug}» ({_yt_url(w.video_id)}).")
-    _binding_ui(slug, ch_scan, bound)
+    if plat == us.FACEBOOK:
+        st.caption("Kênh chỉ đăng Facebook: app không thấy video, «Xong» nghĩa là bạn đã bấm đánh dấu.")
+        _fb_page_ui(slug, info)
+    else:
+        _binding_ui(slug, ch_scan, bound)
     _batch_ui(slug, ch_scan, status, props_by_key, remotes, bound)
 
     open_props = [p for ps in props_by_key.values() for p in ps]
     todo_videos = [v for v in ch_scan.videos if status[v.number] in us.TODO_ORDER]
-    if bound and remotes and not open_props and any(status[v.number] != us.XONG for v in ch_scan.videos if v.kind == "pipeline"):
+    if plat == us.YOUTUBE and bound and remotes and not open_props and any(status[v.number] != us.XONG for v in ch_scan.videos if v.kind == "pipeline"):
         st.warning(f"Kênh đã gán là «{bound['title']}» và có {len(remotes)} video nhưng không có đề xuất nào. **Có phải kênh của bạn không?** Nếu sai, đổi gán ở trên.")
 
     left, right = st.columns([2, 3])
@@ -627,6 +845,7 @@ bound_all = {c["channel_slug"]: c for c in repo.list_channels(conn)}
 for m in S.pop("_up_msg", []):
     st.info(m)
 
+due_box = st.container()  # lỗi của việc đổi tên đến hạn hiện ở đây (điền sau khi trang dựng xong)
 top = st.columns([3, 1, 1])
 top[0].caption(f"Gốc dữ liệu: `{scan.root}` · {len(scan.videos())} video")
 if top[1].button("Làm mới danh sách folder"):
@@ -643,6 +862,8 @@ _res = S.pop("up_result", None)
 _batch = S.get("up_batch")
 if _res:
     _result_dialog(*_res)
+elif S.get("up_mark"):
+    _mark_dialog(S["up_mark"])
 elif _batch and _batch["slug"] in scan.channels:
     _confirm_dialog(_batch, scan.channels[_batch["slug"]], bound_all.get(_batch["slug"]))
 
@@ -656,19 +877,24 @@ for slug in slugs:
         props_exist = False
         if slug in bound_all:
             props_exist = bool(us.proposals_for(_propose(slug, ch_scan, bound_all[slug], data["at"]).proposals, v.key))
-        if us.status_for(v, states.get(v.number), props_exist) in us.TODO_ORDER:
+        if us.status_for(v, states.get(v.number), props_exist, upl.platform_of(conn, slug)) in us.TODO_ORDER:
             n += 1
     status_by_slug[slug] = n
 
 
 def _chan_label(slug: str) -> str:
-    flag = "" if slug in bound_all else " ⚠️ chưa khai URL"
+    if upl.platform_of(conn, slug) == us.FACEBOOK:
+        flag = " · Facebook"
+    else:
+        flag = "" if slug in bound_all else " ⚠️ chưa khai URL"
     return f"{scan.channels[slug].info.name or slug} · {status_by_slug[slug]}{flag}"
 
 
+# Kênh đang chọn nhớ ở khoá riêng: st.rerun() trong hộp thoại chạy trước khi radio được dựng nên Streamlit xoá khoá của widget.
 if S.get("up_chan") not in slugs and slugs:
-    S["up_chan"] = slugs[0]
+    S["up_chan"] = S["_up_chan_keep"] if S.get("_up_chan_keep") in slugs else slugs[0]
 chosen_slug = st.radio("Kênh", slugs, key="up_chan", horizontal=True, format_func=_chan_label)
+S["_up_chan_keep"] = chosen_slug
 
 # khớp chéo giữa các kênh đã gán
 cross_key = (data["at"], tuple(sorted((s, c.get("last_refresh_at")) for s, c in bound_all.items())))
@@ -682,6 +908,37 @@ if chosen_slug:
     _render_channel(chosen_slug, scan.channels[chosen_slug], bound_all.get(chosen_slug), data["at"], S["_up_cross"])
 
 st.caption(f"Hàng đợi dựng trong {time.perf_counter() - _T0:.2f} giây (dữ liệu pipectl/folder dùng lại tối đa {RELOAD_S} giây).")
+
+# Đổi tên đến hạn của «Đã đăng, đổi tên sau 1 giờ»: sau khi trang đã hiện, ở mỗi lần chạy lại (kiểm DB rất rẻ; chỉ gọi pipectl
+# khi có mục đến hạn). Không có tiến trình nền: app đóng thì đợi lần mở sau, ngày đã lưu không đổi.
+_due = upl.run_due(conn, cfg.SOCIAL_MEDIA_ROOT)
+if _due:
+    _done = [f"{r.slug} {r.number:03d}: {'đã đổi tên.' if r.status == pipectl.OK else r.message}" for r in _due
+             if r.status in (pipectl.OK, upl.SKIPPED)]
+    _pend = [f"{r.slug} {r.number:03d}: Ghi thiếu catalog (có nút thử lại trên thẻ). {r.message}" for r in _due
+             if r.status == pipectl.CATALOG_PENDING]
+    _errs = [f"{r.slug} {r.number:03d}: {r.message}" for r in _due if not r.resolved]
+    with due_box:
+        for m in _errs:  # LOCKED / catalog chưa sẵn sàng: giữ lại, lần sau thử tiếp (không phải lỗi nặng)
+            st.warning(f"Chưa đổi tên được, sẽ thử lại: {m}")
+    if _done or _pend:
+        _scan_cached.clear()
+        S["up_result"] = (_done, _pend)
+        st.rerun()
+
+
+@st.fragment(run_every=60)
+def _due_watch() -> None:
+    """Mỗi phút kiểm DB; chỉ chạy lại cả trang khi có mục đến hạn."""
+    if not S.get("_up_due_armed"):  # lần chạy đầu (lúc dựng trang) chỉ lên cò; chỉ lần theo chu kỳ mới được chạy lại trang
+        S["_up_due_armed"] = True
+        return
+    if upl.due_items(conn):  # đã loại mục đang đợi giờ thử lại nên không lặp vô tận
+        st.rerun()
+
+
+S["_up_due_armed"] = False
+_due_watch()
 
 # Thử lại ghi thiếu: chỉ khi có mục catalog_pending, sau khi trang đã hiện, một lần mỗi phiên (không theo chu kỳ).
 if not S.get("_up_pend_done"):

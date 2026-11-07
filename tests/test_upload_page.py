@@ -171,7 +171,8 @@ def test_no_write_button_without_proposal(env):
     """Chưa có đề xuất (hoặc video lên tay chưa kiểm) thì không có nút ghi nào."""
     bind(env["db"])
     at = open_card(run_page(), 1)
-    labels = " | ".join(b.label.lower() for b in at.button)
+    # T6: «Đã đăng, đổi tên sau 1 giờ» chỉ ghi DB app (hoãn), không phải nút ghi local; bỏ nó khỏi phép kiểm này.
+    labels = " | ".join(b.label.lower() for b in at.button if not (b.key or "").startswith("mark_"))
     for bad in ("ghi vào máy", "xác nhận video", "mark", "đổi tên"):
         assert bad not in labels
 

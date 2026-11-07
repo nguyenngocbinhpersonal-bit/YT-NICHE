@@ -98,7 +98,8 @@ def list_states(conn: sqlite3.Connection, slug: str | None = None) -> list[dict]
     return [get_state(conn, r["channel_slug"], r["number"]) for r in rows]
 
 
-_FIELDS = {"manual_state", "video_url", "video_id", "published_at", "mp4_choice", "catalog_pending"}
+_FIELDS = {"manual_state", "video_url", "video_id", "published_at", "mp4_choice", "catalog_pending", "due_at", "fb_url",
+           "next_try_at", "try_error"}
 
 
 def update_state(conn: sqlite3.Connection, slug: str, number: int, **fields) -> None:
@@ -132,12 +133,45 @@ def list_pending(conn: sqlite3.Connection) -> list[dict]:
 def confirm(conn: sqlite3.Connection, slug: str, number: int, video_url: str, video_id: str,
             published_at: str | None, *, pending: bool = False) -> None:
     """Ghi xác nhận vào DB app (video cũ: đây là nơi duy nhất; pipeline: kèm cờ ghi thiếu catalog)."""
+    # xác nhận qua luồng T5 xoá luôn trạng thái chờ đổi tên: lệnh hoãn sẽ không chạy nữa
     update_state(conn, slug, number, video_url=video_url, video_id=video_id, published_at=published_at,
-                 catalog_pending=1 if pending else 0, manual_state="")
+                 catalog_pending=1 if pending else 0, manual_state="", due_at="", next_try_at="", try_error="")
 
 
 def unconfirm(conn: sqlite3.Connection, slug: str, number: int) -> None:
     update_state(conn, slug, number, video_url="", video_id="", published_at=None, catalog_pending=0)
+
+
+def list_waiting(conn: sqlite3.Connection, manual_state: str) -> list[dict]:
+    """Mọi mục đang ở trạng thái chờ đổi tên (đã có due_at), kể cả chưa đến hạn."""
+    rows = conn.execute(
+        "SELECT channel_slug, number FROM upload_video_state WHERE manual_state = ? AND COALESCE(due_at, '') <> ''",
+        (manual_state,),
+    ).fetchall()
+    return [get_state(conn, r["channel_slug"], r["number"]) for r in rows]
+
+
+def list_fb_links(conn: sqlite3.Connection, slug: str) -> list[tuple[int, str]]:
+    rows = conn.execute(
+        "SELECT number, fb_url FROM upload_video_state WHERE channel_slug = ? AND COALESCE(fb_url, '') <> ''", (slug,)
+    ).fetchall()
+    return [(r["number"], r["fb_url"]) for r in rows]
+
+
+# ---- upload_platform ----
+
+def get_platform_row(conn: sqlite3.Connection, slug: str) -> dict | None:
+    r = conn.execute("SELECT * FROM upload_platform WHERE channel_slug = ?", (slug,)).fetchone()
+    return dict(r) if r else None
+
+
+def set_platform(conn: sqlite3.Connection, slug: str, platform: str, page_url: str = "") -> None:
+    conn.execute(
+        """INSERT INTO upload_platform (channel_slug, platform, page_url, updated_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT(channel_slug) DO UPDATE SET platform = excluded.platform, page_url = excluded.page_url,
+                                                   updated_at = excluded.updated_at""",
+        (slug, platform, page_url, now_iso()),
+    )
 
 
 # ---- upload_match_rejected ----

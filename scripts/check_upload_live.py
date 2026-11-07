@@ -154,6 +154,23 @@ def check_stillhouse(slug: str, out: dict, remotes) -> bool:
     return ok
 
 
+def report_facebook(scan, real) -> None:
+    """Kênh chỉ đăng Facebook: số video đã đánh dấu. Không tính vào tỉ lệ khớp (app không thấy video Facebook)."""
+    hr("Kênh Facebook (không tính vào tỉ lệ khớp)")
+    fb_slugs = [s for s in scan.channels if upl.platform_of(real, s) == us.FACEBOOK]
+    if not fb_slugs:
+        print("không có kênh Facebook.")
+    for slug in fb_slugs:
+        ch = scan.channels[slug]
+        states = {x["number"]: x for x in repo.list_states(real, slug)}
+        pipe = [v for v in ch.videos if v.kind == "pipeline"]
+        marked = [v for v in pipe if v.state == "published"]
+        waiting = [v for v in pipe if (states.get(v.number) or {}).get("manual_state") == us.MANUAL_WAITING_UPLOAD]
+        old_done = [v for v in ch.videos if v.kind == "old" and (states.get(v.number) or {}).get("manual_state") == us.MANUAL_FB_DONE]
+        print(f"  {slug}: {len(pipe)} video pipeline, đã đánh dấu (published) {len(marked)}, đang chờ đổi tên {len(waiting)}, "
+              f"video cũ đã đánh dấu {len(old_done)}; trang: {upl.page_url_of(real, slug) or '(chưa có URL)'}")
+
+
 def compare_negative(slug: str, handle: str, scan) -> bool:
     hr(f"Đối chứng âm: {slug} so với {handle}")
     mem = connect(":memory:")
@@ -224,7 +241,7 @@ def main() -> int:
     ok = bad == 0
     rem_by: dict[str, list[um.RemoteVideo]] = {}
     for slug in bound:
-        if slug not in scan.channels:
+        if slug not in scan.channels or upl.platform_of(real, slug) == us.FACEBOOK:
             continue
         ch = repo.get_channel(use, slug)
         remotes = [um.RemoteVideo(r["video_id"], r["channel_id"], r["title"], r["published_at"]) for r in repo.list_remote(use, ch["channel_id"])]
@@ -240,6 +257,8 @@ def main() -> int:
         for w in warns:
             print(f"  {w.channel_slug} {w.number:03d} đang nằm trên kênh {w.other_slug}: {w.title}")
         ok &= not warns
+
+    report_facebook(scan, real)
 
     if args.compare_handle:
         if args.no_api:
