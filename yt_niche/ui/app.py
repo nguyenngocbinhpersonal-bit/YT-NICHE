@@ -19,6 +19,7 @@ pages = st.navigation(
         st.Page("pages/scorecard_page.py", title="Scorecard"),
         st.Page("pages/video_plan_page.py", title="10 test videos"),
         st.Page("pages/progress_page.py", title="Stage progress"),
+        st.Page("pages/upload_page.py", title="Upload"),
         st.Page("pages/radar_page.py", title="Keyword radar"),
         st.Page("pages/settings_page.py", title="Settings"),
     ]

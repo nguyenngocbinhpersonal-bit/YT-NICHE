@@ -234,3 +234,13 @@ SIMILAR_SIGNAL_CAP = 4  # (*) video signals: count at most 4 appearances
 SIMILAR_MIN_CONTENT = 0.3  # (*) content similarity (vs the most similar candidate) below this is off-topic and dropped
 # Co-occurrence signals: one appearance in "Up next" weighs twice as much as one search hit.
 SIMILAR_SIGNAL_WEIGHTS = {"related": 2.0, "search": 1.0, "search_channel": 1.0}
+
+
+# ---------------------------------------------------------------------------
+# Trang Upload: dữ liệu video và pipeline sản xuất (cho phép ghi đè bằng biến môi trường)
+# ---------------------------------------------------------------------------
+SOCIAL_MEDIA_ROOT = Path(os.getenv("YT_NICHE_SOCIAL_MEDIA_ROOT") or r"D:\BUSINESS\SOCIAL_MEDIA")
+YT_WF_ROOT = Path(os.getenv("YT_NICHE_YT_WF_ROOT") or r"D:\SOFTWARE\LOCAL_APP\YT_WF_001")
+YT_WF_PYTHON = Path(os.getenv("YT_NICHE_YT_WF_PYTHON") or (YT_WF_ROOT / ".env" / "Scripts" / "python.exe"))
+PIPECTL_PATH = Path(os.getenv("YT_NICHE_PIPECTL_PATH") or (YT_WF_ROOT / "shared" / "pipeline" / "pipectl.py"))
+UPLOAD_EXCLUDED_DIRS = {"__PROJECT-OLD"}

@@ -327,6 +327,50 @@ CREATE TABLE IF NOT EXISTS niche_event (
     created_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_niche_event_niche ON niche_event(niche_id, id);
+
+-- Trang Upload: kênh YouTube gán cho kênh local, ảnh chụp video trên kênh, trạng thái từng video, đề xuất bị từ chối.
+CREATE TABLE IF NOT EXISTS upload_channel (
+    channel_slug     TEXT PRIMARY KEY,
+    channel_id       TEXT NOT NULL UNIQUE,          -- một kênh YouTube chỉ gán cho một kênh local
+    handle           TEXT NOT NULL DEFAULT '',
+    title            TEXT NOT NULL DEFAULT '',
+    uploads_playlist TEXT NOT NULL DEFAULT '',
+    thumb_url        TEXT NOT NULL DEFAULT '',
+    bound_at         TEXT NOT NULL,
+    last_refresh_at  TEXT,
+    last_error       TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS upload_remote (
+    video_id     TEXT PRIMARY KEY,
+    channel_id   TEXT NOT NULL,
+    title        TEXT NOT NULL DEFAULT '',
+    published_at TEXT,                              -- contentDetails.videoPublishedAt
+    fetched_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_upload_remote_channel ON upload_remote(channel_id);
+
+CREATE TABLE IF NOT EXISTS upload_video_state (
+    channel_slug    TEXT NOT NULL,
+    number          INTEGER NOT NULL,
+    manual_state    TEXT,
+    video_url       TEXT,
+    video_id        TEXT,
+    published_at    TEXT,
+    thumb_choice    TEXT NOT NULL DEFAULT '[]',     -- JSON: đường dẫn tương đối, tối đa 3
+    mp4_choice      TEXT,
+    catalog_pending INTEGER NOT NULL DEFAULT 0,
+    updated_at      TEXT NOT NULL,
+    PRIMARY KEY (channel_slug, number)
+);
+
+CREATE TABLE IF NOT EXISTS upload_match_rejected (
+    channel_slug TEXT NOT NULL,
+    number       INTEGER NOT NULL,
+    video_id     TEXT NOT NULL,
+    rejected_at  TEXT NOT NULL,
+    PRIMARY KEY (channel_slug, number, video_id)
+);
 """
 
 # Columns added after the DB already held data (CREATE TABLE IF NOT EXISTS does not add columns).

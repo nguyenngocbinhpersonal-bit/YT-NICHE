@@ -236,6 +236,73 @@ class YouTubeClient:
         )
         return [item["contentDetails"]["videoId"] for item in data.get("items", [])]
 
+    # ---- Trang Upload: đọc kênh của owner (luôn tươi, lỗi không bị nuốt) ----
+
+    async def upload_items(self, playlist_id: str) -> list[dict]:
+        """Toàn bộ video trong playlist uploads: [{video_id, title, published_at}].
+
+        published_at = contentDetails.videoPublishedAt (ngày đăng thật; snippet.publishedAt là ngày thêm vào playlist).
+        Lỗi API được ném ra; riêng playlistNotFound (kênh chưa có video công khai) trả [].
+        """
+        out: list[dict] = []
+        page_token = None
+        while True:
+            params = {"part": "snippet,contentDetails", "playlistId": playlist_id, "maxResults": 50}
+            if page_token:
+                params["pageToken"] = page_token
+            try:
+                data = await self._get("playlistItems", params, ttl=0)
+            except QuotaExceeded:
+                raise
+            except YouTubeError as e:
+                if e.reason == "playlistNotFound":
+                    return []
+                raise
+            for it in data.get("items", []):
+                vid = it.get("contentDetails", {}).get("videoId") or it.get("snippet", {}).get("resourceId", {}).get("videoId")
+                if not vid:
+                    continue
+                out.append(
+                    {
+                        "video_id": vid,
+                        "title": it.get("snippet", {}).get("title", ""),
+                        "published_at": it.get("contentDetails", {}).get("videoPublishedAt"),
+                    }
+                )
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                return out
+
+    async def video_status(self, video_ids: list[str]) -> list[dict]:
+        """videos.list part=snippet,status,contentDetails, không cache (có channelId, privacyStatus)."""
+        return await self._batched("videos", "snippet,status,contentDetails", video_ids, ttl=0)
+
+    async def channel_lookup(self, handle: str | None = None, channel_id: str | None = None) -> dict | None:
+        """Kênh theo @handle hoặc id → {channel_id, title, handle, uploads_playlist, thumb_url, video_count}."""
+        params = {"part": "snippet,contentDetails,statistics"}
+        if channel_id:
+            params["id"] = channel_id
+        elif handle:
+            params["forHandle"] = handle
+        else:
+            raise ValueError("cần handle hoặc channel_id")
+        data = await self._get("channels", params, ttl=0)
+        items = data.get("items", [])
+        if not items:
+            return None
+        it = items[0]
+        sn = it.get("snippet", {})
+        thumbs = sn.get("thumbnails", {})
+        thumb = (thumbs.get("default") or thumbs.get("medium") or {}).get("url", "")
+        return {
+            "channel_id": it["id"],
+            "title": sn.get("title", ""),
+            "handle": sn.get("customUrl", ""),
+            "uploads_playlist": it.get("contentDetails", {}).get("relatedPlaylists", {}).get("uploads", ""),
+            "thumb_url": thumb,
+            "video_count": int(it.get("statistics", {}).get("videoCount", 0) or 0),
+        }
+
     # ---- Channel median views, split by format ----
 
     async def channel_medians(self, channel_items: list[dict], max_age: float = TTL_CHANNEL_MEDIAN) -> dict[str, dict]:
