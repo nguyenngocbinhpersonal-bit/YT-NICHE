@@ -120,7 +120,7 @@ def test_stale_snapshot_refreshes_once_per_session(env):
 
 def test_page_source_never_touches_catalog_or_mark_published():
     src = PAGE.read_text(encoding="utf-8")
-    for bad in ("catalog", "mark_published", "mark-published", "st.video"):
+    for bad in ("catalog_db", "mark_published", "mark-published", "subprocess", "st.video"):
         assert bad not in src
 
 
@@ -167,11 +167,12 @@ def test_wait_public_button_writes_only_app_db(env):
     assert not (env["d1"].parent / (env["d1"].name + "__PUBLISHED")).exists()
 
 
-def test_no_local_write_button(env):
+def test_no_write_button_without_proposal(env):
+    """Chưa có đề xuất (hoặc video lên tay chưa kiểm) thì không có nút ghi nào."""
     bind(env["db"])
     at = open_card(run_page(), 1)
     labels = " | ".join(b.label.lower() for b in at.button)
-    for bad in ("ghi ", "xác nhận", "mark", "đổi tên"):
+    for bad in ("ghi vào máy", "xác nhận video", "mark", "đổi tên"):
         assert bad not in labels
 
 

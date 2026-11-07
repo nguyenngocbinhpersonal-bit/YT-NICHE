@@ -123,6 +123,23 @@ def update_state(conn: sqlite3.Connection, slug: str, number: int, **fields) -> 
         )
 
 
+def list_pending(conn: sqlite3.Connection) -> list[dict]:
+    """Video đã ghi folder + project.json nhưng catalog còn thiếu (catalog_pending = 1)."""
+    rows = conn.execute("SELECT channel_slug, number FROM upload_video_state WHERE catalog_pending = 1").fetchall()
+    return [get_state(conn, r["channel_slug"], r["number"]) for r in rows]
+
+
+def confirm(conn: sqlite3.Connection, slug: str, number: int, video_url: str, video_id: str,
+            published_at: str | None, *, pending: bool = False) -> None:
+    """Ghi xác nhận vào DB app (video cũ: đây là nơi duy nhất; pipeline: kèm cờ ghi thiếu catalog)."""
+    update_state(conn, slug, number, video_url=video_url, video_id=video_id, published_at=published_at,
+                 catalog_pending=1 if pending else 0, manual_state="")
+
+
+def unconfirm(conn: sqlite3.Connection, slug: str, number: int) -> None:
+    update_state(conn, slug, number, video_url="", video_id="", published_at=None, catalog_pending=0)
+
+
 # ---- upload_match_rejected ----
 
 def reject_match(conn: sqlite3.Connection, slug: str, number: int, video_id: str) -> None:

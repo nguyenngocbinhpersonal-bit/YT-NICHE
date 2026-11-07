@@ -1,6 +1,7 @@
 """Trang Upload: gán kênh YouTube cho kênh local, làm mới danh sách video, kiểm URL video đúng kênh.
 
-Không đọc catalog, không ghi gì ra ngoài DB của app. Lỗi API được ném ra cho nơi gọi hiện (không nuốt).
+Không đọc catalog. Ghi local duy nhất đi qua `pipectl.mark_published` (confirm_pipeline / retry_pending); video cũ chỉ ghi DB app.
+Lỗi API được ném ra cho nơi gọi hiện (không nuốt).
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from urllib.parse import unquote
 
 from yt_niche.core.upload_match import norm
 from yt_niche.db import uploads as repo
-from yt_niche.services import similar
+from yt_niche.services import pipectl, similar
 from yt_niche.sources.youtube import QuotaExceeded, YouTubeClient, YouTubeError
 
 # Trạng thái của check_video_url
@@ -230,3 +231,109 @@ def check_video_url(
     if info["status"] == CHANNEL_MISMATCH:
         info["other_slug"] = repo.slug_for_channel_id(conn, sn.get("channelId") or "")
     return info
+
+
+# ---------------------------------------------------------------------------
+# Xác nhận: ghi local
+# ---------------------------------------------------------------------------
+
+PRIVACY_PUBLIC = "public"
+
+
+def watch_url(video_id: str) -> str:
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+
+@dataclass
+class WriteResult:
+    status: str  # pipectl.OK | CATALOG_PENDING | CATALOG_NOT_READY | LOCKED | ERROR (kèm "blocked" khi chưa đủ điều kiện)
+    message: str = ""
+    video_id: str = ""
+    published_at: str = ""
+    run_dir: str = ""
+
+    @property
+    def ok(self) -> bool:
+        return self.status == pipectl.OK
+
+
+BLOCKED = "blocked"
+
+
+def verify_for_write(
+    conn: sqlite3.Connection, slug: str, video_id: str, *, api_key: str | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> tuple[dict | None, str]:
+    """Đọc video và kiểm đủ điều kiện ghi: API chạy, video đọc được, public, đúng channelId đã gán.
+    Trả (info, "") nếu được ghi, hoặc (info|None, lý do tiếng Việt)."""
+    try:
+        info = check_video_url(conn, slug, watch_url(video_id), api_key=api_key, transport=transport)
+    except (UploadError, YouTubeError, httpx.HTTPError) as e:
+        return None, f"Không đọc được YouTube nên chưa ghi: {e or type(e).__name__}"
+    st = info["status"]
+    if st == CHANNEL_UNBOUND:
+        return info, "Kênh chưa gán URL YouTube. Gán kênh trước (dán URL một video là đủ)."
+    if st == CHANNEL_MISMATCH:
+        return info, "Video này thuộc kênh YouTube khác với kênh đã gán. Không ghi."
+    if st == NOT_READABLE:
+        return info, "Không đọc được video (riêng tư hoặc chưa public). Dùng «Đã upload, chờ public»."
+    if info["privacy"] != PRIVACY_PUBLIC:
+        return info, f"Video chưa public (trạng thái: {info['privacy']}). Dùng «Đã upload, chờ public»."
+    if not info["published_at"]:
+        return info, "YouTube không trả ngày đăng của video này."
+    return info, ""
+
+
+def confirm_pipeline(
+    conn: sqlite3.Connection, slug: str, number: int, video_id: str, root, *,
+    api_key: str | None = None, transport: httpx.AsyncBaseTransport | None = None,
+) -> WriteResult:
+    """Xác nhận một video pipeline: kiểm điều kiện, lấy run_dir MỚI, gọi mark-published.
+
+    Ghi thiếu catalog (rc 2 + «catalog was not updated») → đặt catalog_pending cùng link và ngày để thử lại.
+    """
+    info, why = verify_for_write(conn, slug, video_id, api_key=api_key, transport=transport)
+    if why:
+        return WriteResult(BLOCKED, why, video_id)
+    published_at = info["published_at"]
+    try:
+        run_dir = pipectl.find_run_dir(root, slug, number)
+    except pipectl.PipectlError as e:
+        return WriteResult(pipectl.ERROR, f"Không đọc được trạng thái run: {e}", video_id, published_at)
+    if not run_dir:
+        return WriteResult(pipectl.ERROR, f"Không tìm thấy run {slug} #{number:03d} trong pipectl runs.", video_id, published_at)
+    return _write(conn, slug, number, video_id, published_at, run_dir)
+
+
+def _write(conn, slug, number, video_id, published_at, run_dir) -> WriteResult:
+    url = watch_url(video_id)
+    res = pipectl.mark_published(run_dir, url, published_at)
+    out = WriteResult(res.status, res.message, video_id, published_at, run_dir)
+    if res.status == pipectl.OK:
+        repo.confirm(conn, slug, number, url, video_id, published_at, pending=False)
+    elif res.status == pipectl.CATALOG_PENDING:
+        repo.confirm(conn, slug, number, url, video_id, published_at, pending=True)
+    return out
+
+
+def retry_pending(conn: sqlite3.Connection, slug: str, number: int, root) -> WriteResult:
+    """Thử lại ghi catalog cho video có catalog_pending: chạy lại mark-published (idempotent) với link và ngày đã lưu."""
+    st = repo.get_state(conn, slug, number) or {}
+    if not st.get("video_id") or not st.get("published_at"):
+        return WriteResult(pipectl.ERROR, "Thiếu link hoặc ngày đã lưu để thử lại.")
+    try:
+        run_dir = pipectl.find_run_dir(root, slug, number)
+    except pipectl.PipectlError as e:
+        return WriteResult(pipectl.ERROR, f"Không đọc được trạng thái run: {e}", st["video_id"], st["published_at"])
+    if not run_dir:
+        return WriteResult(pipectl.ERROR, f"Không tìm thấy run {slug} #{number:03d}.", st["video_id"], st["published_at"])
+    return _write(conn, slug, number, st["video_id"], st["published_at"], run_dir)
+
+
+def confirm_old(conn: sqlite3.Connection, slug: str, number: int, video_id: str, published_at: str | None) -> None:
+    """Video cũ: chỉ ghi DB app. KHÔNG gọi pipectl, không đổi folder (sửa được bằng unconfirm_old)."""
+    repo.confirm(conn, slug, number, watch_url(video_id), video_id, published_at, pending=False)
+
+
+def unconfirm_old(conn: sqlite3.Connection, slug: str, number: int) -> None:
+    repo.unconfirm(conn, slug, number)

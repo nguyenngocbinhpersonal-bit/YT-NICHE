@@ -1,7 +1,7 @@
-"""Trang Upload (chỉ đọc): hàng đợi upload theo kênh, thẻ copy theo thứ tự form Studio, đối chiếu video đã lên.
+"""Trang Upload: hàng đợi upload theo kênh, thẻ copy theo thứ tự form Studio, đối chiếu video đã lên, xác nhận ghi local.
 
-Owner tự upload trên Studio. Trang này không ghi gì vào folder, project.json hay sổ ghi nhận của pipeline; chỉ ghi DB của app
-(kênh đã gán, lựa chọn mp4/thumbnail, "chờ public", đề xuất bị từ chối). Mở trang chỉ gọi `pipectl runs`.
+Owner tự upload trên Studio. Mở trang chỉ gọi `pipectl runs` (không chạm sổ ghi nhận). Ghi vào máy chỉ xảy ra khi owner bấm
+xác nhận: pipeline đi qua `services.uploads.confirm_pipeline` (lệnh ghi của pipectl); video cũ chỉ ghi DB của app.
 """
 
 import os
@@ -158,6 +158,28 @@ def _cb_open(slug, number):
     S["up_sel"] = (slug, number)
 
 
+def _row(slug: str, v, video_id: str, published_at: str | None) -> dict:
+    return {"slug": slug, "number": v.number, "group": us.confirm_group(v.kind, v.state), "name": v.name,
+            "video_id": video_id, "published_at": published_at or ""}
+
+
+def _cb_stage(slug: str, rows: list):
+    S["up_batch"] = {"slug": slug, "rows": rows}
+
+
+def _cb_cancel_batch():
+    S.pop("up_batch", None)
+
+
+def _cb_unconfirm(slug, number):
+    upl.unconfirm_old(conn, slug, number)
+
+
+def _cb_select_all_rename(keys: list):
+    for k in keys:
+        S[k] = True
+
+
 # ---------------------------------------------------------------------------
 # Khai kênh
 # ---------------------------------------------------------------------------
@@ -213,7 +235,7 @@ def _studio_url(bound: dict | None) -> str:
     return "https://studio.youtube.com/"
 
 
-def _proposal_block(slug: str, v, props: list, remotes: dict) -> None:
+def _proposal_block(slug: str, v, props: list, remotes: dict, status: str) -> None:
     if not props:
         return
     st.markdown("**Đối chiếu với kênh YouTube**")
@@ -224,7 +246,53 @@ def _proposal_block(slug: str, v, props: list, remotes: dict) -> None:
         c1, c2 = st.columns([5, 2])
         c1.markdown(f"{kind}: [{title}]({_yt_url(p.video_id)})  \nNgày đăng: {_fmt_date(rv.published_at if rv else None)}")
         c2.button("Không phải video này", key=f"rej_{slug}_{v.number}_{p.video_id}", on_click=_cb_reject, args=(slug, v.number, p.video_id))
-    st.caption("Xác nhận và ghi vào máy chưa bật ở bản này.")
+        if status == us.CAN_XAC_NHAN:
+            label = "Xác nhận video này" if p.strength == um.STRONG else "Xác nhận video này (đề xuất yếu, tự soát)"
+            c2.button(label, key=f"stage_{slug}_{v.number}_{p.video_id}", on_click=_cb_stage,
+                      args=(slug, [_row(slug, v, p.video_id, rv.published_at if rv else None)]))
+
+
+def _manual_block(slug: str, v, bound: dict | None) -> None:
+    """Dán URL video tay: kiểm kênh bằng API; sai kênh thì cảnh báo đỏ và không có đường ghi."""
+    key, rk = f"man_url_{slug}_{v.number}", f"man_res_{slug}_{v.number}"
+    with st.expander("Dán link video đã upload (khi app chưa đề xuất)"):
+        url = st.text_input("Link video YouTube hoặc Studio", key=key)
+        if st.button("Kiểm link", key=f"man_go_{slug}_{v.number}", disabled=not (url.strip() and cfg.api_key())):
+            try:
+                S[rk] = upl.check_video_url(conn, slug, url, api_key=cfg.api_key())
+            except (upl.UploadError, YouTubeError, httpx.HTTPError) as e:
+                S.pop(rk, None)
+                st.error(str(e) or type(e).__name__)
+        r = S.get(rk)
+        if not r:
+            return
+        if r["status"] == upl.CHANNEL_UNBOUND:
+            st.warning("Kênh chưa gán URL YouTube. Gán kênh trước (dán URL một video ở mục Khai kênh là đủ).")
+        elif r["status"] == upl.CHANNEL_MISMATCH:
+            other = f" (kênh «{r['other_slug']}»)" if r.get("other_slug") else ""
+            st.error(f"Video này thuộc kênh YouTube khác{other}, không phải kênh «{(bound or {}).get('title', slug)}». Không ghi được.")
+        elif r["status"] == upl.NOT_READABLE:
+            st.info("Không đọc được video (riêng tư hoặc chưa public). Dùng nút «Đã upload, chờ public».")
+        else:
+            st.success(f"Đúng kênh · «{r['title']}» · {r['privacy']} · {_fmt_date(r['published_at'])}")
+            if r["privacy"] != upl.PRIVACY_PUBLIC:
+                st.info("Video chưa public. Dùng «Đã upload, chờ public»; khi public sẽ xác nhận được.")
+            else:
+                st.button("Xác nhận video này", key=f"man_stage_{slug}_{v.number}", on_click=_cb_stage,
+                          args=(slug, [_row(slug, v, r["video_id"], r["published_at"])]))
+
+
+def _pending_block(slug: str, v, st_row: dict) -> None:
+    st.error("⚠️ Ghi thiếu catalog: folder và project.json đã ghi, catalog chưa. Link và ngày đã được lưu để thử lại.")
+    if st.button("Thử lại ghi catalog", key=f"retry_{slug}_{v.number}"):
+        with st.spinner("Đang ghi lại…"):
+            r = upl.retry_pending(conn, slug, v.number, cfg.SOCIAL_MEDIA_ROOT)
+        _scan_cached.clear()
+        if r.ok:
+            S["up_result"] = ([f"{slug} {v.number:03d}: đã ghi đủ."], [])
+        else:
+            S["up_result"] = ([], [f"{slug} {v.number:03d}: {r.message}"])
+        st.rerun()
 
 
 def _extras(v) -> None:
@@ -279,6 +347,8 @@ def _card_pipeline(slug: str, v, status: str, st_row: dict, props: list, remotes
         return
     if v.youtube_url or st_row.get("video_url"):
         st.success(f"Link: {v.youtube_url or st_row.get('video_url')}")
+    if status == us.GHI_THIEU:
+        _pending_block(slug, v, st_row)
 
     missing = us.missing_items(has_mp4=bool(v.mp4s), has_title=bool(v.title), has_description=bool(v.description), has_thumb_candidates=bool(v.thumbnails))
     if missing:
@@ -316,7 +386,7 @@ def _card_pipeline(slug: str, v, status: str, st_row: dict, props: list, remotes
         for i, t in enumerate(v.thumbnails):
             with cols[i % 3]:
                 p = v.folder / t.rel
-                _image(p, use_container_width=True)
+                _image(p, width="stretch")
                 st.checkbox(f"Chọn · {t.rel}", value=t.rel in saved, key=keys[t.rel], on_change=_cb_thumb, args=(slug, number, keys, t.rel))
                 _code(str(p))
         if S.get("_up_thumb_warn") == (slug, number):
@@ -326,7 +396,9 @@ def _card_pipeline(slug: str, v, status: str, st_row: dict, props: list, remotes
     else:
         st.caption("Không có ảnh ứng viên.")
 
-    _proposal_block(slug, v, props, remotes)
+    _proposal_block(slug, v, props, remotes, status)
+    if bound and status in (us.CAN_XAC_NHAN, us.SAN_SANG, us.THIEU_DO, us.CHO_PUBLIC, us.DA_DANG_CHUA_LINK):
+        _manual_block(slug, v, bound)
     c1, c2 = st.columns(2)
     if st_row.get("manual_state") == WAIT_PUBLIC:
         c1.button("Bỏ đánh dấu chờ public", key=f"unwait_{slug}_{number}", on_click=_cb_wait, args=(slug, number, False))
@@ -351,12 +423,116 @@ def _card_old(slug: str, v, status: str, st_row: dict, props: list, remotes: dic
         _code(text)
     else:
         st.caption("Folder này không có file mô tả.")
-    _proposal_block(slug, v, props, remotes)
+    _proposal_block(slug, v, props, remotes, status)
+    if st_row.get("video_url"):
+        st.button("Bỏ xác nhận", key=f"unconf_{slug}_{v.number}", on_click=_cb_unconfirm, args=(slug, v.number))
+    elif bound:
+        _manual_block(slug, v, bound)
     if st_row.get("manual_state") == WAIT_PUBLIC:
         st.button("Bỏ đánh dấu chờ public", key=f"unwait_{slug}_{v.number}", on_click=_cb_wait, args=(slug, v.number, False))
     else:
         st.button("Đã upload, chờ public", key=f"wait_{slug}_{v.number}", on_click=_cb_wait, args=(slug, v.number, True))
     _open_folder_button(v)
+
+
+# ---------------------------------------------------------------------------
+# Xác nhận: hàng loạt + hộp xác nhận + chạy
+# ---------------------------------------------------------------------------
+def _write_enabled(bound: dict | None) -> bool:
+    return bool(bound and cfg.api_key() and not bound.get("last_error"))
+
+
+def _batch_ui(slug: str, ch_scan, status: dict, props_by_key: dict, remotes: dict, bound: dict | None) -> None:
+    """Hàng loạt chỉ cho đề xuất mạnh. Nhóm bổ sung link và video cũ tick sẵn; nhóm đổi tên thì không."""
+    groups: dict[str, list] = {us.GROUP_SUPPLEMENT: [], us.GROUP_RENAME: [], us.GROUP_OLD: []}
+    for v in ch_scan.videos:
+        if status[v.number] != us.CAN_XAC_NHAN:
+            continue
+        p = us.selectable_strong(props_by_key[v.key], v.key)
+        if p:
+            groups[us.confirm_group(v.kind, v.state)].append((v, p))
+    if not any(groups.values()):
+        return
+    with st.expander("Xác nhận hàng loạt (chỉ đề xuất mạnh)", expanded=True):
+        picked: list[dict] = []
+        for g, items in groups.items():
+            if not items:
+                continue
+            st.markdown(f"**{us.GROUP_LABELS[g]}** ({len(items)})")
+            keys = []
+            for v, p in items:
+                k = f"bat_{slug}_{v.number}"
+                keys.append(k)
+                S.setdefault(k, g != us.GROUP_RENAME)
+                rv = remotes.get(p.video_id)
+                st.checkbox(f"{v.name} → {_yt_url(p.video_id)} · {_fmt_date(rv.published_at if rv else None)}", key=k)
+                if S[k]:
+                    picked.append(_row(slug, v, p.video_id, rv.published_at if rv else None))
+            if g == us.GROUP_RENAME:
+                st.button("Chọn tất cả đề xuất mạnh", key=f"bat_all_{slug}", on_click=_cb_select_all_rename, args=(keys,))
+        st.button(f"Xem lại và xác nhận ({len(picked)})", key=f"bat_go_{slug}", type="primary", disabled=not picked,
+                  on_click=_cb_stage, args=(slug, picked))
+        st.caption("Đề xuất yếu không vào hàng loạt: mở từng thẻ để xác nhận.")
+
+
+@st.dialog("Xác nhận ghi", width="large", on_dismiss=_cb_cancel_batch)
+def _confirm_dialog(batch: dict, ch_scan, bound: dict | None) -> None:
+    """Hộp thoại nổi giữa màn hình: luôn trong tầm nhìn dù thẻ video nằm sâu hay đang cuộn."""
+    slug, rows = batch["slug"], batch["rows"]
+    has_local = any(r["group"] != us.GROUP_OLD for r in rows)
+    has_rename = any(r["group"] == us.GROUP_RENAME for r in rows)
+    st.markdown(f"**{len(rows)} video**")
+    for r in rows:
+        st.markdown(f"- **{us.GROUP_LABELS[r['group']]}** · `{r['name']}` → {_yt_url(r['video_id'])} · {_fmt_date(r['published_at'])}")
+    if has_rename:
+        st.warning("Folder sẽ được đổi tên sang `__PUBLISHED`. Draft CapCut sẽ mất liên kết với folder cũ và KHÔNG có lệnh huỷ. "
+                   "Đóng File Explorer, CapCut và Studio đang upload trước khi ghi.")
+    elif has_local:
+        st.info("Chỉ bổ sung link và ngày vào project.json và sổ ghi nhận. Folder không đổi tên.")
+    blocked = has_local and not _write_enabled(bound)
+    if blocked:
+        st.error("API YouTube đang lỗi hoặc chưa có key nên chưa ghi được video pipeline. Thẻ và «Đã upload, chờ public» vẫn dùng được.")
+    c1, c2 = st.columns(2)
+    go = c1.button("Ghi vào máy", key=f"batch_run_{slug}", type="primary", disabled=blocked)
+    if c2.button("Huỷ", key=f"batch_cancel_{slug}"):
+        S.pop("up_batch", None)
+        st.rerun()
+    if not go:
+        return
+    done, errs = [], []
+    prog = st.progress(0.0)
+    for i, r in enumerate(rows):
+        label = f"{slug} {r['number']:03d}"
+        if r["group"] == us.GROUP_OLD:
+            upl.confirm_old(conn, slug, r["number"], r["video_id"], r["published_at"] or None)
+            done.append(f"{label}: đã ghi vào app.")
+        else:
+            res = upl.confirm_pipeline(conn, slug, r["number"], r["video_id"], cfg.SOCIAL_MEDIA_ROOT, api_key=cfg.api_key())
+            _scan_cached.clear()
+            if res.ok:
+                done.append(f"{label}: đã ghi (folder, project.json, sổ ghi nhận).")
+            else:
+                head = "Ghi thiếu catalog (có nút thử lại trên thẻ). " if res.status == pipectl.CATALOG_PENDING else ""
+                errs.append(f"{label}: {head}{res.message}")
+                errs.append("Dừng ở lỗi đầu tiên, các video sau chưa ghi.")
+                break
+        prog.progress((i + 1) / len(rows))
+    S.pop("up_batch", None)
+    S["up_result"] = (done, errs)
+    st.rerun()
+
+
+@st.dialog("Kết quả ghi", width="large")
+def _result_dialog(done: list, errs: list) -> None:
+    """Kết quả (nhất là lỗi) nằm trong hộp thoại cho tới khi owner bấm Đóng; không tự tắt."""
+    for m in done:
+        st.success(m)
+    for m in errs:
+        st.error(m)
+    if not done and not errs:
+        st.info("Không có gì để báo.")
+    if st.button("Đóng", key="result_close", type="primary"):
+        st.rerun()
 
 
 # ---------------------------------------------------------------------------
@@ -390,6 +566,7 @@ def _render_channel(slug: str, ch_scan, bound: dict | None, token: float, cross:
         if w.channel_slug == slug:
             st.error(f"Khớp chéo: tiêu đề video {w.number:03d} của kênh này đang xuất hiện trên kênh «{w.other_slug}» ({_yt_url(w.video_id)}).")
     _binding_ui(slug, ch_scan, bound)
+    _batch_ui(slug, ch_scan, status, props_by_key, remotes, bound)
 
     open_props = [p for ps in props_by_key.values() for p in ps]
     todo_videos = [v for v in ch_scan.videos if status[v.number] in us.TODO_ORDER]
@@ -461,6 +638,14 @@ if top[2].button("Cập nhật từ YouTube", disabled=not (bound_all and cfg.ap
     S["_up_msg"] = [f"{k}: {n} video" for k, n in r.counts.items()] + [f"{k}: lỗi {e}" for k, e in r.errors.items()]
     st.rerun()
 
+# Hộp thoại (một cái mỗi lần chạy): kết quả ghi trước, rồi hộp xác nhận. Hộp xác nhận giữ trạng thái tới khi Huỷ, ghi xong hoặc đóng bằng dấu X (on_dismiss xoá).
+_res = S.pop("up_result", None)
+_batch = S.get("up_batch")
+if _res:
+    _result_dialog(*_res)
+elif _batch and _batch["slug"] in scan.channels:
+    _confirm_dialog(_batch, scan.channels[_batch["slug"]], bound_all.get(_batch["slug"]))
+
 slugs = list(scan.channels)
 status_by_slug = {}
 for slug in slugs:
@@ -497,6 +682,23 @@ if chosen_slug:
     _render_channel(chosen_slug, scan.channels[chosen_slug], bound_all.get(chosen_slug), data["at"], S["_up_cross"])
 
 st.caption(f"Hàng đợi dựng trong {time.perf_counter() - _T0:.2f} giây (dữ liệu pipectl/folder dùng lại tối đa {RELOAD_S} giây).")
+
+# Thử lại ghi thiếu: chỉ khi có mục catalog_pending, sau khi trang đã hiện, một lần mỗi phiên (không theo chu kỳ).
+if not S.get("_up_pend_done"):
+    S["_up_pend_done"] = True
+    pend = repo.list_pending(conn)
+    if pend:
+        errs, ok_n = [], 0
+        with st.spinner("Đang thử lại các mục ghi thiếu…"):
+            for p in pend:
+                r = upl.retry_pending(conn, p["channel_slug"], p["number"], cfg.SOCIAL_MEDIA_ROOT)
+                ok_n += r.ok
+                if not r.ok:
+                    errs.append(f"{p['channel_slug']} {p['number']:03d}: {r.message}")
+        _scan_cached.clear()
+        if ok_n or errs:
+            S["up_result"] = ([f"Thử lại tự động: đã ghi đủ cho {ok_n} video."] if ok_n else [], errs)
+        st.rerun()
 
 # Làm mới nền: sau khi trang đã hiện, một lần mỗi phiên, chỉ khi ảnh chụp cũ.
 if not S.get("_up_auto_done"):

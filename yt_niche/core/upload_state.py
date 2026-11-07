@@ -137,3 +137,30 @@ def proposals_for(proposals, key: tuple[str, int]) -> list:
     if strong:
         return strong
     return sorted(mine, key=lambda p: -p.score)[:MAX_WEAK_SHOWN]
+
+
+# ---------------------------------------------------------------------------
+# Nhóm xác nhận (C5)
+# ---------------------------------------------------------------------------
+GROUP_SUPPLEMENT = "supplement"  # pipeline đã __PUBLISHED, chỉ bổ sung link: không đổi tên folder, tick sẵn đề xuất mạnh
+GROUP_RENAME = "rename"  # pipeline chưa __PUBLISHED: đổi tên folder, không tick sẵn
+GROUP_OLD = "old"  # video cũ: chỉ ghi DB app
+
+GROUP_LABELS = {
+    GROUP_SUPPLEMENT: "Bổ sung link (folder đã __PUBLISHED, không đổi tên)",
+    GROUP_RENAME: "Đổi tên folder sang __PUBLISHED",
+    GROUP_OLD: "Video cũ (chỉ ghi vào app)",
+}
+
+
+def confirm_group(kind: str, run_state: str | None) -> str:
+    if kind == "old":
+        return GROUP_OLD
+    return GROUP_SUPPLEMENT if run_state == "published" else GROUP_RENAME
+
+
+def selectable_strong(proposals, key: tuple[str, int]):
+    """Đề xuất mạnh duy nhất của một video (để đưa vào hàng loạt); không có hoặc mơ hồ thì None.
+    Đề xuất yếu KHÔNG BAO GIỜ vào hàng loạt."""
+    strong = [p for p in proposals if (p.channel_slug, p.number) == key and p.strength == "strong"]
+    return strong[0] if len(strong) == 1 else None
