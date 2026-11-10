@@ -118,6 +118,48 @@ def test_stale_snapshot_refreshes_once_per_session(env):
     assert env["refresh"] == [[SLUG]]
 
 
+def second_channel(env):
+    pipeline(env["root"] / "chan-b", "11-01_chan-b-video-001-x", "001", title="Bee")
+
+
+def test_selected_channel_survives_reopening_the_app(env):
+    second_channel(env)
+    at = run_page()
+    assert at.radio(key="up_chan").value == "chan-a"
+    at.radio(key="up_chan").set_value("chan-b").run()
+    assert not at.exception
+    assert repo.get_selected_channel(env["db"]) == "chan-b"
+    assert run_page().radio(key="up_chan").value == "chan-b"  # phiên mới, như mở lại app
+
+
+def test_saved_channel_that_no_longer_exists_falls_back_to_first(env):
+    second_channel(env)
+    repo.set_selected_channel(env["db"], "da-xoa")
+    assert run_page().radio(key="up_chan").value == "chan-a"
+
+
+def test_history_lists_uploaded_video_under_its_day_without_calling_anything_new(env):
+    bind(env["db"])
+    repo.replace_remote(env["db"], CID, [{"video_id": "vidA", "title": "Không thuộc folder", "published_at": "2026-11-05T10:00:00Z"}])
+    at = run_page()
+    assert all(c[0] == "runs" for c in env["calls"])
+    assert env["refresh"] == []
+    at.selectbox(key="up_h_days").set_value("Tất cả").run()
+    assert not at.exception
+    text = "\n".join(m.value for m in at.markdown)
+    assert "05/11/2026" in text
+    assert "https://www.youtube.com/watch?v=vidA" in text
+    assert "chưa thuộc folder nào" in text
+
+
+def test_history_filter_survives_a_rerun(env):
+    second_channel(env)
+    at = run_page()
+    at.selectbox(key="up_h_chan").set_value("chan-b").run()
+    at.run()
+    assert at.selectbox(key="up_h_chan").value == "chan-b"
+
+
 def test_page_source_never_touches_catalog_or_mark_published():
     src = PAGE.read_text(encoding="utf-8")
     for bad in ("catalog_db", "mark_published", "mark-published", "subprocess", "st.video"):

@@ -14,6 +14,7 @@ import streamlit as st
 
 from yt_niche import config as cfg
 from yt_niche.core import upload_facebook as fbm
+from yt_niche.core import upload_history as uh
 from yt_niche.core import upload_match as um
 from yt_niche.core import upload_state as us
 from yt_niche.db import uploads as repo
@@ -25,6 +26,8 @@ from yt_niche.ui.common import get_conn
 RELOAD_S = 120  # dữ liệu pipectl + quét folder dùng lại trong phiên bấy nhiêu giây
 STALE_MIN = 30  # ảnh chụp video YouTube cũ hơn thì tự làm mới (một lần mỗi phiên)
 META_MAX_CHARS = 20000
+HISTORY_ALL = "Tất cả kênh"
+HISTORY_DAYS = {"7 ngày": 7, "30 ngày": 30, "90 ngày": 90, "Tất cả": None}
 WAIT_PUBLIC = "waiting_public"
 NL = chr(10)
 
@@ -890,11 +893,74 @@ def _chan_label(slug: str) -> str:
     return f"{scan.channels[slug].info.name or slug} · {status_by_slug[slug]}{flag}"
 
 
-# Kênh đang chọn nhớ ở khoá riêng: st.rerun() trong hộp thoại chạy trước khi radio được dựng nên Streamlit xoá khoá của widget.
-if S.get("up_chan") not in slugs and slugs:
-    S["up_chan"] = S["_up_chan_keep"] if S.get("_up_chan_keep") in slugs else slugs[0]
+def _sticky(key: str, options: list, default) -> None:
+    """Giữ lựa chọn của widget: st.rerun() trong hộp thoại chạy trước khi widget được dựng nên Streamlit xoá khoá của nó."""
+    if S.get(key) not in options:
+        kept = S.get(f"_keep_{key}")
+        S[key] = kept if kept in options else default
+
+
+def _history_entries() -> list[uh.Entry]:
+    out: list[uh.Entry] = []
+    for slug, ch_scan in scan.channels.items():
+        bound = bound_all.get(slug)
+        states = {s["number"]: s for s in repo.list_states(conn, slug)}
+        props = _propose(slug, ch_scan, bound, data["at"]).proposals if bound else []
+        out += uh.channel_entries(slug, ch_scan.videos, states, _remotes(bound), props)
+    return out
+
+
+def _history_name(slug: str) -> str:
+    return scan.channels[slug].info.name or slug
+
+
+def _history_row(e: uh.Entry, multi: bool) -> str:
+    title = uh.escape_md(e.title)[:90] or "(không có tiêu đề)"
+    parts = [uh.time_label(e.published_at, fbm.VN_TZ)]
+    if multi:
+        parts.append(f"**{uh.escape_md(_history_name(e.channel_slug))}**")
+    if e.number is not None:
+        parts.append(f"{e.number:03d}")
+    parts.append(f"[{title}]({e.url})" if e.url else title)
+    parts.append(uh.BADGES[e.source])
+    return " · ".join(parts)
+
+
+def _history_ui() -> None:
+    """Video đã upload theo ngày, giờ VN. Chỉ đọc dữ liệu đã lưu: không gọi YouTube, không đổi gì."""
+    entries = _history_entries()
+    today = _now().astimezone(fbm.VN_TZ).date()
+    n_today = sum(uh.local_day(e.published_at, fbm.VN_TZ) == today for e in entries)
+    with st.expander(f"Đã upload theo ngày · hôm nay {n_today} video"):
+        names = [HISTORY_ALL, *slugs]
+        _sticky("up_h_chan", names, HISTORY_ALL)
+        _sticky("up_h_days", list(HISTORY_DAYS), "30 ngày")
+        c1, c2 = st.columns([3, 1])
+        pick = c1.selectbox("Kênh", names, key="up_h_chan", format_func=lambda s: s if s == HISTORY_ALL else _history_name(s))
+        span = c2.selectbox("Trong", list(HISTORY_DAYS), key="up_h_days")
+        S["_keep_up_h_chan"], S["_keep_up_h_days"] = pick, span
+        multi = pick == HISTORY_ALL
+        shown = entries if multi else [e for e in entries if e.channel_slug == pick]
+        days = uh.by_day(uh.within_days(shown, HISTORY_DAYS[span], today, fbm.VN_TZ), fbm.VN_TZ)
+        if not days:
+            st.caption("Chưa có video nào trong khoảng này.")
+            return
+        for d, rows in days:
+            counts = ", ".join(f"{uh.escape_md(_history_name(s))} {n}" for s, n in uh.channel_counts(rows).items())
+            st.markdown(f"**{uh.day_label(d, today)}** · {len(rows)} video" + (f" ({counts})" if multi else ""))
+            st.markdown(NL.join(f"- {_history_row(e, multi)}" for e in rows))
+        st.caption("Giờ VN. Danh sách từ YouTube là lần cập nhật gần nhất. Video «đã đánh dấu» hoặc «chờ đổi tên» có thể mang giờ ước tính.")
+
+
+_history_ui()
+
+# Kênh đang chọn nhớ cả trong DB nên mở lại app vẫn đúng kênh đang làm dở.
+_saved_chan = repo.get_selected_channel(conn)
+_sticky("up_chan", slugs, _saved_chan if _saved_chan in slugs else (slugs[0] if slugs else None))
 chosen_slug = st.radio("Kênh", slugs, key="up_chan", horizontal=True, format_func=_chan_label)
-S["_up_chan_keep"] = chosen_slug
+S["_keep_up_chan"] = chosen_slug
+if chosen_slug and chosen_slug != _saved_chan:
+    repo.set_selected_channel(conn, chosen_slug)
 
 # khớp chéo giữa các kênh đã gán
 cross_key = (data["at"], tuple(sorted((s, c.get("last_refresh_at")) for s, c in bound_all.items())))

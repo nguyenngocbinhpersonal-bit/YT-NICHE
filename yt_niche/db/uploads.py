@@ -7,10 +7,22 @@ import sqlite3
 from datetime import datetime, timezone
 
 MAX_THUMBS = 3
+SELECTED_CHANNEL_KEY = "upload.selected_channel"
 
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# ---- kênh đang chọn trên trang (nhớ qua các lần mở app) ----
+
+def get_selected_channel(conn: sqlite3.Connection) -> str | None:
+    r = conn.execute("SELECT value FROM app_meta WHERE key = ?", (SELECTED_CHANNEL_KEY,)).fetchone()
+    return r["value"] if r else None
+
+
+def set_selected_channel(conn: sqlite3.Connection, slug: str) -> None:
+    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)", (SELECTED_CHANNEL_KEY, slug))
 
 
 # ---- upload_channel ----
