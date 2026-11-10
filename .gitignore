@@ -13,3 +13,6 @@ yt_niche.egg-info/
 !.claude/skills/
 .secrets/
 data/radar_errors.log
+
+# Meeting notes (local only)
+.meetings-note/
