@@ -29,7 +29,7 @@ WAIT_PUBLIC = "waiting_public"
 NL = chr(10)
 
 _T0 = time.perf_counter()
-st.title("📤 Upload")
+st.title("Upload")
 conn = get_conn()
 S = st.session_state
 
@@ -283,7 +283,7 @@ def _proposal_block(slug: str, v, props: list, remotes: dict, status: str) -> No
     for p in props:
         rv = remotes.get(p.video_id)
         title = rv.title if rv else ""
-        kind = "🟢 Đề xuất mạnh" if p.strength == um.STRONG else f"🟡 Đề xuất yếu ({p.score:.0%}, {p.reason})"
+        kind = "Đề xuất mạnh" if p.strength == um.STRONG else f"Đề xuất yếu ({p.score:.0%}, {p.reason})"
         c1, c2 = st.columns([5, 2])
         c1.markdown(f"{kind}: [{title}]({_yt_url(p.video_id)})  \nNgày đăng: {_fmt_date(rv.published_at if rv else None)}")
         c2.button("Không phải video này", key=f"rej_{slug}_{v.number}_{p.video_id}", on_click=_cb_reject, args=(slug, v.number, p.video_id))
@@ -324,7 +324,7 @@ def _manual_block(slug: str, v, bound: dict | None) -> None:
 
 
 def _pending_block(slug: str, v, st_row: dict) -> None:
-    st.error("⚠️ Ghi thiếu catalog: folder và project.json đã ghi, catalog chưa. Link và ngày đã được lưu để thử lại.")
+    st.error("Ghi thiếu catalog: folder và project.json đã ghi, catalog chưa. Link và ngày đã được lưu để thử lại.")
     if st.button("Thử lại ghi catalog", key=f"retry_{slug}_{v.number}"):
         with st.spinner("Đang ghi lại…"):
             r = upl.retry_pending(conn, slug, v.number, cfg.SOCIAL_MEDIA_ROOT)
@@ -398,7 +398,7 @@ def _mark_block(slug: str, v, status: str, plat: str) -> None:
 
 
 def _waiting_block(slug: str, v, st_row: dict) -> None:
-    st.info(f"🕐 Sẽ đổi tên lúc {_vn_time(st_row.get('due_at'))} (giờ VN). Trong lúc chờ vẫn huỷ được; đã đổi tên thì không có lệnh huỷ.")
+    st.info(f"Sẽ đổi tên lúc {_vn_time(st_row.get('due_at'))} (giờ VN). Trong lúc chờ vẫn huỷ được; đã đổi tên thì không có lệnh huỷ.")
     if st_row.get("try_error"):
         retry = f" Sẽ thử lại lúc {_vn_time(st_row['next_try_at'])}." if st_row.get("next_try_at") else ""
         st.warning(f"Chưa đổi tên được: {st_row['try_error']}.{retry}")
@@ -886,7 +886,7 @@ def _chan_label(slug: str) -> str:
     if upl.platform_of(conn, slug) == us.FACEBOOK:
         flag = " · Facebook"
     else:
-        flag = "" if slug in bound_all else " ⚠️ chưa khai URL"
+        flag = "" if slug in bound_all else " chưa khai URL"
     return f"{scan.channels[slug].info.name or slug} · {status_by_slug[slug]}{flag}"
 
 
